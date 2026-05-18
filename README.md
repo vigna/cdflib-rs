@@ -55,32 +55,89 @@ The Rust statistical ecosystem already has [`statrs`](https://crates.io/crates/s
 
 The goal of `cdflib-rs` is to combine a `statrs`-shaped public API with CDFLIB-grade numerics, fill in the missing noncentral distributions, and expose the parameter solvers. The underlying special functions (`gamma_inc`, `beta_inc`, `error_f`, `cumnor`, etc.) are exposed publicly in a `cdflib::special` module for users who want the kernels without the distribution wrappers.
 
-## Planned API (illustrative — not yet implemented)
+## Examples
+
+### CDFs, survival functions, and inverses
 
 ```rust
-use cdflib::{Normal, ChiSquared, Binomial};
-use cdflib::traits::{ContinuousCdf, DiscreteCdf, Continuous, Mean};
+use cdflib::Normal;
+use cdflib::traits::{Continuous, ContinuousCdf, Mean};
 
-// CDFs, survival functions, inverses
 let n = Normal::new(0.0, 1.0)?;
-let p   = n.cdf(1.96);              // ≈ 0.975
-let sf  = n.sf(5.0);                // ≈ 2.87e-7, computed directly (not via 1 - cdf)
-let x   = n.inverse_cdf(0.975)?;    // ≈ 1.96
-let xs  = n.inverse_sf(1e-9)?;      // accurate deep into the right tail
-let d   = n.pdf(0.0);
-let mu  = n.mean();
-
-// Parameter solvers — CDFLIB's signature feature
-let mean    = Normal::solve_mean(0.975, 1.96, 1.0)?;       // mean s.t. P(X ≤ 1.96) = 0.975 with σ = 1
-let df      = ChiSquared::solve_df(0.95, 3.84)?;           // df s.t. P(X ≤ 3.84) = 0.95
-let n_needed = Binomial::solve_trials(0.95, 0.3, 10)?;     // trials needed for P(S ≤ 10) ≥ 0.95 at pr = 0.3
-
-// Special functions directly
-use cdflib::special::{gamma_inc, error_f, cumnor};
-let (p, q) = gamma_inc(2.5, 1.7);   // (P(2.5, 1.7), Q(2.5, 1.7))
-let e      = error_f(0.8);
-let (phi, sphi) = cumnor(1.96);     // (Φ(1.96), 1 - Φ(1.96))
+let p   = n.cdf(1.96);              // 0.9750021048517796
+let sf  = n.sf(5.0);                // 2.866516e-7, computed directly (not 1 - cdf)
+let x   = n.inverse_cdf(0.975)?;    // 1.9599639845400538
+let xs  = n.inverse_sf(1e-12)?;     // 7.034484  — accurate deep into the right tail
+let d   = n.pdf(0.0);               // 0.3989422804014327
+let mu  = n.mean();                 // 0.0
+# Ok::<(), cdflib::NormalError>(())
 ```
+
+### Parameter solvers — CDFLIB's signature feature
+
+Given `p = F(x; θ₁, θ₂, …)`, you can solve for **any one** parameter when the others are known. Two practical uses:
+
+```rust
+use cdflib::{ChiSquared, Poisson};
+
+// Upper 95% confidence bound on λ after observing 3 Poisson events
+// (the Garwood / exact-Poisson interval).
+let lambda_hi = Poisson::solve_lambda(0.05, 3)?;
+// 7.7537
+
+// Degrees of freedom that put 95% of a χ² distribution below x = 3.84
+// (recovers df = 1, the classic likelihood-ratio test critical value).
+let df = ChiSquared::solve_df(0.95, 3.84)?;
+// 0.9994
+# Ok::<(), cdflib::PoissonError>(())
+```
+
+### Power of a noncentral chi-squared test
+
+`statrs` does not currently provide noncentral distributions; `cdflib-rs` does:
+
+```rust
+use cdflib::{ChiSquared, ChiSquaredNoncentral};
+use cdflib::traits::ContinuousCdf;
+
+// Critical value of a χ²(5) test at α = 0.05.
+let crit = ChiSquared::new(5.0)?.inverse_cdf(0.95)?;
+// 11.0705
+
+// Power against a noncentral alternative with ncp = 10.
+let power = ChiSquaredNoncentral::new(5.0, 10.0)?.sf(crit);
+// 0.6774
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+### Special functions directly
+
+The kernels are public for users who want the numerics without a distribution wrapper:
+
+```rust
+use cdflib::special::{cumnor, error_f, gamma_inc};
+
+let (p, q)      = gamma_inc(2.5, 1.7);  // (0.3614, 0.6386) = (P(2.5,1.7), Q(2.5,1.7))
+let e           = error_f(0.8);         // 0.7421
+let (phi, sphi) = cumnor(1.96);         // (0.9750, 0.0250) = (Φ(1.96), 1 - Φ(1.96))
+```
+
+## Tail-precision comparison with `statrs`
+
+The README claims `cdflib-rs` stays accurate in the tails where `statrs`'s textbook implementations do not. The clearest demonstration: any time `1 - cdf(x)` falls below `2·f64::EPSILON ≈ 4.4e-16`, `statrs` returns exactly `0.0` for the survival function — its `sf` is computed as `1.0 - self.cdf(x)`. `cdflib-rs` returns the correct tiny number, because it computes the upper tail directly from `gamma_inc` / `beta_inc` / `cumnor`.
+
+The numbers below are direct measurements against `statrs = "0.18"`:
+
+| Query                                 | `cdflib-rs`     | `statrs` (`1 - cdf`) |
+| ------------------------------------- | --------------- | -------------------- |
+| `Normal::standard().sf(10.0)`         | `7.620e-24`     | `0.0`                |
+| `Normal::standard().sf(15.0)`         | `3.671e-51`     | `0.0`                |
+| `ChiSquared(df=2).sf(100.0)`          | `1.929e-22`     | `0.0`                |
+| `Poisson(λ=1).sf(20)`                 | `7.543e-21`     | `0.0`                |
+| `Poisson(λ=1e5).sf(110_000)`          | `6.748e-213`    | `0.0`                |
+| `StudentsT(df=100).sf(20.0)`          | `4.997e-37`     | `0.0`                |
+
+These aren't pathological inputs — z-scores of 10, χ² test statistics near 100, and Poisson tails with `λ = 10⁵` arise routinely in high-statistics physics analyses, GWAS p-value calculations, and rare-event detection. In any of those, `statrs` silently reports "impossible" while the true probability is tiny but well-defined. In the body of each distribution the two libraries agree to 10–14 digits; the divergence is concentrated at the floor of `f64` subtraction. Noncentral distributions are an additional point of divergence, since `statrs` does not implement them at all.
 
 ## Design
 

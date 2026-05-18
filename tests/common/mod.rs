@@ -17,22 +17,8 @@ use std::path::Path;
 // ---------------------------------------------------------------------
 // Tolerance constants
 //
-// Target: 10⁻¹⁴ everywhere. That's one digit shy of `f64::EPSILON`
-// (≈ 2.22·10⁻¹⁶), which is the tightest a relative-tolerance test on
-// non-bit-identical implementations can realistically hold across a
-// wide parameter grid. CDFLIB's internal convergence criteria target
-// `5·10⁻¹⁵`, so 10⁻¹⁴ leaves about one digit of slack for the
-// last-bit-wobble of the convergence test itself.
-//
-// Two regimes legitimately can't hit 10⁻¹⁴ at the test level:
-//   - The noncentral distributions use Poisson-mixture series whose
-//     convergence criteria are configured to `1e-5` (chi²) and `1e-4`
-//     (F) inside `cumchn`/`cumfnc` themselves. Tightening below those
-//     limits would mean testing against the C noise floor.
-//   - The `dinvr`-driven inverses converge to whatever bracket
-//     `dzror` produces; we tightened `rel_tol` to `1e-13` (see
-//     `src/solver/mod.rs`), but the final answer carries one more
-//     digit of slack from the Newton/inverse-quadratic step.
+// These bounds represent the empirical precision floor of the Rust
+// port compared to the original C/Fortran implementation.
 // ---------------------------------------------------------------------
 
 /// Default relative tolerance: one digit shy of `f64::EPSILON`.
@@ -73,11 +59,6 @@ pub const INVERSE_REL_TOL: f64 = 1e-13;
 /// `dinvr`-driven inverses where the forward CDF chains through an
 /// iterative kernel (`StudentsT::inverse_cdf`, `Beta::inverse_cdf`,
 /// `ChiSquared::inverse_cdf`, …).
-///
-/// Theoretical floor: `DISTRIBUTION_REL_TOL / |f'(x)|`. The worst case
-/// in the current test suite is the Student's t at its 0.975 quantile,
-/// where `f' ≈ 0.05` and the function noise of `5e-13` projects out to
-/// `1e-11` in `x`-space. We use 1e-11 here.
 pub const CHAINED_INVERSE_REL_TOL: f64 = 1e-11;
 
 /// Noncentral distributions (`cumchn`). Despite CDFLIB's internal
@@ -185,4 +166,3 @@ pub fn read_csv(rel_path: &str) -> Vec<Vec<f64>> {
     }
     rows
 }
-
