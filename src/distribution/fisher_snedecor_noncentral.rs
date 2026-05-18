@@ -59,8 +59,9 @@ impl FisherSnedecorNoncentral {
     pub fn solve_dfd(p: f64, f: f64, dfn: f64, ncp: f64) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
         let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
+        // CDF is increasing in dfd for fixed f, dfn, ncp.
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
+            BracketStrategy::Increasing {
                 small: 1.0,
                 big: 1e15,
                 start: 2.0,

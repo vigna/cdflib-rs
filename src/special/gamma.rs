@@ -703,7 +703,7 @@ fn taylor_p_over_xa(a: f64, x: f64, acc: f64) -> (f64, f64) {
     let h = gam1(a);
     let g = 1.0 + h;
     let use_main_form = if x < 0.25 {
-        !(z > -0.13394)
+        z > -0.13394
     } else {
         a < x / 2.59
     };

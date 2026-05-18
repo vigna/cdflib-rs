@@ -6,7 +6,7 @@ mod common;
 
 use cdflib::special::{cumnor, dinvnr, error_f, error_fc, error_fc_scaled};
 use common::{
-    assert_close_eps, read_csv, DEFAULT_ABS_TOL, INVERSE_REL_TOL, KERNEL_REL_TOL,
+    assert_close_eps, read_csv, DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL,
 };
 
 #[test]
@@ -54,6 +54,6 @@ fn dinvnr_matches_reference() {
     // CDFLIB, so we test at `INVERSE_REL_TOL` rather than `KERNEL_REL_TOL`.
     for row in read_csv("tests/data/dinvnr.csv") {
         let [p, q, expected_x] = row[..] else { panic!("width"); };
-        assert_close_eps(dinvnr(p, q), expected_x, INVERSE_REL_TOL, INVERSE_REL_TOL);
+        assert_close_eps(dinvnr(p, q), expected_x, DINVNR_REL_TOL, DINVNR_REL_TOL);
     }
 }

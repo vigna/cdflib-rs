@@ -85,7 +85,7 @@ pub fn beta_log(a0: f64, b0: f64) -> f64 {
     const E: f64 = 0.918938533204673;
 
     let mut a = a0.min(b0);
-    let mut b = a0.max(b0);
+    let b = a0.max(b0);
 
     if a >= 8.0 {
         // Procedure for a ≥ 8.
@@ -197,7 +197,6 @@ pub fn beta(a: f64, b: f64) -> f64 {
 pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     let mut result = 1.0;
     if a > 1e-3 * eps {
-        result = 0.0;
         let t = a * x.ln();
         if t < NEG_EXPARG {
             return 0.0;
@@ -600,7 +599,7 @@ pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
         let z = a * x.ln();
         let h = gam1(a);
         let g = 1.0 + h;
-        let use_main = if x < 0.25 { !(z > -0.13394) } else { a < x / 2.59 };
+        let use_main = if x < 0.25 { z > -0.13394 } else { a < x / 2.59 };
         return if use_main {
             let l = rexp(z);
             let w = 0.5 + (0.5 + l);

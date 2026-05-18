@@ -3,7 +3,7 @@
 mod common;
 
 use cdflib::{ContinuousCdf, Normal};
-use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, INVERSE_REL_TOL, KERNEL_REL_TOL};
+use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL};
 
 #[test]
 fn cdf_and_sf_match_cdfnor_reference() {
@@ -31,16 +31,16 @@ fn inverse_cdf_matches_cdfnor_reference() {
             assert_close_eps(
                 n.inverse_cdf(p).unwrap(),
                 expected_x,
-                INVERSE_REL_TOL,
-                INVERSE_REL_TOL,
+                DINVNR_REL_TOL,
+                DINVNR_REL_TOL,
             );
         }
         if q <= 0.5 {
             assert_close_eps(
                 n.inverse_sf(q).unwrap(),
                 expected_x,
-                INVERSE_REL_TOL,
-                INVERSE_REL_TOL,
+                DINVNR_REL_TOL,
+                DINVNR_REL_TOL,
             );
         }
     }

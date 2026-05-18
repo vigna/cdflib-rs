@@ -75,7 +75,7 @@ where
     // (ftnstop) if `small ≤ x ≤ big` doesn't hold.
     let start = start.clamp(small, big);
 
-    let abs_step = (start.abs().max(1.0)).max(1.0);
+    let abs_step = start.abs().max(1.0);
     let cfg = InvrConfig {
         small,
         big,

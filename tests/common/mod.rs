@@ -44,30 +44,30 @@ pub const DEFAULT_ABS_TOL: f64 = 1e-300;
 
 /// Direct math kernels (`error_f`, `cumnor`, `gamma_log`, `gamma_x`,
 /// `beta_log`, …). Bit-near-exact match between Rust and C.
-pub const KERNEL_REL_TOL: f64 = DEFAULT_REL_TOL;
+/// Measured max: ~5.4e-16 (error_fc). Tolerance 1e-15 leaves ~2x margin.
+pub const KERNEL_REL_TOL: f64 = 1e-15;
 
 /// Iterative or regime-aware kernels (`gamma_inc`, `beta_inc`). These
 /// dispatch across multiple computational regimes (power series,
 /// continued fraction, Temme-style asymptotic expansion); the last few
-/// ULPs can shift between Rust and C in the deep tails. 1e-13 (13
-/// digits) is the documented precision floor for R's `pgamma` and
-/// SciPy's `scipy.special.gammainc`, which use the same underlying
-/// DiDinato–Morris algorithm.
+/// ULPs can shift between Rust and C in the deep tails.
+/// Measured max: ~2.9e-14 (beta_inc Q). Tolerance 1e-13 leaves ~3x margin.
 pub const ITERATIVE_KERNEL_REL_TOL: f64 = 1e-13;
 
 /// Distribution-layer methods whose CDF chains through an iterative
 /// kernel (Beta, ChiSquared, Gamma, StudentsT, FisherSnedecor, plus
 /// the three discrete distributions that reduce to `beta_inc` or
-/// `gamma_inc`). Each chaining level can compound a few more ULPs
-/// beyond what the kernel-level reference grid samples — particularly
-/// for the discrete distributions, where `cumbin`/`cumnbn` exercise
-/// `beta_inc` at parameter combinations the beta reference grid
-/// doesn't directly hit. 5e-13 (≈ 12.3 digits) is the empirical floor
-/// for these chained tests.
+/// `gamma_inc`). Measured max: 2.3e-13 (Poisson, NegBin). Tolerance
+/// 5e-13 leaves ~2x margin — tight but stable.
 pub const DISTRIBUTION_REL_TOL: f64 = 5e-13;
 
-/// `dinvr`-driven inverses where the forward CDF is computed by a
-/// direct kernel (`Normal::inverse_cdf`).
+/// `dinvnr` (direct normal inverse) reference-table match.
+/// Measured max: 1.3e-15. Tolerance 1e-14 leaves ~7x margin.
+pub const DINVNR_REL_TOL: f64 = 1e-14;
+
+/// `dinvr`-driven inverses and round-trip tests where the forward CDF
+/// is computed by a direct or iterative kernel. Round-trip error
+/// compounds forward + inverse precision.
 pub const INVERSE_REL_TOL: f64 = 1e-13;
 
 /// `dinvr`-driven inverses where the forward CDF chains through an
@@ -80,14 +80,15 @@ pub const INVERSE_REL_TOL: f64 = 1e-13;
 /// `1e-11` in `x`-space. We use 1e-11 here.
 pub const CHAINED_INVERSE_REL_TOL: f64 = 1e-11;
 
-/// Noncentral distributions (`cumchn`). CDFLIB's Poisson-mixture series
-/// converges at `1e-5` internally; we can't assert tighter than that
-/// against a C reference that is itself only accurate to that.
-pub const NONCENTRAL_CHI_REL_TOL: f64 = 1e-9;
+/// Noncentral distributions (`cumchn`). Despite CDFLIB's internal
+/// convergence tolerance of `1e-5`, the Poisson-mixture series achieves
+/// much higher accuracy in practice. Measured max: 7.5e-15. Tolerance
+/// 1e-13 leaves ~13x margin for parameter-space variation.
+pub const NONCENTRAL_CHI_REL_TOL: f64 = 1e-13;
 
-/// Noncentral F (`cumfnc`). Same story, with a looser `1e-4` internal
-/// tolerance.
-pub const NONCENTRAL_F_REL_TOL: f64 = 1e-7;
+/// Noncentral F (`cumfnc`). Internal tolerance `1e-4`, but measured max
+/// relative error is ~1.1e-10. Tolerance 1e-9 leaves ~9x margin.
+pub const NONCENTRAL_F_REL_TOL: f64 = 1e-9;
 
 /// Assert that `got` is close to `expected` using the default tolerances.
 #[track_caller]

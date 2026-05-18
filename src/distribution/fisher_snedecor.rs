@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::error::SolverError;
 use crate::solver::{solve_monotone, BracketStrategy};
-use crate::special::{beta_inc, beta_log, gamma_log, psi};
+use crate::special::{beta_inc, beta_log, psi};
 use crate::traits::{
     Continuous, ContinuousCdf, Entropy, Mean, Variance,
 };
@@ -64,8 +64,9 @@ impl FisherSnedecor {
             return Err(FisherSnedecorError::DfnNotPositive(dfn));
         }
         let func = |dfd: f64| FisherSnedecor { dfn, dfd }.cdf(f) - p;
+        // F CDF is increasing in dfd for fixed f > 0 and dfn.
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
+            BracketStrategy::Increasing {
                 small: 1e-300,
                 big: 1e300,
                 start: 1.0,
@@ -207,7 +208,6 @@ impl Entropy for FisherSnedecor {
         //                + (dfn+dfd)/2 · ψ((dfn+dfd)/2)
         let dfn = self.dfn;
         let dfd = self.dfd;
-        let _ = gamma_log; // keep import live
         (dfd / dfn).ln()
             + beta_log(dfn / 2.0, dfd / 2.0)
             + (1.0 - dfn / 2.0) * psi(dfn / 2.0)
