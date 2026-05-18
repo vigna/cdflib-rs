@@ -12,6 +12,21 @@ use crate::traits::{Continuous, ContinuousCdf, Mean, Variance};
 
 /// Noncentral chi-squared distribution with `df > 0` degrees of freedom
 /// and noncentrality parameter `ncp ≥ 0`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::ChiSquaredNoncentral;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let d = ChiSquaredNoncentral::new(5.0, 10.0).unwrap();
+///
+/// // Probability of observing a value ≤ 15.0
+/// let p = d.cdf(15.0);
+///
+/// // Solve for noncentrality parameter given P(X <= 15) = 0.5 and df=5
+/// let ncp = ChiSquaredNoncentral::solve_ncp(0.5, 15.0, 5.0).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquaredNoncentral {
     pub df: f64,

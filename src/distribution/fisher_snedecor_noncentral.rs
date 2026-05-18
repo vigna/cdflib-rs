@@ -8,6 +8,23 @@ use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_inc, gamma_log};
 use crate::traits::{ContinuousCdf, Mean, Variance};
 
+/// Noncentral F distribution. Poisson-mixture of incomplete-beta calls,
+/// direct port of CDFLIB's `cumfnc`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::FisherSnedecorNoncentral;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let d = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0).unwrap();
+///
+/// // P(X <= 4.0)
+/// let p = d.cdf(4.0);
+///
+/// // Solve for noncentrality parameter given P(X <= 4.0) = 0.5, dfn=5, dfd=10
+/// let ncp = FisherSnedecorNoncentral::solve_ncp(0.5, 4.0, 5.0, 10.0).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FisherSnedecorNoncentral {
     pub dfn: f64,

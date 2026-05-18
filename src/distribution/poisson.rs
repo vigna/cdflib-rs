@@ -10,6 +10,29 @@ use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::{gamma_inc, gamma_log};
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
+/// Poisson distribution with rate parameter `lambda`.
+///
+/// Models the number of events occurring in a fixed interval of time or space,
+/// given a known constant mean rate `lambda` and independent occurrences.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::Poisson;
+/// use cdflib::traits::{Discrete, DiscreteCdf, Mean};
+///
+/// let p = Poisson::new(3.0).unwrap();
+/// assert_eq!(p.mean(), 3.0);
+///
+/// // Probability of observing exactly 2 events
+/// let pmf = p.pmf(2);
+///
+/// // Probability of observing 2 or fewer events
+/// let cdf = p.cdf(2);
+///
+/// // Solve for lambda given P(X <= 3) = 0.5
+/// let lambda = Poisson::solve_lambda(0.5, 3).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Poisson {
     pub lambda: f64,

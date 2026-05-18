@@ -69,6 +69,15 @@ const S: [f64; 4] = [
 const C: f64 = 0.564189583547756;
 
 /// Error function `erf(x) = (2/√π) ∫₀ˣ e^(-t²) dt`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::error_f;
+///
+/// let y = error_f(0.8);
+/// assert!((y - 0.74210096).abs() < 1e-8);
+/// ```
 pub fn error_f(x: f64) -> f64 {
     let ax = x.abs();
 
@@ -122,6 +131,15 @@ pub fn error_f(x: f64) -> f64 {
 /// values stay accurate to ~15 digits. CDFLIB exposes this and the scaled
 /// variant [`error_fc_scaled`] via a single `int *ind` flag; we split them
 /// into two Rust functions for clarity.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::error_fc;
+///
+/// let y = error_fc(2.0);
+/// assert!((y - 0.00467773).abs() < 1e-8);
+/// ```
 pub fn error_fc(x: f64) -> f64 {
     error_fc_inner(x, false)
 }

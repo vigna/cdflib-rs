@@ -1,4 +1,4 @@
-//! Sanity tests for the phase-0 scaffolding: error type, traits, and the
+//! Sanity tests for the crate scaffolding: error type, traits, and the
 //! shared test helpers in `tests/common/mod.rs`.
 
 mod common;
@@ -49,6 +49,7 @@ fn assert_close_fails_on_infinity_mismatch() {
 // --- read_csv -------------------------------------------------------------
 
 #[test]
+#[cfg_attr(miri, ignore)] // miri disables filesystem access by default
 fn read_csv_parses_a_simple_table() {
     // Write a temporary fixture then read it back.
     let manifest_dir = env!("CARGO_MANIFEST_DIR");

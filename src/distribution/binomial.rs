@@ -10,7 +10,24 @@ use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::{beta_inc, gamma_log};
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
-/// Binomial(n, pr).
+/// Binomial distribution with `n` trials and success probability `pr`.
+///
+/// Models the number of successes in a sequence of `n` independent Bernoulli trials.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::Binomial;
+/// use cdflib::traits::{Discrete, DiscreteCdf};
+///
+/// let b = Binomial::new(10, 0.3).unwrap();
+///
+/// // Probability of 3 or fewer successes in 10 trials
+/// let cdf = b.cdf(3);
+///
+/// // Solve for success probability given P(S <= 2) = 0.5 and n=10
+/// let pr = Binomial::solve_pr(0.5, 10, 2).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Binomial {
     pub n: u64,

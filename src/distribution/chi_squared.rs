@@ -12,6 +12,21 @@ use crate::special::{gamma_inc, gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Chi-squared distribution with `df` degrees of freedom.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::ChiSquared;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let c = ChiSquared::new(5.0).unwrap();
+///
+/// // P(X <= 11.07) ≈ 0.95
+/// let p = c.cdf(11.07);
+///
+/// // Solve for df given P(X <= 3.84) = 0.95
+/// let df = ChiSquared::solve_df(0.95, 3.84).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquared {
     pub df: f64,

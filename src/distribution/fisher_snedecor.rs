@@ -11,6 +11,21 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// F (Fisher–Snedecor) distribution with `dfn` numerator and `dfd`
 /// denominator degrees of freedom.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::FisherSnedecor;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let f = FisherSnedecor::new(5.0, 10.0).unwrap();
+///
+/// // P(X <= 3.33)
+/// let p = f.cdf(3.33);
+///
+/// // Solve for numerator df given P(X <= 3.33) = 0.95 and dfd=10
+/// let dfn = FisherSnedecor::solve_dfn(0.95, 3.33, 10.0).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FisherSnedecor {
     pub dfn: f64,

@@ -12,6 +12,22 @@ use crate::special::{cumnor, dinvnr};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// A normal distribution `N(mean, sd²)`.
+/// Normal (Gaussian) distribution with mean `mean` and standard deviation `sd`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::Normal;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let n = Normal::new(0.0, 1.0).unwrap();
+///
+/// // P(X <= 1.96) ≈ 0.975
+/// let p = n.cdf(1.96);
+///
+/// // Standard normal quantile for 0.95
+/// let x = n.inverse_cdf(0.95).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Normal {
     pub mean: f64,

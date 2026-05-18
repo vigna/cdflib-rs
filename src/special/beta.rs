@@ -81,6 +81,16 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
 
 /// `ln B(a, b)` = `ln Γ(a) + ln Γ(b) - ln Γ(a+b)`. Direct port of
 /// CDFLIB's `beta_log`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::beta_log;
+///
+/// let y = beta_log(3.0, 4.0);
+/// // B(3, 4) = 1/60
+/// assert!((y - (1.0/60.0_f64).ln()).abs() < 1e-14);
+/// ```
 pub fn beta_log(a0: f64, b0: f64) -> f64 {
     const E: f64 = 0.918938533204673;
 
@@ -189,6 +199,15 @@ pub fn bcorr(a0: f64, b0: f64) -> f64 {
 }
 
 /// `B(a, b)` = `Γ(a)Γ(b)/Γ(a+b)`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::beta;
+///
+/// let y = beta(3.0, 4.0);
+/// assert!((y - 1.0/60.0).abs() < 1e-14);
+/// ```
 pub fn beta(a: f64, b: f64) -> f64 {
     beta_log(a, b).exp()
 }
@@ -855,6 +874,16 @@ pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
 ///
 /// Returns `(w, w1, ierr)` where `w = I_x(a,b)`, `w1 = 1 - I_x(a,b)`,
 /// and `ierr` is 0 on success, nonzero on invalid input.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::beta_inc;
+///
+/// let (w, w1, ierr) = beta_inc(2.0, 5.0, 0.3, 0.7);
+/// assert!(ierr == 0);
+/// assert!((w - 0.579825).abs() < 1e-6);
+/// ```
 pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64, i32) {
     let eps = f64::EPSILON;
     if a < 0.0 || b < 0.0 {

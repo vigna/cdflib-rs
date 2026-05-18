@@ -10,6 +10,23 @@ use crate::special::{beta_inc, beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Beta distribution with shape parameters `a > 0` and `b > 0`.
+///
+/// Defined over the interval `[0, 1]`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::Beta;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let b = Beta::new(2.0, 5.0).unwrap();
+///
+/// // P(X <= 0.3)
+/// let p = b.cdf(0.3);
+///
+/// // Solve for parameter 'a' given P(X <= 0.5) = 0.9 and b=2.0
+/// let a = Beta::solve_a(0.9, 0.5, 2.0).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Beta {
     pub a: f64,

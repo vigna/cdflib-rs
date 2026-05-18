@@ -208,6 +208,15 @@ pub fn gam1(a: f64) -> f64 {
 // =====================================================================
 
 /// `Γ(a)`, the Gamma function. Returns 0 on overflow.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::gamma_x;
+///
+/// let y = gamma_x(3.0);
+/// assert!((y - 2.0).abs() < 1e-14);
+/// ```
 pub fn gamma_x(a: f64) -> f64 {
     const D: f64 = 0.41893853320467274178;
     const PI: f64 = 3.1415926535898;
@@ -369,6 +378,16 @@ pub fn gamma_ln1(a: f64) -> f64 {
 /// Port of `psi` (FUNPACK / Cody–Strecok–Thacher, modified by Morris).
 /// Returns 0 for non-positive integer arguments (CDFLIB's "undefined"
 /// sentinel).
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::psi;
+///
+/// // ψ(1) = -γ (Euler–Mascheroni constant)
+/// let y = psi(1.0);
+/// assert!((y + 0.57721566).abs() < 1e-8);
+/// ```
 pub fn psi(xx: f64) -> f64 {
     const DX0: f64 = 1.461632144968362341262659542325721325;
     const PIOV4: f64 = 0.785398163397448;
@@ -486,6 +505,15 @@ pub fn psi(xx: f64) -> f64 {
 }
 
 /// `ln Γ(a)` for `a > 0`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::gamma_log;
+///
+/// let y = gamma_log(3.0);
+/// assert!((y - 2.0_f64.ln()).abs() < 1e-14);
+/// ```
 pub fn gamma_log(a: f64) -> f64 {
     const C0: f64 = 0.833333333333333e-1;
     const C1: f64 = -0.277777777760991e-2;
@@ -562,6 +590,16 @@ pub fn rcomp(a: f64, x: f64) -> f64 {
 ///
 /// Five computational regimes are selected based on the location of
 /// `(a, x)` in parameter space; see the module-level documentation.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::gamma_inc;
+///
+/// let (p, q) = gamma_inc(2.5, 1.7);
+/// assert!((p - 0.36135041).abs() < 1e-8);
+/// assert!((q - 0.63864958).abs() < 1e-8);
+/// ```
 ///
 /// # Panics
 ///

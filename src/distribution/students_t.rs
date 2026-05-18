@@ -13,6 +13,21 @@ use crate::special::{beta_inc, gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Student's t distribution with `df > 0` degrees of freedom.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::StudentsT;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let d = StudentsT::new(10.0).unwrap();
+///
+/// // Two-sided 95% critical value
+/// let t = d.inverse_cdf(0.975).unwrap();
+///
+/// // P(T <= 2.228) ≈ 0.975
+/// let p = d.cdf(2.228);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StudentsT {
     pub df: f64,

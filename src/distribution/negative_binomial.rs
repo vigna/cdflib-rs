@@ -12,7 +12,25 @@ use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::{beta_inc, gamma_log};
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
-/// Negative binomial(r, pr): `r` successes target, `pr` success probability.
+/// Negative binomial distribution with target successes `r` and success probability `pr`.
+///
+/// Models the "number of failures before the `r`th success" in a sequence of
+/// independent Bernoulli trials.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::NegativeBinomial;
+/// use cdflib::traits::{Discrete, DiscreteCdf};
+///
+/// let nb = NegativeBinomial::new(5, 0.5).unwrap();
+///
+/// // Probability of 3 or fewer failures before 5th success
+/// let cdf = nb.cdf(3);
+///
+/// // Solve for success probability given P(F <= 5) = 0.9 and r=10
+/// let pr = NegativeBinomial::solve_pr(0.9, 10, 5).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NegativeBinomial {
     pub r: u64,

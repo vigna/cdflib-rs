@@ -15,6 +15,16 @@
 /// survival probabilities for large `|x|` — for example, `cumnor(5.0)`
 /// returns `(0.9999997133..., 2.866516e-7)` instead of saturating to
 /// `(1.0, 0.0)` as a `1 - cdf` computation would.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::cumnor;
+///
+/// let (p, q) = cumnor(1.96);
+/// assert!((p - 0.975).abs() < 1e-3);
+/// assert!((q - 0.025).abs() < 1e-3);
+/// ```
 pub fn cumnor(x: f64) -> (f64, f64) {
     // Coefficients for |x| ≤ 0.66291.
     const A: [f64; 5] = [
@@ -151,12 +161,14 @@ pub fn cumnor(x: f64) -> (f64, f64) {
 /// smaller of the two tails — preserving precision for `p` very close to
 /// `1.0` (where `1 - p` loses digits to cancellation).
 ///
-/// Uses a Kennedy–Gentle rational approximation as a starting value and
-/// Newton iteration on the residual `cumnor(x) - p`. CDFLIB caps the
-/// iteration at 100 steps with a relative-change tolerance of `1e-13`;
-/// after a century of failures it returns the starting value as a fallback
-/// — we preserve that behavior (a Newton failure on this well-conditioned
-/// problem essentially never happens for valid inputs).
+/// # Example
+///
+/// ```
+/// use cdflib::special::dinvnr;
+///
+/// let x = dinvnr(0.975, 0.025);
+/// assert!((x - 1.95996).abs() < 1e-4);
+/// ```
 pub fn dinvnr(p: f64, q: f64) -> f64 {
     const MAXIT: u32 = 100;
     const EPS: f64 = 1.0e-13;

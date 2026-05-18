@@ -1,17 +1,15 @@
 [package]
-name = "cdflib-rs"
+name = "cdflib"
+authors = [ "Sebastiano Vigna <sebastiano.vigna@unimi.it>" ]
 version = "0.1.0"
 edition = "2024"
-description = "Pure-Rust port of CDFLIB: cumulative distribution functions, inverses, and parameter solvers with ACM-Algorithm-708-quality numerics"
+description = "Pure-Rust port of CDFLIB: cumulative density functions (CDF) associated with common probability distribution"
 license = "MIT"
 repository = "https://github.com/vigna/cdflib-rs"
 keywords = ["statistics", "distribution", "cdf", "quantile", "numerics"]
 categories = ["mathematics", "science"]
 readme = "README.md"
-
-[lib]
-name = "cdflib"
-path = "src/lib.rs"
+rust-version = "1.85"
 
 [dependencies]
 thiserror = "2"

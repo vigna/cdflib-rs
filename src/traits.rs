@@ -16,6 +16,17 @@
 
 /// Cumulative distribution function (and survival, and their inverses) for
 /// a continuous distribution.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::Normal;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let n = Normal::new(0.0, 1.0).unwrap();
+/// let p = n.cdf(0.0);       // 0.5
+/// let x = n.inverse_cdf(p).unwrap(); // 0.0
+/// ```
 pub trait ContinuousCdf {
     /// Domain-specific error type returned by the inverse routines.
     type Error;
@@ -41,6 +52,17 @@ pub trait ContinuousCdf {
 
 /// Cumulative distribution function (and survival, and their inverses) for
 /// a discrete distribution over the non-negative integers.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::Poisson;
+/// use cdflib::traits::DiscreteCdf;
+///
+/// let p = Poisson::new(3.0).unwrap();
+/// let c = p.cdf(2);
+/// let s = p.inverse_cdf(c).unwrap(); // 2
+/// ```
 pub trait DiscreteCdf {
     /// Domain-specific error type returned by the inverse routines.
     type Error;
@@ -61,8 +83,9 @@ pub trait DiscreteCdf {
     ///
     /// The default implementation derives this from `inverse_cdf` by
     /// asking for the first point whose CDF is strictly greater than
-    /// `1 - q`, then stepping back by one. Using `next_up()` preserves the
-    /// exact jump semantics when `1 - q` lands exactly on a CDF value.
+    /// `1 - q`, then stepping back by one. Stepping to the next
+    /// representable `f64` above `1 - q` preserves the exact jump
+    /// semantics when `1 - q` lands exactly on a CDF value.
     fn inverse_sf(&self, q: f64) -> Result<u64, Self::Error> {
         if q == 1.0 {
             return Ok(0);
@@ -70,7 +93,12 @@ pub trait DiscreteCdf {
         if q == 0.0 {
             return self.inverse_cdf(1.0);
         }
-        Ok(self.inverse_cdf((1.0 - q).next_up())?.saturating_sub(1))
+        // TODO: once the MSRV is raised to 1.86, replace this with
+        // `(1.0 - q).next_up()`. The bit-incrementing form is equivalent
+        // because `1.0 - q` is a finite positive number in `(0, 1)`, but
+        // `f64::next_up` was stabilized only in 1.86.
+        let p_next = f64::from_bits((1.0 - q).to_bits() + 1);
+        Ok(self.inverse_cdf(p_next)?.saturating_sub(1))
     }
 }
 

@@ -16,6 +16,21 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// CDFLIB calls these `shape` and `scale`. Some texts use `α` and `β` for
 /// shape-rate (where rate = 1/scale). We stick with CDFLIB's names; users
 /// of the rate-parameterized form should pass `scale = 1.0 / rate`.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::Gamma;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let g = Gamma::new(2.0, 1.0).unwrap();
+///
+/// // P(X <= 2.0)
+/// let p = g.cdf(2.0);
+///
+/// // Solve for shape parameter given P(X <= 5.0) = 0.9 and scale=2.0
+/// let shape = Gamma::solve_shape(0.9, 5.0, 2.0).unwrap();
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Gamma {
     pub shape: f64,
