@@ -20,6 +20,4 @@ pub use distribution::{
     Normal, NormalError, Poisson, PoissonError, StudentsT, StudentsTError,
 };
 pub use error::SolverError;
-pub use traits::{
-    Continuous, ContinuousCdf, Discrete, DiscreteCdf, Entropy, Mean, Variance,
-};
+pub use traits::{Continuous, ContinuousCdf, Discrete, DiscreteCdf, Entropy, Mean, Variance};

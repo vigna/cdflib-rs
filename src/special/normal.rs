@@ -4,6 +4,8 @@
 //! and `dinvnr` (Newton iteration with Kennedy–Gentle starting value)
 //! from `cdflib.c`.
 
+#![allow(clippy::excessive_precision)]
+
 /// `cumnor(x) = (Φ(x), 1 - Φ(x))`, where `Φ` is the standard-normal CDF.
 ///
 /// Both tails are returned because the small one is computed directly,

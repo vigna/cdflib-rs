@@ -5,9 +5,7 @@
 mod common;
 
 use cdflib::{ChiSquaredNoncentral, ContinuousCdf, FisherSnedecorNoncentral, Mean, Variance};
-use common::{
-    assert_close_eps, DEFAULT_REL_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_REL_TOL,
-};
+use common::{DEFAULT_REL_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_REL_TOL, assert_close_eps};
 
 #[test]
 fn noncentral_chi_squared_reduces_to_central_at_ncp_zero() {

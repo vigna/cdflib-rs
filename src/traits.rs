@@ -56,9 +56,21 @@ pub trait DiscreteCdf {
     /// Smallest integer `x` such that `cdf(x) ≥ p`.
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;
 
-    /// Largest integer `x` such that `sf(x) ≥ q`.
+    /// Largest integer `x` such that `sf(x) ≥ q`, saturating at `0` when no
+    /// support point satisfies the inequality.
+    ///
+    /// The default implementation derives this from `inverse_cdf` by
+    /// asking for the first point whose CDF is strictly greater than
+    /// `1 - q`, then stepping back by one. Using `next_up()` preserves the
+    /// exact jump semantics when `1 - q` lands exactly on a CDF value.
     fn inverse_sf(&self, q: f64) -> Result<u64, Self::Error> {
-        self.inverse_cdf(1.0 - q)
+        if q == 1.0 {
+            return Ok(0);
+        }
+        if q == 0.0 {
+            return self.inverse_cdf(1.0);
+        }
+        Ok(self.inverse_cdf((1.0 - q).next_up())?.saturating_sub(1))
     }
 }
 

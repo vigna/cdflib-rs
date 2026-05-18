@@ -5,14 +5,14 @@
 mod common;
 
 use cdflib::special::{cumnor, dinvnr, error_f, error_fc, error_fc_scaled};
-use common::{
-    assert_close_eps, read_csv, DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL,
-};
+use common::{DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL, assert_close_eps, read_csv};
 
 #[test]
 fn error_f_matches_reference() {
     for row in read_csv("tests/data/error_f.csv") {
-        let [x, expected] = row[..] else { panic!("width"); };
+        let [x, expected] = row[..] else {
+            panic!("width");
+        };
         assert_close_eps(error_f(x), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }
 }
@@ -20,7 +20,9 @@ fn error_f_matches_reference() {
 #[test]
 fn error_fc_matches_reference() {
     for row in read_csv("tests/data/error_fc.csv") {
-        let [x, expected] = row[..] else { panic!("width"); };
+        let [x, expected] = row[..] else {
+            panic!("width");
+        };
         assert_close_eps(error_fc(x), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }
 }
@@ -28,7 +30,9 @@ fn error_fc_matches_reference() {
 #[test]
 fn error_fc_scaled_matches_reference() {
     for row in read_csv("tests/data/error_fc_scaled.csv") {
-        let [x, expected] = row[..] else { panic!("width"); };
+        let [x, expected] = row[..] else {
+            panic!("width");
+        };
         assert_close_eps(
             error_fc_scaled(x),
             expected,
@@ -41,7 +45,9 @@ fn error_fc_scaled_matches_reference() {
 #[test]
 fn cumnor_matches_reference() {
     for row in read_csv("tests/data/cumnor.csv") {
-        let [x, expected_cum, expected_ccum] = row[..] else { panic!("width"); };
+        let [x, expected_cum, expected_ccum] = row[..] else {
+            panic!("width");
+        };
         let (cum, ccum) = cumnor(x);
         assert_close_eps(cum, expected_cum, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
         assert_close_eps(ccum, expected_ccum, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
@@ -53,7 +59,9 @@ fn dinvnr_matches_reference() {
     // dinvnr is iterative; its Newton stopping criterion is `1e-13` in
     // CDFLIB, so we test at `INVERSE_REL_TOL` rather than `KERNEL_REL_TOL`.
     for row in read_csv("tests/data/dinvnr.csv") {
-        let [p, q, expected_x] = row[..] else { panic!("width"); };
+        let [p, q, expected_x] = row[..] else {
+            panic!("width");
+        };
         assert_close_eps(dinvnr(p, q), expected_x, DINVNR_REL_TOL, DINVNR_REL_TOL);
     }
 }

@@ -8,7 +8,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::{beta_inc, gamma_log};
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
@@ -130,11 +130,6 @@ impl DiscreteCdf for NegativeBinomial {
             }
         }
         Ok(lo)
-    }
-
-    fn inverse_sf(&self, q: f64) -> Result<u64, NegativeBinomialError> {
-        check_prob(q)?;
-        self.inverse_cdf(1.0 - q)
     }
 }
 

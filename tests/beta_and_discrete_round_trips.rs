@@ -7,7 +7,7 @@ use cdflib::{
     Beta, Binomial, ContinuousCdf, Discrete, DiscreteCdf, FisherSnedecor, NegativeBinomial,
     Poisson, StudentsT,
 };
-use common::{assert_close_eps, CHAINED_INVERSE_REL_TOL, DEFAULT_REL_TOL, INVERSE_REL_TOL};
+use common::{CHAINED_INVERSE_REL_TOL, DEFAULT_REL_TOL, INVERSE_REL_TOL, assert_close_eps};
 
 #[test]
 fn beta_round_trip() {
@@ -29,7 +29,12 @@ fn students_t_known_quantiles() {
     const T10_INV_975: f64 = 2.2281388519649425;
     let d = StudentsT::new(10.0).unwrap();
     let x = d.inverse_cdf(0.975).unwrap();
-    assert_close_eps(x, T10_INV_975, CHAINED_INVERSE_REL_TOL, CHAINED_INVERSE_REL_TOL);
+    assert_close_eps(
+        x,
+        T10_INV_975,
+        CHAINED_INVERSE_REL_TOL,
+        CHAINED_INVERSE_REL_TOL,
+    );
     // Symmetry: P(T < 0) = 0.5 exactly.
     for &df in &[1.0, 3.0, 30.0] {
         let d = StudentsT::new(df).unwrap();
@@ -100,7 +105,7 @@ fn negative_binomial_cdf_matches_cumulative_pmf() {
 }
 
 #[test]
-fn discrete_inverse_cdf_round_trip() {
+fn discrete_inverse_cdf_contract() {
     let p = Poisson::new(12.0).unwrap();
     for &target in &[0.1, 0.5, 0.95] {
         let s = p.inverse_cdf(target).unwrap();
@@ -109,5 +114,32 @@ fn discrete_inverse_cdf_round_trip() {
         if s > 0 {
             assert!(p.cdf(s - 1) < target);
         }
+    }
+}
+
+#[test]
+fn discrete_inverse_sf_contract() {
+    let binomial = Binomial::new(20, 0.3).unwrap();
+    for &target in &[0.9, 0.5, 0.1] {
+        let s = binomial.inverse_sf(target).unwrap();
+        assert!(binomial.sf(s) >= target, "binomial: s={s}, q={target}");
+        if s < binomial.n {
+            assert!(binomial.sf(s + 1) < target, "binomial: s={s}, q={target}");
+        }
+    }
+
+    let poisson = Poisson::new(2.0).unwrap();
+    assert_eq!(poisson.inverse_sf(0.9).unwrap(), 0);
+    for &target in &[0.8, 0.5, 0.1, 0.05] {
+        let s = poisson.inverse_sf(target).unwrap();
+        assert!(poisson.sf(s) >= target, "poisson: s={s}, q={target}");
+        assert!(poisson.sf(s + 1) < target, "poisson: s={s}, q={target}");
+    }
+
+    let negbin = NegativeBinomial::new(5, 0.4).unwrap();
+    for &target in &[0.9, 0.5, 0.1] {
+        let s = negbin.inverse_sf(target).unwrap();
+        assert!(negbin.sf(s) >= target, "negbin: s={s}, q={target}");
+        assert!(negbin.sf(s + 1) < target, "negbin: s={s}, q={target}");
     }
 }

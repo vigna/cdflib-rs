@@ -6,7 +6,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{gamma_inc, gamma_log};
 use crate::traits::{Continuous, ContinuousCdf, Mean, Variance};
 
@@ -47,7 +47,7 @@ impl ChiSquaredNoncentral {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 1e-300,
-                big: 1e300,
+                big: SOLVER_BOUND,
                 start: 1.0,
             },
             f,
@@ -61,7 +61,7 @@ impl ChiSquaredNoncentral {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: 1e300,
+                big: SOLVER_BOUND,
                 start: 1.0,
             },
             f,
@@ -177,7 +177,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: df + ncp,
             },
             f,
@@ -194,7 +194,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: df + ncp,
             },
             f,

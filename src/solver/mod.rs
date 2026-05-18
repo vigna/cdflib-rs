@@ -21,17 +21,11 @@ use dinvr::{InvrAction, InvrConfig, InvrState};
 /// `[small, big]`" and `Decreasing` as "`f` is non-increasing".
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum BracketStrategy {
-    Increasing {
-        small: f64,
-        big: f64,
-        start: f64,
-    },
-    Decreasing {
-        small: f64,
-        big: f64,
-        start: f64,
-    },
+    Increasing { small: f64, big: f64, start: f64 },
+    Decreasing { small: f64, big: f64, start: f64 },
 }
+
+pub(crate) const SOLVER_BOUND: f64 = 1.0e300;
 
 const REL_STEP: f64 = 1.0e-2;
 const STP_MUL: f64 = 4.0;
@@ -51,10 +45,7 @@ const MAX_EVAL: u32 = 1000;
 /// monotonicity direction. For `Decreasing`, the function is negated
 /// internally so that `dinvr` (which assumes increasing) does the right
 /// thing.
-pub(crate) fn solve_monotone<F>(
-    strategy: BracketStrategy,
-    mut f: F,
-) -> Result<f64, SolverError>
+pub(crate) fn solve_monotone<F>(strategy: BracketStrategy, mut f: F) -> Result<f64, SolverError>
 where
     F: FnMut(f64) -> f64,
 {
@@ -68,8 +59,8 @@ where
     // `gamma_inc(a, MAX)`) to NaN due to Inf-Inf cancellation in their
     // tail formulas. 1e300 is several orders of magnitude beyond any
     // realistic distribution argument.
-    let big = big.min(1e300);
-    let small = small.max(-1e300);
+    let big = big.min(SOLVER_BOUND);
+    let small = small.max(-SOLVER_BOUND);
 
     // Clamp the initial guess into the bracket. `dinvr` panics in C
     // (ftnstop) if `small ≤ x ≤ big` doesn't hold.
@@ -159,4 +150,3 @@ mod tests {
         assert!((r - e).abs() / e < 1e-8, "r = {r}, e = {e}");
     }
 }
-

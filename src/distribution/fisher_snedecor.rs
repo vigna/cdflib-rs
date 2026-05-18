@@ -5,11 +5,9 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_inc, beta_log, psi};
-use crate::traits::{
-    Continuous, ContinuousCdf, Entropy, Mean, Variance,
-};
+use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// F (Fisher–Snedecor) distribution with `dfn` numerator and `dfd`
 /// denominator degrees of freedom.
@@ -51,7 +49,7 @@ impl FisherSnedecor {
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 1e-300,
-                big: 1e300,
+                big: SOLVER_BOUND,
                 start: 1.0,
             },
             func,
@@ -68,7 +66,7 @@ impl FisherSnedecor {
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 1e-300,
-                big: 1e300,
+                big: SOLVER_BOUND,
                 start: 1.0,
             },
             func,
@@ -128,7 +126,7 @@ impl ContinuousCdf for FisherSnedecor {
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: 1.0,
             },
             func,
@@ -146,7 +144,7 @@ impl ContinuousCdf for FisherSnedecor {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: 1.0,
             },
             func,
@@ -170,8 +168,7 @@ impl Continuous for FisherSnedecor {
         // f(x) = (dfn/dfd)^(dfn/2) · x^(dfn/2-1) · (1 + dfn·x/dfd)^(-(dfn+dfd)/2) / B(dfn/2, dfd/2)
         let half_dfn = dfn / 2.0;
         let half_dfd = dfd / 2.0;
-        half_dfn * (dfn / dfd).ln()
-            + (half_dfn - 1.0) * x.ln()
+        half_dfn * (dfn / dfd).ln() + (half_dfn - 1.0) * x.ln()
             - (half_dfn + half_dfd) * (1.0 + dfn * x / dfd).ln()
             - beta_log(half_dfn, half_dfd)
     }
@@ -208,9 +205,7 @@ impl Entropy for FisherSnedecor {
         //                + (dfn+dfd)/2 · ψ((dfn+dfd)/2)
         let dfn = self.dfn;
         let dfd = self.dfd;
-        (dfd / dfn).ln()
-            + beta_log(dfn / 2.0, dfd / 2.0)
-            + (1.0 - dfn / 2.0) * psi(dfn / 2.0)
+        (dfd / dfn).ln() + beta_log(dfn / 2.0, dfd / 2.0) + (1.0 - dfn / 2.0) * psi(dfn / 2.0)
             - (1.0 + dfd / 2.0) * psi(dfd / 2.0)
             + 0.5 * (dfn + dfd) * psi((dfn + dfd) / 2.0)
     }

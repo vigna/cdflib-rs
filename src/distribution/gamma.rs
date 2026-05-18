@@ -7,11 +7,9 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{gamma_inc, gamma_log, psi};
-use crate::traits::{
-    Continuous, ContinuousCdf, Entropy, Mean, Variance,
-};
+use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Gamma distribution with `shape > 0` and `scale > 0`.
 ///
@@ -74,7 +72,7 @@ impl Gamma {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 1.0e-300,
-                big: 1.0e300,
+                big: SOLVER_BOUND,
                 start: xs.max(1.0),
             },
             f,
@@ -98,7 +96,7 @@ impl Gamma {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 1.0e-300,
-                big: 1.0e300,
+                big: SOLVER_BOUND,
                 start: x / shape.max(1.0),
             },
             f,
@@ -147,7 +145,7 @@ impl ContinuousCdf for Gamma {
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: shape * scale,
             },
             f,
@@ -168,7 +166,7 @@ impl ContinuousCdf for Gamma {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: shape * scale,
             },
             f,
@@ -189,8 +187,7 @@ impl Continuous for Gamma {
             return f64::NEG_INFINITY;
         }
         // ln f = -(shape ln scale + ln Γ(shape)) + (shape-1) ln x - x/scale
-        -(self.shape * self.scale.ln() + gamma_log(self.shape))
-            + (self.shape - 1.0) * x.ln()
+        -(self.shape * self.scale.ln() + gamma_log(self.shape)) + (self.shape - 1.0) * x.ln()
             - x / self.scale
     }
 }
@@ -210,8 +207,7 @@ impl Variance for Gamma {
 impl Entropy for Gamma {
     /// `H = α + ln θ + ln Γ(α) + (1 - α) ψ(α)`.
     fn entropy(&self) -> f64 {
-        self.shape + self.scale.ln() + gamma_log(self.shape)
-            + (1.0 - self.shape) * psi(self.shape)
+        self.shape + self.scale.ln() + gamma_log(self.shape) + (1.0 - self.shape) * psi(self.shape)
     }
 }
 

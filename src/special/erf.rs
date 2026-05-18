@@ -5,13 +5,15 @@
 //! (|x| ≤ 0.5, 0.5 < |x| ≤ 4, |x| > 4); coefficients are identical to the
 //! upstream C source.
 
+#![allow(clippy::excessive_precision)]
+
 /// Largest negative argument to `exp` for which the result is nonzero in
 /// IEEE 754 binary64.
 ///
 /// CDFLIB derives this from `ipmpar` and `exparg`; we hard-code the same
 /// numeric value (0.99999 × ln(2) × 1022 ≈ -708.39) so that the rational
 /// approximation in [`error_fc`] uses the identical threshold.
-const NEG_EXPARG: f64 = -708.39641853226408;
+const NEG_EXPARG: f64 = -708.396_418_532_264_1;
 
 // Coefficients for |x| ≤ 0.5.
 const A: [f64; 5] = [
@@ -21,7 +23,11 @@ const A: [f64; 5] = [
     4.79137145607681e-02,
     1.28379167095513e-01,
 ];
-const B: [f64; 3] = [3.01048631703895e-03, 5.38971687740286e-02, 3.75795757275549e-01];
+const B: [f64; 3] = [
+    3.01048631703895e-03,
+    5.38971687740286e-02,
+    3.75795757275549e-01,
+];
 
 // Coefficients for 0.5 < |x| ≤ 4.
 const P: [f64; 8] = [

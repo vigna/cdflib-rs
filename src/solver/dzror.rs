@@ -167,83 +167,80 @@ impl ZrorState {
     /// terminal result); `None` if we've internally looped to the next
     /// iteration without external evaluation.
     fn refine_iteration(&mut self) -> Option<ZrorAction> {
-        loop {
-            // S80: swap so |fb| is the smaller residual.
-            if self.fc.abs() < self.fb.abs() {
-                if self.c != self.a {
-                    self.d = self.a;
-                    self.fd = self.fa;
-                }
-                self.a = self.b;
-                self.fa = self.fb;
-                self.xlo = self.c;
-                self.b = self.xlo;
-                self.fb = self.fc;
-                self.c = self.a;
-                self.fc = self.fa;
+        // S80: swap so |fb| is the smaller residual.
+        if self.fc.abs() < self.fb.abs() {
+            if self.c != self.a {
+                self.d = self.a;
+                self.fd = self.fa;
             }
-            // S100: check convergence.
-            let tol = 0.5 * self.cfg.abstol.max(self.cfg.reltol * self.xlo.abs());
-            let m = 0.5 * (self.c + self.b);
-            let mb = m - self.b;
-            self.mb = mb;
-            if mb.abs() <= tol {
-                // Convergence section S240.
-                self.xhi = self.c;
-                let qrzero = (self.fc >= 0.0 && self.fb <= 0.0)
-                    || (self.fc < 0.0 && self.fb >= 0.0);
-                if qrzero {
-                    return Some(ZrorAction::Converged {
-                        xlo: self.xlo,
-                        xhi: self.xhi,
-                    });
-                }
-                return Some(ZrorAction::Failed {
-                    qleft: false,
-                    qhi: false,
-                });
-            }
-
-            // S110 / step-size selection.
-            let w;
-            if self.ext > 3 {
-                w = mb;
-            } else {
-                let tol_signed = tol.copysign(mb);
-                let mut p = (self.b - self.a) * self.fb;
-                let q;
-                if self.first {
-                    q = self.fa - self.fb;
-                    self.first = false;
-                } else {
-                    let fdb = (self.fd - self.fb) / (self.d - self.b);
-                    let fda = (self.fd - self.fa) / (self.d - self.a);
-                    p = fda * p;
-                    q = fdb * self.fa - fda * self.fb;
-                }
-                let (mut p, q) = if p < 0.0 { (-p, -q) } else { (p, q) };
-                if self.ext == 3 {
-                    p *= 2.0;
-                }
-                if p == 0.0 || p <= q * tol_signed {
-                    w = tol_signed;
-                } else if p < mb * q {
-                    w = p / q;
-                } else {
-                    w = mb;
-                }
-            }
-            self.w = w;
-
-            // S170: update history and step b.
-            self.d = self.a;
-            self.fd = self.fa;
             self.a = self.b;
             self.fa = self.fb;
-            self.b += w;
-            self.xlo = self.b;
-            self.stage = Stage::AwaitFbStep;
-            return Some(ZrorAction::NeedEval(self.b));
+            self.xlo = self.c;
+            self.b = self.xlo;
+            self.fb = self.fc;
+            self.c = self.a;
+            self.fc = self.fa;
         }
+        // S100: check convergence.
+        let tol = 0.5 * self.cfg.abstol.max(self.cfg.reltol * self.xlo.abs());
+        let m = 0.5 * (self.c + self.b);
+        let mb = m - self.b;
+        self.mb = mb;
+        if mb.abs() <= tol {
+            // Convergence section S240.
+            self.xhi = self.c;
+            let qrzero = (self.fc >= 0.0 && self.fb <= 0.0) || (self.fc < 0.0 && self.fb >= 0.0);
+            if qrzero {
+                return Some(ZrorAction::Converged {
+                    xlo: self.xlo,
+                    xhi: self.xhi,
+                });
+            }
+            return Some(ZrorAction::Failed {
+                qleft: false,
+                qhi: false,
+            });
+        }
+
+        // S110 / step-size selection.
+        let w;
+        if self.ext > 3 {
+            w = mb;
+        } else {
+            let tol_signed = tol.copysign(mb);
+            let mut p = (self.b - self.a) * self.fb;
+            let q;
+            if self.first {
+                q = self.fa - self.fb;
+                self.first = false;
+            } else {
+                let fdb = (self.fd - self.fb) / (self.d - self.b);
+                let fda = (self.fd - self.fa) / (self.d - self.a);
+                p *= fda;
+                q = fdb * self.fa - fda * self.fb;
+            }
+            let (mut p, q) = if p < 0.0 { (-p, -q) } else { (p, q) };
+            if self.ext == 3 {
+                p *= 2.0;
+            }
+            if p == 0.0 || p <= q * tol_signed {
+                w = tol_signed;
+            } else if p < mb * q {
+                w = p / q;
+            } else {
+                w = mb;
+            }
+        }
+        self.w = w;
+
+        // S170: update history and step b.
+        self.d = self.a;
+        self.fd = self.fa;
+        self.a = self.b;
+        self.fa = self.fb;
+        self.b += w;
+        self.xlo = self.b;
+        self.stage = Stage::AwaitFbStep;
+        Some(ZrorAction::NeedEval(self.b))
     }
 }

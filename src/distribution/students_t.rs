@@ -8,11 +8,9 @@ use std::f64::consts::PI;
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_inc, gamma_log, psi};
-use crate::traits::{
-    Continuous, ContinuousCdf, Entropy, Mean, Variance,
-};
+use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Student's t distribution with `df > 0` degrees of freedom.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -116,11 +114,12 @@ impl ContinuousCdf for StudentsT {
         }
         let df = self.df;
         let f = |t: f64| StudentsT { df }.cdf(t) - p;
+        let bound = SOLVER_BOUND.sqrt();
         // Start near 0; expand bracket. The Student's t is monotone.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
-                small: -1e300,
-                big: 1e300,
+                small: -bound,
+                big: bound,
                 start: 0.0,
             },
             f,
@@ -134,10 +133,11 @@ impl ContinuousCdf for StudentsT {
         }
         let df = self.df;
         let f = |t: f64| StudentsT { df }.sf(t) - q;
+        let bound = SOLVER_BOUND.sqrt();
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
-                small: -1e300,
-                big: 1e300,
+                small: -bound,
+                big: bound,
                 start: 0.0,
             },
             f,
@@ -151,9 +151,7 @@ impl Continuous for StudentsT {
     }
     fn ln_pdf(&self, t: f64) -> f64 {
         let df = self.df;
-        let log_norm = gamma_log((df + 1.0) / 2.0)
-            - gamma_log(df / 2.0)
-            - 0.5 * (PI * df).ln();
+        let log_norm = gamma_log((df + 1.0) / 2.0) - gamma_log(df / 2.0) - 0.5 * (PI * df).ln();
         let log_kernel = -((df + 1.0) / 2.0) * (1.0 + t * t / df).ln();
         log_norm + log_kernel
     }

@@ -6,7 +6,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::{beta_inc, gamma_log};
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
@@ -135,11 +135,6 @@ impl DiscreteCdf for Binomial {
         }
         Ok(lo)
     }
-
-    fn inverse_sf(&self, q: f64) -> Result<u64, BinomialError> {
-        check_prob(q)?;
-        self.inverse_cdf(1.0 - q)
-    }
 }
 
 impl Discrete for Binomial {
@@ -158,7 +153,11 @@ impl Discrete for Binomial {
         let pr = self.pr;
         // ln C(n,s) + s ln pr + (n-s) ln(1-pr)
         let log_c = gamma_log(n + 1.0) - gamma_log(sf + 1.0) - gamma_log(n - sf + 1.0);
-        let log_pr = if pr == 0.0 { if s == 0 { 0.0 } else { f64::NEG_INFINITY } } else { sf * pr.ln() };
+        let log_pr = if pr == 0.0 {
+            if s == 0 { 0.0 } else { f64::NEG_INFINITY }
+        } else {
+            sf * pr.ln()
+        };
         let log_q = if pr == 1.0 {
             if s == self.n { 0.0 } else { f64::NEG_INFINITY }
         } else {

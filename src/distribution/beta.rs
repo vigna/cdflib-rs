@@ -5,11 +5,9 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::{beta_inc, beta_log, psi};
-use crate::traits::{
-    Continuous, ContinuousCdf, Entropy, Mean, Variance,
-};
+use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Beta distribution with shape parameters `a > 0` and `b > 0`.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -197,9 +195,7 @@ impl Variance for Beta {
 impl Entropy for Beta {
     fn entropy(&self) -> f64 {
         // H = ln B(a,b) - (a-1)ψ(a) - (b-1)ψ(b) + (a+b-2)ψ(a+b)
-        beta_log(self.a, self.b)
-            - (self.a - 1.0) * psi(self.a)
-            - (self.b - 1.0) * psi(self.b)
+        beta_log(self.a, self.b) - (self.a - 1.0) * psi(self.a) - (self.b - 1.0) * psi(self.b)
             + (self.a + self.b - 2.0) * psi(self.a + self.b)
     }
 }

@@ -4,7 +4,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_inc, gamma_log};
 use crate::traits::{ContinuousCdf, Mean, Variance};
 
@@ -43,7 +43,12 @@ impl FisherSnedecorNoncentral {
         Ok(Self { dfn, dfd, ncp })
     }
 
-    pub fn solve_dfn(p: f64, f: f64, dfd: f64, ncp: f64) -> Result<f64, FisherSnedecorNoncentralError> {
+    pub fn solve_dfn(
+        p: f64,
+        f: f64,
+        dfd: f64,
+        ncp: f64,
+    ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
         let func = |dfn: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         Ok(solve_monotone(
@@ -56,7 +61,12 @@ impl FisherSnedecorNoncentral {
         )?)
     }
 
-    pub fn solve_dfd(p: f64, f: f64, dfn: f64, ncp: f64) -> Result<f64, FisherSnedecorNoncentralError> {
+    pub fn solve_dfd(
+        p: f64,
+        f: f64,
+        dfn: f64,
+        ncp: f64,
+    ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
         let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // CDF is increasing in dfd for fixed f, dfn, ncp.
@@ -70,7 +80,12 @@ impl FisherSnedecorNoncentral {
         )?)
     }
 
-    pub fn solve_ncp(p: f64, f: f64, dfn: f64, dfd: f64) -> Result<f64, FisherSnedecorNoncentralError> {
+    pub fn solve_ncp(
+        p: f64,
+        f: f64,
+        dfn: f64,
+        dfd: f64,
+    ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
         let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         Ok(solve_monotone(
@@ -142,10 +157,9 @@ fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     // Sum backwards.
     let mut xmult = centwt;
     let mut i = icent;
-    let mut dnterm = (gamma_log(adn + b) - gamma_log(adn + 1.0) - gamma_log(b)
-        + adn * xx.ln()
-        + b * yy.ln())
-    .exp();
+    let mut dnterm =
+        (gamma_log(adn + b) - gamma_log(adn + 1.0) - gamma_log(b) + adn * xx.ln() + b * yy.ln())
+            .exp();
     loop {
         let small = sum < 1e-20 || xmult * betdn < eps * sum;
         if small || i <= 0 {
@@ -154,7 +168,7 @@ fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
         xmult *= i as f64 / xnonc;
         i -= 1;
         adn -= 1.0;
-        dnterm = (adn + 1.0) / ((adn + b) * xx) * dnterm;
+        dnterm *= (adn + 1.0) / ((adn + b) * xx);
         betdn += dnterm;
         sum += xmult * betdn;
     }
@@ -174,7 +188,7 @@ fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
         xmult *= xnonc / i as f64;
         i += 1;
         aup += 1.0;
-        upterm = (aup + b - 2.0) * xx / (aup - 1.0) * upterm;
+        upterm *= (aup + b - 2.0) * xx / (aup - 1.0);
         betup -= upterm;
         sum += xmult * betup;
         let small = sum < 1e-20 || xmult * betup < eps * sum;
@@ -207,7 +221,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: 1.0 + ncp / dfn,
             },
             func,
@@ -225,7 +239,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: 1.0 + ncp / dfn,
             },
             func,
@@ -249,8 +263,7 @@ impl Variance for FisherSnedecorNoncentral {
         let dfd = self.dfd;
         let ncp = self.ncp;
         if dfd > 4.0 {
-            2.0 * dfd * dfd
-                * ((dfn + ncp).powi(2) + (dfd - 2.0) * (dfn + 2.0 * ncp))
+            2.0 * dfd * dfd * ((dfn + ncp).powi(2) + (dfd - 2.0) * (dfn + 2.0 * ncp))
                 / (dfn * dfn * (dfd - 2.0).powi(2) * (dfd - 4.0))
         } else {
             f64::NAN

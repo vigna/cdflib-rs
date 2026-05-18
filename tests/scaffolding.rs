@@ -5,13 +5,14 @@ mod common;
 
 use cdflib::{ContinuousCdf, DiscreteCdf, SolverError};
 use common::{assert_close, assert_close_eps, read_csv};
+use std::f64::consts::PI;
 
 // --- assert_close ---------------------------------------------------------
 
 #[test]
 fn assert_close_passes_when_within_default_tol() {
     assert_close(1.0 + 1e-15, 1.0);
-    assert_close(-3.14159265358979, -3.14159265358979);
+    assert_close(-PI, -PI);
 }
 
 #[test]
@@ -121,5 +122,7 @@ fn discrete_cdf_default_sf_and_inverse_sf_compose() {
     let d = StubDiscrete;
     assert_close(d.sf(0), 1.0);
     assert_close(d.sf(1), 0.0);
-    assert_eq!(d.inverse_sf(0.5).unwrap(), 1);
+    assert_eq!(d.inverse_sf(1.0).unwrap(), 0);
+    assert_eq!(d.inverse_sf(0.5).unwrap(), 0);
+    assert_eq!(d.inverse_sf(0.0).unwrap(), 1);
 }

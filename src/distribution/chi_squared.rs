@@ -7,11 +7,9 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{gamma_inc, gamma_log, psi};
-use crate::traits::{
-    Continuous, ContinuousCdf, Entropy, Mean, Variance,
-};
+use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Chi-squared distribution with `df` degrees of freedom.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,7 +57,7 @@ impl ChiSquared {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 1.0e-300,
-                big: 1.0e300,
+                big: SOLVER_BOUND,
                 start: x.max(1.0),
             },
             f,
@@ -108,7 +106,7 @@ impl ContinuousCdf for ChiSquared {
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: df,
             },
             f,
@@ -129,7 +127,7 @@ impl ContinuousCdf for ChiSquared {
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: f64::MAX,
+                big: SOLVER_BOUND,
                 start: df,
             },
             f,

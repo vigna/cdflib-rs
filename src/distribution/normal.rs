@@ -9,9 +9,7 @@ use std::f64::consts::{E, PI};
 use thiserror::Error;
 
 use crate::special::{cumnor, dinvnr};
-use crate::traits::{
-    Continuous, ContinuousCdf, Entropy, Mean, Variance,
-};
+use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// A normal distribution `N(mean, sd²)`.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -52,10 +50,7 @@ impl Normal {
 
     /// Standard normal distribution `N(0, 1)`.
     pub fn standard() -> Self {
-        Self {
-            mean: 0.0,
-            sd: 1.0,
-        }
+        Self { mean: 0.0, sd: 1.0 }
     }
 
     /// Solve for the mean given `p = P(X ≤ x)` and `sd`.
@@ -120,7 +115,7 @@ impl ContinuousCdf for Normal {
     ///
     /// Maximum precision is achieved when `p ≤ 0.5`. For `p > 0.5`, the
     /// internal `q = 1 - p` loses precision near `p = 1`; users with a
-    /// known small right-tail probability `q` should call [`inverse_sf`]
+    /// known small right-tail probability `q` should call `inverse_sf`
     /// directly. (The trait's single-argument API cannot carry both `p`
     /// and `q` with full precision; CDFLIB's `(p, q)` pair convention
     /// exists for exactly this reason.)
@@ -137,7 +132,7 @@ impl ContinuousCdf for Normal {
     /// has a small p-value `q` and wants the corresponding cutoff). For
     /// `q > 0.5`, `1 - q` loses precision near `q = 1` and the result
     /// can drift to ~5 digits in the deep left tail — in that regime
-    /// [`inverse_cdf`] with the small `p = 1 - q` is the accurate call.
+    /// `inverse_cdf` with the small `p = 1 - q` is the accurate call.
     fn inverse_sf(&self, q: f64) -> Result<f64, NormalError> {
         check_prob(q)?;
         let p = 1.0 - q;

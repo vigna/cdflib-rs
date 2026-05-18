@@ -7,15 +7,15 @@
 //! one corner of (a, b, x) space, continued fraction for another,
 //! asymptotic expansion (`beta_asym`) for both large, etc.
 
+#![allow(clippy::approx_constant, clippy::excessive_precision)]
+
 use super::erf::{error_fc, error_fc_scaled};
-use super::gamma::{
-    alnrel, gam1, gamma_log, gamma_ln1, gsumln, psi, rexp, rlog1,
-};
+use super::gamma::{alnrel, gam1, gamma_ln1, gamma_log, gsumln, psi, rexp, rlog1};
 
 /// Largest negative argument to `exp` for which the result is nonzero in
 /// IEEE 754 binary64; corresponds to CDFLIB's `exparg(1)`.
-const NEG_EXPARG: f64 = -708.39641853226408;
-const POS_EXPARG: f64 = 709.78271289338398;
+const NEG_EXPARG: f64 = -708.396_418_532_264_1;
+const POS_EXPARG: f64 = 709.782_712_893_384;
 
 /// `exp(MU + X)` where `MU` is a small integer scaling factor and X is a
 /// double. CDFLIB's `esum` — splits into pieces to avoid intermediate
@@ -203,7 +203,7 @@ pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
         }
         result = t.exp();
     }
-    result = b / a * result;
+    result *= b / a;
     let tol = eps / a;
     let mut an = a + 1.0;
     let mut t = x;
@@ -275,7 +275,7 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
                     b0 -= 1.0;
                     c *= b0 / (a0 + b0);
                 }
-                u = c.ln() + u;
+                u += c.ln();
             }
             let z = a * x.ln() - u;
             b0 -= 1.0;
@@ -301,7 +301,7 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
                 1.0 + gam1(apb)
             };
             let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
-            result = result * (c * (b / apb));
+            result *= c * (b / apb);
         }
     }
 
@@ -387,7 +387,7 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
                 b0 -= 1.0;
                 c *= b0 / (a0 + b0);
             }
-            u = c.ln() + u;
+            u += c.ln();
         }
         let z = z - u;
         b0 -= 1.0;
@@ -474,7 +474,7 @@ pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
                 b0 -= 1.0;
                 c *= b0 / (a0 + b0);
             }
-            u = c.ln() + u;
+            u += c.ln();
         }
         let z = z - u;
         b0 -= 1.0;
@@ -541,7 +541,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
         // Add increasing terms.
         for i in 1..=k {
             let l = (i - 1) as f64;
-            d = (apb + l) / (ap1 + l) * x * d;
+            d *= (apb + l) / (ap1 + l) * x;
             w += d;
         }
         if k == nm1 {
@@ -553,7 +553,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
     let kp1 = k + 1;
     for i in kp1..=nm1 {
         let l = (i - 1) as f64;
-        d = (apb + l) / (ap1 + l) * x * d;
+        d *= (apb + l) / (ap1 + l) * x;
         w += d;
         if d <= eps * w {
             break;
@@ -750,7 +750,7 @@ pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
 
     let mut n = 2;
     while n <= NUM {
-        hn = h2 * hn;
+        hn *= h2;
         a0_arr[n - 1] = 2.0 * r0 * (1.0 + h * hn) / (n as f64 + 2.0);
         let np1 = n + 1;
         s += hn;
@@ -777,11 +777,11 @@ pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
         }
         j0 = E1 * znm1 + (n as f64 - 1.0) * j0;
         j1 = E1 * zn + (n as f64) * j1;
-        znm1 = z2 * znm1;
-        zn = z2 * zn;
-        w = w0 * w;
+        znm1 *= z2;
+        zn *= z2;
+        w *= w0;
         let t0 = d_arr[n - 1] * w * j0;
-        w = w0 * w;
+        w *= w0;
         let t1 = d_arr[np1 - 1] * w * j1;
         sum += t0 + t1;
         if t0.abs() + t1.abs() <= eps * sum {
@@ -863,10 +863,10 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64, i32) {
     if a == 0.0 && b == 0.0 {
         return (0.0, 0.0, 2);
     }
-    if x < 0.0 || x > 1.0 {
+    if !(0.0..=1.0).contains(&x) {
         return (0.0, 0.0, 3);
     }
-    if y < 0.0 || y > 1.0 {
+    if !(0.0..=1.0).contains(&y) {
         return (0.0, 0.0, 4);
     }
     let z = x + y - 0.5 - 0.5;
@@ -936,11 +936,7 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64, i32) {
         large_branch(a0, b0, x0, y0, lambda, eps)
     };
 
-    if ind == 0 {
-        (w, w1, 0)
-    } else {
-        (w1, w, 0)
-    }
+    if ind == 0 { (w, w1, 0) } else { (w1, w, 0) }
 }
 
 fn small_branch(a0: f64, b0: f64, x0: f64, y0: f64, eps: f64) -> (f64, f64) {
