@@ -5,7 +5,7 @@
 mod common;
 
 use cdflib::{ChiSquaredNoncentral, ContinuousCdf, FisherSnedecorNoncentral, Mean, Variance};
-use common::{DEFAULT_REL_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_REL_TOL, assert_close_eps};
+use common::{DEFAULT_REL_TOL, INVERSE_REL_TOL, assert_close_eps};
 
 #[test]
 fn noncentral_chi_squared_reduces_to_central_at_ncp_zero() {
@@ -31,8 +31,11 @@ fn noncentral_chi_squared_round_trip() {
     let d = ChiSquaredNoncentral::new(10.0, 5.0).unwrap();
     for &p in &[0.1, 0.5, 0.9] {
         let x = d.inverse_cdf(p).unwrap();
-        // Series tolerance dominates; the inverse can't be tighter than the forward.
-        assert_close_eps(d.cdf(x), p, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_CHI_REL_TOL);
+        // Round-trip tolerance is bounded by the solver's rel_tol = 1e-8
+        // (matches CDFLIB's `dstinv` setup), not by the cumchn series
+        // tolerance — the forward `cdf` is fine, the inverse converges
+        // only to solver precision.
+        assert_close_eps(d.cdf(x), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
     }
 }
 
@@ -50,6 +53,6 @@ fn noncentral_f_round_trip() {
     let d = FisherSnedecorNoncentral::new(5.0, 10.0, 3.0).unwrap();
     for &p in &[0.1, 0.5, 0.9] {
         let x = d.inverse_cdf(p).unwrap();
-        assert_close_eps(d.cdf(x), p, NONCENTRAL_F_REL_TOL, NONCENTRAL_F_REL_TOL);
+        assert_close_eps(d.cdf(x), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
     }
 }

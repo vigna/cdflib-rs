@@ -61,11 +61,13 @@ impl FisherSnedecor {
             return Err(FisherSnedecorError::DfdNotPositive(dfd));
         }
         let func = |dfn: f64| FisherSnedecor { dfn, dfd }.cdf(f) - p;
+        // Lower bound 1.0 (not 1e-300): the C reference notes that
+        // dfn < 1 makes cumf's internal beta_inc call diverge.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
-                small: 1e-300,
+                small: 1.0,
                 big: SOLVER_BOUND,
-                start: 1.0,
+                start: 5.0,
             },
             func,
         )?)
@@ -78,11 +80,12 @@ impl FisherSnedecor {
         }
         let func = |dfd: f64| FisherSnedecor { dfn, dfd }.cdf(f) - p;
         // F CDF is increasing in dfd for fixed f > 0 and dfn.
+        // Lower bound 1.0 for the same beta_inc reason as solve_dfn.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
-                small: 1e-300,
+                small: 1.0,
                 big: SOLVER_BOUND,
-                start: 1.0,
+                start: 5.0,
             },
             func,
         )?)
@@ -138,11 +141,12 @@ impl ContinuousCdf for FisherSnedecor {
         let dfn = self.dfn;
         let dfd = self.dfd;
         let func = |x: f64| cumf(x, dfn, dfd).0 - p;
+        // Match cdff's which=2: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: 1.0,
+                start: 5.0,
             },
             func,
         )?)
@@ -160,7 +164,7 @@ impl ContinuousCdf for FisherSnedecor {
             BracketStrategy::Decreasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: 1.0,
+                start: 5.0,
             },
             func,
         )?)

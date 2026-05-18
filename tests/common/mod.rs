@@ -53,14 +53,20 @@ pub const DISTRIBUTION_REL_TOL: f64 = 3e-13;
 pub const DINVNR_REL_TOL: f64 = 5e-15;
 
 /// `dinvr`-driven inverses and round-trip tests where the forward CDF
-/// is computed by a direct or iterative kernel. Round-trip error
-/// compounds forward + inverse precision.
-pub const INVERSE_REL_TOL: f64 = 1e-13;
+/// is computed by a direct or iterative kernel. The solver now matches
+/// CDFLIB's `dstinv` configuration with rel_tol = 1e-8 (was 1e-13 in
+/// an earlier port revision that intentionally tightened the default);
+/// round-trip residuals are bounded by that solver tolerance plus the
+/// CDF's Lipschitz factor near the queried quantile. 5e-8 leaves ~5x
+/// margin.
+pub const INVERSE_REL_TOL: f64 = 5e-8;
 
 /// `dinvr`-driven inverses where the forward CDF chains through an
 /// iterative kernel (`StudentsT::inverse_cdf`, `Beta::inverse_cdf`,
-/// `ChiSquared::inverse_cdf`, …).
-pub const CHAINED_INVERSE_REL_TOL: f64 = 1e-11;
+/// `ChiSquared::inverse_cdf`, …). With the solver matching CDFLIB's
+/// rel_tol = 1e-8, the worst-case projection through `1/|f'(x)|` near
+/// low-pdf quantiles (e.g., t(df=4) at 0.975) reaches ~5e-7.
+pub const CHAINED_INVERSE_REL_TOL: f64 = 5e-7;
 
 /// Noncentral distributions (`cumchn`). Despite CDFLIB's internal
 /// convergence tolerance of `1e-5`, the Poisson-mixture series achieves

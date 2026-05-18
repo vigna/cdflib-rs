@@ -6,7 +6,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, solve_monotone};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_inc, gamma_log};
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
@@ -69,11 +69,12 @@ impl Binomial {
             let (_, ccum, _) = beta_inc(sf + 1.0, n - sf, pr, 1.0 - pr);
             ccum - p
         };
+        // Match cdfbin's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
-                small: sf.max(1.0),
-                big: 1e15,
-                start: (sf + 1.0).max(2.0),
+                small: 1.0e-300,
+                big: SOLVER_BOUND,
+                start: 5.0,
             },
             f,
         )?)

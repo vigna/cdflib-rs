@@ -59,25 +59,28 @@ impl StudentsT {
         // t < 0 it's decreasing. Use the appropriate strategy.
         if t == 0.0 {
             // CDF at 0 is exactly 0.5 for any df; this is degenerate.
+            // CDFLIB returns the start value of 5.0 for this case (since
+            // dstinv terminates immediately when f(start) = 0). Match it.
             if (p - 0.5).abs() < 1e-15 {
-                return Ok(1.0);
+                return Ok(5.0);
             }
             return Err(StudentsTError::Solver(SolverError::SearchOutOfBounds {
-                searched_in: (1e-300, 1e300),
-                nearest: 1.0,
+                searched_in: (1e-300, 1.0e10),
+                nearest: 5.0,
             }));
         }
+        // Match cdft's which=3 setup: bracket (zero, maxdf=1e10), start=5.0.
         let strat = if t > 0.0 {
             BracketStrategy::Increasing {
                 small: 1e-300,
-                big: 1e300,
-                start: 1.0,
+                big: 1.0e10,
+                start: 5.0,
             }
         } else {
             BracketStrategy::Decreasing {
                 small: 1e-300,
-                big: 1e300,
-                start: 1.0,
+                big: 1.0e10,
+                start: 5.0,
             }
         };
         Ok(solve_monotone(strat, f)?)
@@ -129,12 +132,13 @@ impl ContinuousCdf for StudentsT {
         }
         let df = self.df;
         let f = |t: f64| StudentsT { df }.cdf(t) - p;
-        let bound = SOLVER_BOUND.sqrt();
-        // Start near 0; expand bracket. The Student's t is monotone.
+        // Match cdft's which=2: bracket (-inf, inf). CDFLIB uses the
+        // `dt1` Hill approximation as start; we use 0 (the median) since
+        // dt1 is not ported. The bracket expansion will compensate.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
-                small: -bound,
-                big: bound,
+                small: -SOLVER_BOUND,
+                big: SOLVER_BOUND,
                 start: 0.0,
             },
             f,
@@ -148,11 +152,11 @@ impl ContinuousCdf for StudentsT {
         }
         let df = self.df;
         let f = |t: f64| StudentsT { df }.sf(t) - q;
-        let bound = SOLVER_BOUND.sqrt();
+        // Mirror inverse_cdf's bracket setup for the upper-tail direction.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
-                small: -bound,
-                big: bound,
+                small: -SOLVER_BOUND,
+                big: SOLVER_BOUND,
                 start: 0.0,
             },
             f,

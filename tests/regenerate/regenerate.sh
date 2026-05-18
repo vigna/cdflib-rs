@@ -24,6 +24,7 @@ GENERATORS="
     beta_distributions
     discrete_distributions
     noncentral_distributions
+    dispatchers
 "
 for name in $GENERATORS; do
     SRC="tests/regenerate/gen_${name}.c"

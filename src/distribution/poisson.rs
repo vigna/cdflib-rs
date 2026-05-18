@@ -6,7 +6,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, solve_monotone};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{gamma_inc, gamma_log};
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
@@ -65,11 +65,12 @@ impl Poisson {
             let (_, q) = gamma_inc(sf + 1.0, lambda);
             q - p
         };
+        // Match cdfpoi's which=3: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
-                small: 1e-300,
-                big: 1e300,
-                start: (sf + 1.0).max(1.0),
+                small: 0.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
             },
             f,
         )?)

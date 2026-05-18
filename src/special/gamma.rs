@@ -597,8 +597,8 @@ pub fn rcomp(a: f64, x: f64) -> f64 {
 /// use cdflib::special::gamma_inc;
 ///
 /// let (p, q) = gamma_inc(2.5, 1.7);
-/// assert!((p - 0.36135041).abs() < 1e-8);
-/// assert!((q - 0.63864958).abs() < 1e-8);
+/// assert!((p - 0.36143008).abs() < 1e-8);
+/// assert!((q - 0.63856992).abs() < 1e-8);
 /// ```
 ///
 /// # Panics

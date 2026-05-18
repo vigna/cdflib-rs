@@ -68,12 +68,12 @@ impl ChiSquared {
             let (cum, _) = gamma_inc(df / 2.0, x / 2.0);
             cum - p
         };
-        // Start near df ≈ x (mean of χ²_df is df, so reasonable guess).
+        // Match cdfchi's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 1.0e-300,
                 big: SOLVER_BOUND,
-                start: x.max(1.0),
+                start: 5.0,
             },
             f,
         )?)
@@ -118,11 +118,12 @@ impl ContinuousCdf for ChiSquared {
             let (cum, _) = gamma_inc(df / 2.0, x / 2.0);
             cum - p
         };
+        // Match cdfchi's which=2: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: df,
+                start: 5.0,
             },
             f,
         )?)
@@ -139,11 +140,12 @@ impl ContinuousCdf for ChiSquared {
             let (_, ccum) = gamma_inc(df / 2.0, x / 2.0);
             ccum - q
         };
+        // Match cdfchi's which=2 setup (same as inverse_cdf); use start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: df,
+                start: 5.0,
             },
             f,
         )?)

@@ -27,15 +27,17 @@ pub(crate) enum BracketStrategy {
 
 pub(crate) const SOLVER_BOUND: f64 = 1.0e300;
 
-const REL_STEP: f64 = 1.0e-2;
-const STP_MUL: f64 = 4.0;
+// CDFLIB's cdf* dispatchers all set up `dstinv` with the same K-block
+// constants: abs_step = rel_step = 0.5 (its K3/K4/K8), stp_mul = 5.0
+// (K4/K5/K9), atol = 1e-50, tol = 1e-8. Match them so that `dinvr`'s
+// iteration trace is bit-identical to the C reference at the dispatcher
+// level. Callers that want a tighter converged value can drive
+// `InvrState` directly with their own config.
+const ABS_STEP: f64 = 0.5;
+const REL_STEP: f64 = 0.5;
+const STP_MUL: f64 = 5.0;
 const ABS_TOL: f64 = 1.0e-50;
-// CDFLIB's `cdfchi` etc. configure `dstinv` with rel_tol = 1e-8; we
-// tighten to 1e-13 by default to match what the surrounding tests expect
-// and to be on par with the previous Brent-based driver. Callers that
-// want CDFLIB's exact tolerance can drive `InvrState` directly with their
-// own config.
-const REL_TOL: f64 = 1.0e-13;
+const REL_TOL: f64 = 1.0e-8;
 const MAX_EVAL: u32 = 1000;
 
 /// Find `x` such that `f(x) = 0` on a monotone function, driving CDFLIB's
@@ -66,11 +68,10 @@ where
     // (ftnstop) if `small ≤ x ≤ big` doesn't hold.
     let start = start.clamp(small, big);
 
-    let abs_step = start.abs().max(1.0);
     let cfg = InvrConfig {
         small,
         big,
-        abs_step,
+        abs_step: ABS_STEP,
         rel_step: REL_STEP,
         stp_mul: STP_MUL,
         abs_tol: ABS_TOL,

@@ -59,11 +59,12 @@ impl ChiSquaredNoncentral {
     pub fn solve_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_prob(p)?;
         let f = |df: f64| cumchn(x, df, ncp).0 - p;
+        // Match cdfchn's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 1e-300,
                 big: SOLVER_BOUND,
-                start: 1.0,
+                start: 5.0,
             },
             f,
         )?)
@@ -72,12 +73,14 @@ impl ChiSquaredNoncentral {
     pub fn solve_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_prob(p)?;
         let f = |ncp: f64| cumchn(x, df, ncp).0 - p;
-        // CDF is decreasing in ncp (shift right).
+        // CDF is decreasing in ncp (shift right). Upper bound 1e4
+        // matches the C reference's hard cap — cumchn's iteration cost
+        // grows with ncp so unbounded searches are intentionally avoided.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: SOLVER_BOUND,
-                start: 1.0,
+                big: 1.0e4,
+                start: 5.0,
             },
             f,
         )?)
@@ -189,11 +192,12 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         let df = self.df;
         let ncp = self.ncp;
         let f = |x: f64| cumchn(x, df, ncp).0 - p;
+        // Match cdfchn's which=2: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: df + ncp,
+                start: 5.0,
             },
             f,
         )?)
@@ -206,11 +210,12 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         let df = self.df;
         let ncp = self.ncp;
         let f = |x: f64| cumchn(x, df, ncp).1 - q;
+        // Same cdfchn which=2 setup for the upper-tail direction.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: df + ncp,
+                start: 5.0,
             },
             f,
         )?)

@@ -5,7 +5,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, solve_monotone};
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_inc, beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
@@ -67,11 +67,12 @@ impl Beta {
             cum - p
         };
         // I_x(a, b) is decreasing in a (more weight near 1 when a grows).
+        // Match cdfbet's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 1e-300,
-                big: 1e300,
-                start: 1.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
             },
             f,
         )?)
@@ -87,12 +88,12 @@ impl Beta {
             let (cum, _, _) = beta_inc(a, b, x, 1.0 - x);
             cum - p
         };
-        // I_x(a, b) is increasing in b.
+        // I_x(a, b) is increasing in b. Match cdfbet's which=4 setup.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 1e-300,
-                big: 1e300,
-                start: 1.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
             },
             f,
         )?)

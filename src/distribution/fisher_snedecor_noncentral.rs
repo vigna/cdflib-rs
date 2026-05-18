@@ -68,11 +68,12 @@ impl FisherSnedecorNoncentral {
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
         let func = |dfn: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
+        // Match cdffnc's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
-                small: 1.0,
-                big: 1e15,
-                start: 2.0,
+                small: 1.0e-300,
+                big: SOLVER_BOUND,
+                start: 5.0,
             },
             func,
         )?)
@@ -87,11 +88,12 @@ impl FisherSnedecorNoncentral {
         check_prob(p)?;
         let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // CDF is increasing in dfd for fixed f, dfn, ncp.
+        // Match cdffnc's which=4: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
-                small: 1.0,
-                big: 1e15,
-                start: 2.0,
+                small: 1.0e-300,
+                big: SOLVER_BOUND,
+                start: 5.0,
             },
             func,
         )?)
@@ -105,11 +107,14 @@ impl FisherSnedecorNoncentral {
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
         let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
+        // Upper bound 1e4 matches the C reference's hard cap; the C
+        // source explicitly notes its earlier 1e300 upper bound caused
+        // overflow in the rootfinder's function evaluations.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
-                big: 1e15,
-                start: 1.0,
+                big: 1.0e4,
+                start: 5.0,
             },
             func,
         )?)
@@ -235,11 +240,12 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         let dfd = self.dfd;
         let ncp = self.ncp;
         let func = |x: f64| cumfnc(x, dfn, dfd, ncp).0 - p;
+        // Match cdffnc's which=2: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: 1.0 + ncp / dfn,
+                start: 5.0,
             },
             func,
         )?)
@@ -253,11 +259,12 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         let dfd = self.dfd;
         let ncp = self.ncp;
         let func = |x: f64| cumfnc(x, dfn, dfd, ncp).1 - q;
+        // Same cdffnc which=2 setup for the upper-tail direction.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
-                start: 1.0 + ncp / dfn,
+                start: 5.0,
             },
             func,
         )?)

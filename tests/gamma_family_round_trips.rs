@@ -40,8 +40,8 @@ fn chi_squared_solve_df_round_trip() {
 
 #[test]
 fn gamma_inverse_cdf_round_trip() {
-    for &(shape, scale) in &[(1.0, 1.0), (2.0, 3.0), (0.5, 2.0), (10.0, 0.5)] {
-        let g = Gamma::new(shape, scale).unwrap();
+    for &(shape, rate) in &[(1.0, 1.0), (2.0, 3.0), (0.5, 2.0), (10.0, 0.5)] {
+        let g = Gamma::new(shape, rate).unwrap();
         for &p in &[0.01, 0.1, 0.5, 0.9, 0.99] {
             let x = g.inverse_cdf(p).unwrap();
             assert_close_eps(g.cdf(x), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
@@ -55,7 +55,7 @@ fn gamma_solve_round_trip() {
     let back = Gamma::new(shape, 2.0).unwrap().cdf(5.0);
     assert_close_eps(back, 0.95, INVERSE_REL_TOL, INVERSE_REL_TOL);
 
-    let scale = Gamma::solve_scale(0.5, 4.0, 2.0).unwrap();
-    let back = Gamma::new(2.0, scale).unwrap().cdf(4.0);
+    let rate = Gamma::solve_rate(0.5, 4.0, 2.0).unwrap();
+    let back = Gamma::new(2.0, rate).unwrap().cdf(4.0);
     assert_close_eps(back, 0.5, INVERSE_REL_TOL, INVERSE_REL_TOL);
 }

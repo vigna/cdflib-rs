@@ -354,14 +354,13 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
     let a0 = a.min(b);
     if a0 >= 8.0 {
         // a ≥ 8 and b ≥ 8
-        let (h, x0, _y0, lambda) = if a <= b {
+        let (x0, y0, lambda) = if a <= b {
             let h = a / b;
-            (h, h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
+            (h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
         } else {
             let h = b / a;
-            (h, 1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
+            (1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
         };
-        let _ = h;
         let e = -(lambda / a);
         let u = if e.abs() <= 0.6 {
             rlog1(e)
@@ -369,10 +368,15 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
             e - (x / x0).ln()
         };
         let e = lambda / b;
+        // Use y0 directly, not `1.0 - x0`. The two are mathematically
+        // equal but `1.0 - x0` loses precision (down to exactly 0) when
+        // `h = min(a,b)/max(a,b)` is below f64 epsilon, while
+        // `y0 = h/(1+h)` preserves the small value. Matches C
+        // `brcomp`'s use of `log(y/y0)`.
         let v = if e.abs() <= 0.6 {
             rlog1(e)
         } else {
-            e - (y / (1.0 - x0)).ln()
+            e - (y / y0).ln()
         };
         let z = (-(a * u + b * v)).exp();
         return CONST_VAL * (b * x0).sqrt() * z * (-bcorr(a, b)).exp();
@@ -440,14 +444,13 @@ pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
     const CONST_VAL: f64 = 0.398942280401433;
     let a0 = a.min(b);
     if a0 >= 8.0 {
-        let (h, x0, _y0, lambda) = if a <= b {
+        let (x0, y0, lambda) = if a <= b {
             let h = a / b;
-            (h, h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
+            (h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
         } else {
             let h = b / a;
-            (h, 1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
+            (1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
         };
-        let _ = h;
         let e = -(lambda / a);
         let u = if e.abs() <= 0.6 {
             rlog1(e)
@@ -455,10 +458,11 @@ pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
             e - (x / x0).ln()
         };
         let e = lambda / b;
+        // Use y0 directly — see comment in beta_rcomp on the same fix.
         let v = if e.abs() <= 0.6 {
             rlog1(e)
         } else {
-            e - (y / (1.0 - x0)).ln()
+            e - (y / y0).ln()
         };
         let t4 = -(a * u + b * v);
         let z = esum(mu, t4);
@@ -892,10 +896,14 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64, i32) {
     if a == 0.0 && b == 0.0 {
         return (0.0, 0.0, 2);
     }
-    if !(0.0..=1.0).contains(&x) {
+    // Mirror CDFLIB's `*x < 0 || *x > 1` form. With NaN inputs, both
+    // comparisons return false, so NaN passes through here and the
+    // x == 0 / y == 0 short-circuits below get a chance to fire — that
+    // matches what C beta_inc does for e.g. cumt with extreme |t|.
+    if x < 0.0 || x > 1.0 {
         return (0.0, 0.0, 3);
     }
-    if !(0.0..=1.0).contains(&y) {
+    if y < 0.0 || y > 1.0 {
         return (0.0, 0.0, 4);
     }
     let z = x + y - 0.5 - 0.5;
