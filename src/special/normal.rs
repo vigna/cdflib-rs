@@ -2,7 +2,7 @@
 //!
 //! Direct Rust port of `cumnor` (Cody 1969 / SPECFUN, ACM Algorithm 715)
 //! and `dinvnr` (Newton iteration with Kennedy–Gentle starting value)
-//! from `cdflib.c`.
+//! from `cdflib.f90`.
 
 #![allow(clippy::excessive_precision)]
 

@@ -1,9 +1,10 @@
 #!/bin/sh
-# Regenerate reference tables under tests/data/ from the bundled cdflib.c
-# sources. Run from the repository root: `tests/regenerate/regenerate.sh`.
+# Regenerate reference tables under tests/data/ from the bundled
+# Fortran cdflib.f90 source. Run from the repository root:
+# `tests/regenerate/regenerate.sh`.
 #
-# Re-run when the parameter grid or the cdflib.c reference changes; the
-# generated CSVs are committed.
+# Re-run when the parameter grid or the cdflib.f90 reference changes;
+# the generated CSVs are committed.
 
 set -eu
 
@@ -27,15 +28,15 @@ GENERATORS="
     dispatchers
 "
 for name in $GENERATORS; do
-    SRC="tests/regenerate/gen_${name}.c"
+    SRC="tests/regenerate/gen_${name}.f90"
     if [ ! -f "$SRC" ]; then
         continue
     fi
     BIN="$BUILD_DIR/gen_${name}"
     echo "compiling $SRC -> $BIN"
-    cc -O2 -Wall -Wno-unused-result \
-        -I tests/regenerate \
-        -o "$BIN" "$SRC" "$REFS_DIR/cdflib.c" -lm
+    gfortran -O2 -Wall -Wno-unused-variable -Wno-unused-dummy-argument \
+        -J "$BUILD_DIR" \
+        -o "$BIN" "$SRC" "$REFS_DIR/cdflib.f90"
     echo "running $BIN"
     "$BIN"
 done

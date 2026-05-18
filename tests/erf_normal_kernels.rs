@@ -1,6 +1,6 @@
 //! Reference-table tests for the erf and standard-normal kernels.
-//! Each row is compared against the C reference output produced by
-//! `tests/regenerate/gen_erf_normal_kernels.c`.
+//! Each row is compared against the Fortran reference output produced
+//! by `tests/regenerate/gen_erf_normal_kernels.f90`.
 
 mod common;
 

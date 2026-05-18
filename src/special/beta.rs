@@ -1,7 +1,7 @@
 //! Beta function family: `B(a, b)`, `ln B(a, b)`, and the regularized
 //! incomplete beta `I_x(a, b)` and its complement.
 //!
-//! Direct port of `beta_log`, `beta_inc`, and ~13 helpers from `cdflib.c`.
+//! Direct port of `beta_log`, `beta_inc`, and ~13 helpers from `cdflib.f90`.
 //! The incomplete-beta routine is ACM Algorithm 708 (DiDinato & Morris).
 //! It is regime-aware in the same way as `gamma_inc`: power series for
 //! one corner of (a, b, x) space, continued fraction for another,

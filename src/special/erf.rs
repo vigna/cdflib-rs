@@ -1,6 +1,6 @@
 //! Error function and complementary error function.
 //!
-//! Direct Rust port of `error_f` and `error_fc` from `cdflib.c`. The
+//! Direct Rust port of `error_f` and `error_fc` from `cdflib.f90`. The
 //! algorithm is a piecewise rational approximation with three regions
 //! (|x| ≤ 0.5, 0.5 < |x| ≤ 4, |x| > 4); coefficients are identical to the
 //! upstream C source.
@@ -63,7 +63,13 @@ const S: [f64; 4] = [
     9.41537750555460e+01,
     1.87114811799590e+02,
     9.90191814623914e+01,
-    1.80124575948747e+01,
+    // The original CDFLIB Fortran (cdflib.f90) has 1.80124575948747D+02.
+    // The C transliteration (cdflib.f90) typo'd this as e+01 — a factor of
+    // 10 — which causes a ~2% error in error_fc for moderate |x| in the
+    // asymptotic regime. The Rust port had copied the C typo. Match the
+    // original Fortran: this is the only place where the C and Fortran
+    // sources disagree on a polynomial coefficient.
+    1.80124575948747e+02,
 ];
 
 const C: f64 = 0.564189583547756;

@@ -1,6 +1,7 @@
 //! Reference-table tests for the Beta family of distributions: Beta,
-//! Student's t, Fisher–Snedecor (F). Each table was produced by the C
-//! `cumbet`/`cumt`/`cumf` routines from `tests/regenerate/refs/cdflib.c`.
+//! Student's t, Fisher–Snedecor (F). Each table was produced by the
+//! Fortran `cumbet`/`cumt`/`cumf` routines from
+//! `tests/regenerate/refs/cdflib.f90`.
 
 mod common;
 

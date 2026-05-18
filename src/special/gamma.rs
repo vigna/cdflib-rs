@@ -2,7 +2,7 @@
 //! `P(a, x)` and `Q(a, x)`.
 //!
 //! Direct port of `gamma_log`, `gamma_x`, `gamma_inc`, and their helpers
-//! from `cdflib.c`. The incomplete-gamma routine is the work of Alfred H.
+//! from `cdflib.f90`. The incomplete-gamma routine is the work of Alfred H.
 //! Morris, Jr. — closely related to ACM Algorithm 654 / 708 — and is the
 //! same algorithm family that underlies R's `pgamma` and SciPy/Cephes.
 //!

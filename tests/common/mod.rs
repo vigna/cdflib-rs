@@ -29,9 +29,14 @@ pub const DEFAULT_REL_TOL: f64 = 1e-14;
 pub const DEFAULT_ABS_TOL: f64 = 1e-300;
 
 /// Direct math kernels (`error_f`, `cumnor`, `gamma_log`, `gamma_x`,
-/// `beta_log`, …). Bit-near-exact match between Rust and C.
-/// Measured max: ~5.4e-16 (error_fc). Tolerance 1e-15 leaves ~2x margin.
-pub const KERNEL_REL_TOL: f64 = 1e-15;
+/// `beta_log`, …). Compared against fixtures generated from the
+/// original Fortran `cdflib.f90` via `tests/regenerate/gen_*.f90`. The
+/// machine-translated C/C++ sources are no longer used at all.
+/// Measured max: ~1.15e-14 (error_f/erfc at saturation, where the
+/// Fortran reference's last few ULPs differ from the Rust port's, which
+/// was derived from the C transliteration). Tolerance 5e-14 leaves
+/// ~4x margin against the Fortran reference.
+pub const KERNEL_REL_TOL: f64 = 5e-14;
 
 /// Iterative or regime-aware kernels (`gamma_inc`, `beta_inc`). These
 /// dispatch across multiple computational regimes (power series,
