@@ -8,7 +8,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Gamma distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
 ///
-/// Density *f*(*x*; *α*, *β*) = (*βᵅ* / Γ(*α*)) · *xᵅ*⁻¹ · exp(−*β*·*x*) for
+/// Density *f*(*x*; *α*, *β*) = (*βᵅ* / Γ(*α*)) · *xᵅ* ⁻ ¹ · exp(−*β*·*x*) for
 /// *x* > 0. The CDF reduces to the regularized incomplete Γ function:
 /// *F*(*x*; *α*, *β*) = *P*(*α*, *β*·*x*).
 ///

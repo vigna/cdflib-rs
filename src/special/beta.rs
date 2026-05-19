@@ -940,7 +940,7 @@ pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
 /// Errors of [`beta_inc`].
 ///
 /// All variants correspond to invalid inputs: CDFLIB's `beta_inc` reports
-/// them via a positive integer `ierr` (1..=7) and returns zeros for *w*,
+/// them via a positive integer `ierr` [1 . . 7] and returns zeros for *w*,
 /// *w*₁. This enum gives each one a named, descriptive form.
 ///
 /// [`beta_inc`]: crate::special::beta_inc

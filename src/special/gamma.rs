@@ -430,7 +430,7 @@ pub fn gamma_ln1(a: f64) -> f64 {
 /// ```
 /// use cdflib::special::psi;
 ///
-/// // *ψ*(1) = −*γ* (Euler–Mascheroni constant)
+/// // ψ(1) = −γ (Euler–Mascheroni constant)
 /// let y = psi(1.0);
 /// assert!((y + 0.57721566).abs() < 1e-8);
 /// ```

@@ -63,7 +63,7 @@ const S: [f64; 4] = [
 
 const C: f64 = 0.564189583547756;
 
-/// Error function erf(*x*) = (2/√π) ∫₀ˣ *e*⁻*ᵗ*² d*t*.
+/// Error function erf(*x*) = (2/√π) ∫₀ˣ e⁻*ᵗ*² d*t*.
 ///
 /// # Example
 ///

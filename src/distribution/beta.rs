@@ -9,7 +9,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// Β distribution with shape parameters *a* > 0 and *b* > 0.
 ///
 /// Defined over the interval [0 . . 1], with density
-/// *f*(*x*; *a*, *b*) = *xᵃ* ⁻ ¹ (1 − *x*)*ᵇ* ⁻ ¹ / Β(*a*, *b*).
+/// *f*(*x*; *a*, *b*) = *xᵃ* ⁻ ¹ (1 − *x*)*ᵇ* ⁻ ¹ / Β(*a*, *b*).
 ///
 /// # Example
 ///
