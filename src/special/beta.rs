@@ -1,5 +1,5 @@
 //! Β function family: Β(*a*, *b*), ln Β(*a*, *b*), and the regularized
-//! incomplete Β *Iₓ*(*a*, *b*) and its complement.
+//! incomplete Β function *Iₓ*(*a*, *b*) and its complement.
 
 #![allow(clippy::approx_constant, clippy::excessive_precision)]
 
@@ -969,7 +969,7 @@ pub enum BetaIncError {
     YZeroAndBZero,
 }
 
-/// Regularized incomplete Β *Iₓ*(*a*, *b*) and its complement
+/// Regularized incomplete Β function *Iₓ*(*a*, *b*) and its complement
 /// 1 − *Iₓ*(*a*, *b*).
 ///
 /// The argument pair (*x*, *y*) is the (value, complement) of the
