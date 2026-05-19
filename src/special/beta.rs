@@ -1,4 +1,4 @@
-//! Β function family: *B*(*a*, *b*), ln *B*(*a*, *b*), and the regularized
+//! Β function family: Β(*a*, *b*), ln Β(*a*, *b*), and the regularized
 //! incomplete Β *Iₓ*(*a*, *b*) and its complement.
 
 #![allow(clippy::approx_constant, clippy::excessive_precision)]
@@ -77,7 +77,7 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
     if v < u { w - v - u } else { w - u - v }
 }
 
-/// ln *B*(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*).
+/// ln Β(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*).
 ///
 /// # Example
 ///
@@ -85,7 +85,7 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
 /// use cdflib::special::beta_log;
 ///
 /// let y = beta_log(3.0, 4.0);
-/// // B(3, 4) = 1/60
+/// // Β(3, 4) = 1/60
 /// assert!((y - (1.0/60.0_f64).ln()).abs() < 1e-14);
 /// ```
 #[inline]
@@ -196,7 +196,7 @@ pub fn bcorr(a0: f64, b0: f64) -> f64 {
     (((((C5 * t + C4) * t + C3) * t + C2) * t + C1) * t + C0) / a + w
 }
 
-/// *B*(*a*, *b*) = Γ(*a*) Γ(*b*) / Γ(*a* + *b*).
+/// Β(*a*, *b*) = Γ(*a*) Γ(*b*) / Γ(*a* + *b*).
 ///
 /// # Example
 ///
@@ -212,7 +212,7 @@ pub fn beta(a: f64, b: f64) -> f64 {
 }
 
 /// Stirling remainder for the complete Β function:
-/// ln *B*(*a*, *b*) − [Stirling(*a*) + Stirling(*b*) − Stirling(*a* + *b*)],
+/// ln Β(*a*, *b*) − [Stirling(*a*) + Stirling(*b*) − Stirling(*a* + *b*)],
 /// where Stirling(*z*) = ln √(2π) + (*z* − ½) ln *z* − *z*.
 ///
 /// Sums from smallest to largest argument for accuracy.
@@ -371,7 +371,7 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     result * (1.0 + a * sum)
 }
 
-/// `beta_rcomp`: *xᵃ* · *yᵇ* / *B*(*a*, *b*).
+/// `beta_rcomp`: *xᵃ* · *yᵇ* / Β(*a*, *b*).
 #[inline]
 pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
     const CONST_VAL: f64 = 0.398942280401433; // 1/√(2π)
@@ -466,7 +466,7 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
     result * (a0 * c) / (1.0 + a0 / b0)
 }
 
-/// `beta_rcomp1`: exp(*μ*) · *xᵃ* · *yᵇ* / *B*(*a*, *b*).
+/// `beta_rcomp1`: exp(*μ*) · *xᵃ* · *yᵇ* / Β(*a*, *b*).
 #[inline]
 pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
     const CONST_VAL: f64 = 0.398942280401433;
@@ -1198,7 +1198,7 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn dbetrm_matches_beta_log_minus_stirling() {
-        // For each (a, b), dbetrm should equal ln B(a, b) − Stirling decomposition.
+        // For each (a, b), dbetrm should equal ln Β(a, b) − Stirling decomposition.
         const HLN2PI: f64 = 0.91893853320467274178;
         fn stirling(z: f64) -> f64 {
             HLN2PI + (z - 0.5) * z.ln() - z
@@ -1228,11 +1228,11 @@ mod tests {
 
     #[test]
     fn beta_log_at_integer_arguments() {
-        // ln B(1, 1) = 0
+        // ln Β(1, 1) = 0
         assert!(beta_log(1.0, 1.0).abs() < 1e-14);
-        // ln B(2, 2) = ln(1/6) = -ln 6
+        // ln Β(2, 2) = ln(1/6) = -ln 6
         assert!((beta_log(2.0, 2.0) - (-6.0_f64.ln())).abs() < 1e-13);
-        // ln B(3, 4) = ln(Γ(3)Γ(4)/Γ(7)) = ln(2·6/720) = ln(1/60)
+        // ln Β(3, 4) = ln(Γ(3)Γ(4)/Γ(7)) = ln(2·6/720) = ln(1/60)
         assert!((beta_log(3.0, 4.0) - (-60.0_f64.ln())).abs() < 1e-13);
     }
 
@@ -1455,7 +1455,7 @@ mod tests {
 
     #[test]
     fn beta_wrapper() {
-        // B(a,b) = exp(beta_log(a, b)). Verify at simple integer points.
+        // Β(a,b) = exp(beta_log(a, b)). Verify at simple integer points.
         assert!((beta(1.0, 1.0) - 1.0).abs() < 1e-14);
         assert!((beta(2.0, 2.0) - 1.0 / 6.0).abs() < 1e-14);
         assert!((beta(3.0, 4.0) - 1.0 / 60.0).abs() < 1e-14);

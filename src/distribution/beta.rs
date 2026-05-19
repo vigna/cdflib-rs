@@ -9,7 +9,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// Β distribution with shape parameters *a* > 0 and *b* > 0.
 ///
 /// Defined over the interval [0 . . 1], with density
-/// *f*(*x*; *a*, *b*) = *xᵃ* ⁻ ¹ (1 − *x*)*ᵇ* ⁻ ¹ / *B*(*a*, *b*).
+/// *f*(*x*; *a*, *b*) = *xᵃ* ⁻ ¹ (1 − *x*)*ᵇ* ⁻ ¹ / Β(*a*, *b*).
 ///
 /// # Example
 ///
@@ -271,7 +271,7 @@ impl Variance for Beta {
 impl Entropy for Beta {
     #[inline]
     fn entropy(&self) -> f64 {
-        // H = ln B(a,b) - (a-1)ψ(a) - (b-1)ψ(b) + (a+b-2)ψ(a+b)
+        // H = ln Β(a,b) - (a-1)ψ(a) - (b-1)ψ(b) + (a+b-2)ψ(a+b)
         beta_log(self.a, self.b) - (self.a - 1.0) * psi(self.a) - (self.b - 1.0) * psi(self.b)
             + (self.a + self.b - 2.0) * psi(self.a + self.b)
     }

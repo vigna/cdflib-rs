@@ -247,7 +247,7 @@ impl Continuous for FisherSnedecor {
         }
         let dfn = self.dfn;
         let dfd = self.dfd;
-        // f(x) = (dfn/dfd)^(dfn/2) · x^(dfn/2-1) · (1 + dfn·x/dfd)^(-(dfn+dfd)/2) / B(dfn/2, dfd/2)
+        // f(x) = (dfn/dfd)^(dfn/2) · x^(dfn/2-1) · (1 + dfn·x/dfd)^(-(dfn+dfd)/2) / Β(dfn/2, dfd/2)
         let half_dfn = dfn / 2.0;
         let half_dfd = dfd / 2.0;
         half_dfn * (dfn / dfd).ln() + (half_dfn - 1.0) * x.ln()
@@ -285,7 +285,7 @@ impl Variance for FisherSnedecor {
 impl Entropy for FisherSnedecor {
     #[inline]
     fn entropy(&self) -> f64 {
-        // Closed-form: H = ln(dfd/dfn · B(dfn/2, dfd/2))
+        // Closed-form: H = ln(dfd/dfn · Β(dfn/2, dfd/2))
         //                + (1 - dfn/2) ψ(dfn/2) - (1 + dfd/2) ψ(dfd/2)
         //                + (dfn+dfd)/2 · ψ((dfn+dfd)/2)
         let dfn = self.dfn;

@@ -22,10 +22,10 @@ distributions:
 
 ## Goals
 
-The goal of `cdflib-rs` is to provide CDFLIB in pure Rust. The underlying
-special functions ([`gamma_inc`], [`beta_inc`], [`error_f`], [`cumnor`], etc.)
-are exposed publicly in a [`cdflib::special`] module for users who want the
-kernels without the distribution wrappers.
+The goal of this crate is to provide CDFLIB in pure Rust. The underlying special
+functions ([`gamma_inc`], [`beta_inc`], [`error_f`], [`cumnor`], etc.) are
+exposed publicly in a [`cdflib::special`] module for users who want the kernels
+without the distribution wrappers.
 
 The API is designed to be ergonomic and idiomatic for Rust users, with [traits]
 representing the common functionality of continuous and discrete distributions,
@@ -94,7 +94,7 @@ CDFLIB's distributions. However, besides not offering at the time of this
 writing parameter solvers, [`statrs`]'s special function are not as precise as
 CDFLIB's:
 
-| Query                         | `cdflib-rs`  | `statrs` (`1 - cdf`) |
+| Query                         | `cdflib`     | `statrs` (`1 - cdf`) |
 | ----------------------------- | ------------ | -------------------- |
 | `Normal::standard().sf(10.0)` | `7.620e-24`  | `0.0`                |
 | `Normal::standard().sf(15.0)` | `3.671e-51`  | `0.0`                |

@@ -244,8 +244,8 @@ impl Entropy for StudentsT {
     #[inline]
     fn entropy(&self) -> f64 {
         let df = self.df;
-        // H = (df+1)/2 · [ψ((df+1)/2) - ψ(df/2)] + ln(√df · B(df/2, 1/2))
-        // = (df+1)/2 · [ψ((df+1)/2) - ψ(df/2)] + 0.5·ln(df) + ln B(df/2, 1/2)
+        // H = (df+1)/2 · [ψ((df+1)/2) - ψ(df/2)] + ln(√df · Β(df/2, 1/2))
+        // = (df+1)/2 · [ψ((df+1)/2) - ψ(df/2)] + 0.5·ln(df) + ln Β(df/2, 1/2)
         use crate::special::beta_log;
         0.5 * (df + 1.0) * (psi((df + 1.0) / 2.0) - psi(df / 2.0))
             + 0.5 * df.ln()
