@@ -1,0 +1,319 @@
+use thiserror::Error;
+
+use super::must_gamma_inc;
+use crate::error::SolverError;
+use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone_with_atol};
+use crate::special::gamma_log;
+use crate::traits::{ContinuousCdf, Mean, Variance};
+
+/// Noncentral *χ*² distribution with *df* > 0 degrees of freedom and
+/// noncentrality parameter *λ* ≥ 0.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::ChiSquaredNoncentral;
+/// use cdflib::traits::ContinuousCdf;
+///
+/// let d = ChiSquaredNoncentral::new(5.0, 10.0).unwrap();
+///
+/// // Probability of observing a value ≤ 15.0
+/// let p = d.cdf(15.0);
+///
+/// // Solve for noncentrality *λ* given Pr[X ≤ 15] = 0.5 and df = 5
+/// let ncp = ChiSquaredNoncentral::solve_ncp(0.5, 15.0, 5.0).unwrap();
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ChiSquaredNoncentral {
+    df: f64,
+    ncp: f64,
+}
+
+/// Errors arising from constructing a [`ChiSquaredNoncentral`] or from its
+/// parameter solvers.
+///
+/// [`ChiSquaredNoncentral`]: crate::ChiSquaredNoncentral
+#[derive(Debug, Clone, Copy, PartialEq, Error)]
+pub enum ChiSquaredNoncentralError {
+    /// The degrees of freedom *df* was not strictly positive (or not finite).
+    #[error("df must be positive, got {0}")]
+    DfNotPositive(f64),
+    /// The noncentrality parameter *λ* was negative (or not finite).
+    #[error("noncentrality parameter must be ≥ 0, got {0}")]
+    NcpNegative(f64),
+    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    ProbabilityOutOfRange(f64),
+    /// The internal root-finder failed; see [`SolverError`].
+    ///
+    /// [`SolverError`]: crate::error::SolverError
+    #[error(transparent)]
+    Solver(#[from] SolverError),
+}
+
+impl ChiSquaredNoncentral {
+    /// Construct a noncentral *χ*²(*df*, *λ*) distribution with *df* > 0
+    /// degrees of freedom and noncentrality *λ* ≥ 0. Returns
+    /// [`DfNotPositive`] or [`NcpNegative`] otherwise.
+    ///
+    /// [`DfNotPositive`]: ChiSquaredNoncentralError::DfNotPositive
+    /// [`NcpNegative`]: ChiSquaredNoncentralError::NcpNegative
+    #[inline]
+    pub fn new(df: f64, ncp: f64) -> Result<Self, ChiSquaredNoncentralError> {
+        if !(df > 0.0 && df.is_finite()) {
+            return Err(ChiSquaredNoncentralError::DfNotPositive(df));
+        }
+        if !(ncp >= 0.0 && ncp.is_finite()) {
+            return Err(ChiSquaredNoncentralError::NcpNegative(ncp));
+        }
+        Ok(Self { df, ncp })
+    }
+
+    /// Degrees of freedom *df*.
+    #[inline]
+    pub fn df(&self) -> f64 {
+        self.df
+    }
+
+    /// Noncentrality parameter *λ*.
+    #[inline]
+    pub fn ncp(&self) -> f64 {
+        self.ncp
+    }
+
+    /// Solve for the degrees of freedom given Pr[*X* ≤ *x*] = *p* and *λ*.
+    /// Mirrors CDFLIB's `cdfchn` with `which = 3`.
+    #[inline]
+    pub fn solve_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
+        check_prob(p)?;
+        let f = |df: f64| cumchn(x, df, ncp).0 - p;
+        // Match cdfchn's which=3: bracket (zero, inf), start = 5.0, atol = 1e-50.
+        Ok(solve_monotone_with_atol(
+            BracketStrategy::Decreasing {
+                small: 0.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
+            },
+            1.0e-50,
+            f,
+        )?)
+    }
+
+    /// Solve for the noncentrality *λ* given Pr[*X* ≤ *x*] = *p* and *df*.
+    /// Mirrors CDFLIB's `cdfchn` with `which = 4`. The search is bracketed
+    /// on (0, 10⁴] because `cumchn`'s iteration cost grows with *λ*.
+    #[inline]
+    pub fn solve_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
+        check_prob(p)?;
+        let f = |ncp: f64| cumchn(x, df, ncp).0 - p;
+        // CDF is decreasing in ncp (shift right). Upper bound 1e4
+        // matches CDFLIB's hard cap; cumchn's iteration cost grows
+        // with ncp so unbounded searches are intentionally avoided.
+        // atol = 1e-50 per cdfchn (cdflib.f90:3719).
+        Ok(solve_monotone_with_atol(
+            BracketStrategy::Decreasing {
+                small: 0.0,
+                big: 1.0e4,
+                start: 5.0,
+            },
+            1.0e-50,
+            f,
+        )?)
+    }
+}
+
+#[inline]
+fn check_prob(p: f64) -> Result<(), ChiSquaredNoncentralError> {
+    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
+        Err(ChiSquaredNoncentralError::ProbabilityOutOfRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+/// `cumchn`: noncentral *χ*² CDF and SF.
+fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
+    if x <= 0.0 {
+        return (0.0, 1.0);
+    }
+    if pnonc <= 1e-10 {
+        let (p, q) = must_gamma_inc(df / 2.0, x / 2.0);
+        return (p, q);
+    }
+
+    let eps = 1e-5;
+    let ntired: i32 = 1000;
+    let xnonc = pnonc / 2.0;
+    let mut icent = xnonc as i32;
+    if icent == 0 {
+        icent = 1;
+    }
+    let chid2 = x / 2.0;
+
+    let lfact = gamma_log((icent + 1) as f64);
+    let lcntwt = -xnonc + (icent as f64) * xnonc.ln() - lfact;
+    let centwt = lcntwt.exp();
+
+    let dg = |i: i32| df + 2.0 * (i as f64);
+    let (pcent, _) = must_gamma_inc(dg(icent) / 2.0, chid2);
+
+    let dfd2 = dg(icent) / 2.0;
+    let lfact = gamma_log(1.0 + dfd2);
+    let lcntaj = dfd2 * chid2.ln() - chid2 - lfact;
+    let centaj = lcntaj.exp();
+    let mut sum = centwt * pcent;
+
+    // Sum backwards.
+    let mut iterb: i32 = 0;
+    let mut sumadj = 0.0;
+    let mut adj = centaj;
+    let mut wt = centwt;
+    let mut i = icent;
+    loop {
+        let dfd2 = dg(i) / 2.0;
+        adj *= dfd2 / chid2;
+        sumadj += adj;
+        let pterm = pcent + sumadj;
+        wt *= i as f64 / xnonc;
+        let term = wt * pterm;
+        sum += term;
+        i -= 1;
+        iterb += 1;
+        let small = sum < 1e-20 || term < eps * sum;
+        if iterb > ntired || small || i == 0 {
+            break;
+        }
+    }
+
+    // Sum forwards.
+    let mut iterf: i32 = 0;
+    let mut adj = centaj;
+    let mut sumadj = centaj;
+    let mut wt = centwt;
+    let mut i = icent;
+    loop {
+        wt *= xnonc / (i + 1) as f64;
+        let pterm = pcent - sumadj;
+        let term = wt * pterm;
+        sum += term;
+        i += 1;
+        let dfd2 = dg(i) / 2.0;
+        adj *= chid2 / dfd2;
+        sumadj += adj;
+        iterf += 1;
+        let small = sum < 1e-20 || term < eps * sum;
+        if iterf > ntired || small {
+            break;
+        }
+    }
+
+    let cum = sum;
+    (cum, 0.5 + (0.5 - cum))
+}
+
+impl ContinuousCdf for ChiSquaredNoncentral {
+    type Error = ChiSquaredNoncentralError;
+
+    #[inline]
+    fn cdf(&self, x: f64) -> f64 {
+        cumchn(x, self.df, self.ncp).0
+    }
+    #[inline]
+    fn sf(&self, x: f64) -> f64 {
+        cumchn(x, self.df, self.ncp).1
+    }
+    #[inline]
+    fn inverse_cdf(&self, p: f64) -> Result<f64, ChiSquaredNoncentralError> {
+        check_prob(p)?;
+        if p == 0.0 {
+            return Ok(0.0);
+        }
+        let df = self.df;
+        let ncp = self.ncp;
+        let f = |x: f64| cumchn(x, df, ncp).0 - p;
+        // Match cdfchn's which=2: bracket (0, inf), start = 5.0, atol = 1e-50.
+        Ok(solve_monotone_with_atol(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
+            },
+            1.0e-50,
+            f,
+        )?)
+    }
+    #[inline]
+    fn inverse_sf(&self, q: f64) -> Result<f64, ChiSquaredNoncentralError> {
+        check_prob(q)?;
+        if q == 1.0 {
+            return Ok(0.0);
+        }
+        let df = self.df;
+        let ncp = self.ncp;
+        let f = |x: f64| cumchn(x, df, ncp).1 - q;
+        // Same cdfchn which=2 setup for the upper-tail direction. atol = 1e-50.
+        Ok(solve_monotone_with_atol(
+            BracketStrategy::Decreasing {
+                small: 0.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
+            },
+            1.0e-50,
+            f,
+        )?)
+    }
+}
+
+impl Mean for ChiSquaredNoncentral {
+    #[inline]
+    fn mean(&self) -> f64 {
+        self.df + self.ncp
+    }
+}
+
+impl Variance for ChiSquaredNoncentral {
+    #[inline]
+    fn variance(&self) -> f64 {
+        2.0 * (self.df + 2.0 * self.ncp)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_inputs() {
+        assert!(matches!(
+            ChiSquaredNoncentral::new(0.0, 1.0),
+            Err(ChiSquaredNoncentralError::DfNotPositive(0.0))
+        ));
+        assert!(matches!(
+            ChiSquaredNoncentral::new(1.0, -1.0),
+            Err(ChiSquaredNoncentralError::NcpNegative(-1.0))
+        ));
+        assert!(matches!(
+            ChiSquaredNoncentral::solve_df(-0.1, 1.0, 2.0),
+            Err(ChiSquaredNoncentralError::ProbabilityOutOfRange(-0.1))
+        ));
+    }
+
+    #[test]
+    fn inverse_and_moment_edges() {
+        let d = ChiSquaredNoncentral::new(5.0, 2.0).unwrap();
+        assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
+        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
+        assert!(d.inverse_sf(0.25).unwrap().is_finite());
+        assert!(d.mean().is_finite());
+        assert!(d.variance().is_finite());
+    }
+
+    #[test]
+    fn central_limit_path_is_consistent() {
+        let d = ChiSquaredNoncentral::new(4.0, 0.0).unwrap();
+        let x = 3.0;
+        let cdf = d.cdf(x);
+        let sf = d.sf(x);
+        assert!((cdf + sf - 1.0).abs() < 1e-12);
+    }
+}

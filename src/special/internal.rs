@@ -1,0 +1,23 @@
+//! CDFLIB-style helper routines that the user-facing kernels build on.
+//!
+//! Every function here is part of the public API and is documented with
+//! its CDFLIB role; they live in a separate module so the user-facing
+//! [`cdflib::special`](crate::special) namespace stays focused on the
+//! kernels a statistical user is likely to call directly ([`beta_inc`],
+//! [`gamma_inc`], [`error_f`], [`cumnor`], etc.).
+//!
+//! Users porting C/Fortran code that calls these helpers by name (for
+//! example `algdiv(a, b)`, `bcorr(a, b)`, `gam1(a)`, `rlog(x)`) can find
+//! each routine here. Documentation, signatures, and numerical behavior
+//! mirror CDFLIB.
+//!
+//! [`beta_inc`]: crate::special::beta_inc
+//! [`gamma_inc`]: crate::special::gamma_inc
+//! [`error_f`]: crate::special::error_f
+//! [`cumnor`]: crate::special::cumnor
+
+pub use super::beta::{
+    BetaGratError, algdiv, apser, bcorr, beta_asym, beta_frac, beta_grat, beta_pser, beta_rcomp,
+    beta_rcomp1, beta_up, dbetrm, esum, fpser, gamma_rat1,
+};
+pub use super::gamma::{alnrel, dexpm1, dstrem, gam1, gamma_ln1, gsumln, rcomp, rexp, rlog, rlog1};

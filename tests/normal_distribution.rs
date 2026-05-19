@@ -1,0 +1,53 @@
+#![cfg(not(miri))]
+
+//! Reference-table tests for the Normal distribution against `cdfnor`.
+
+mod common;
+
+use cdflib::{ContinuousCdf, Normal};
+use common::{DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL, assert_close_eps, read_csv};
+
+#[test]
+fn cdf_and_sf_match_cdfnor_reference() {
+    for row in read_csv("tests/data/normal_cdf.csv") {
+        let [mean, sd, x, expected_cdf, expected_sf] = row[..] else {
+            panic!("width");
+        };
+        let n = Normal::new(mean, sd).unwrap();
+        // Normal::cdf is a direct cumnor wrapper; no iterative kernel.
+        assert_close_eps(n.cdf(x), expected_cdf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_close_eps(n.sf(x), expected_sf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+    }
+}
+
+#[test]
+fn inverse_cdf_matches_cdfnor_reference() {
+    // Each row supplies (p, q) with full precision in *both* tails (one
+    // generated as cum, the other as ccum, neither via 1 - other). The
+    // trait single-arg API can only carry one of them with full
+    // precision, so we route each row to its accurate branch:
+    //   - p ≤ 0.5 → inverse_cdf(p) is the accurate call
+    //   - q ≤ 0.5 → inverse_sf(q) is the accurate call
+    for row in read_csv("tests/data/normal_inverse_cdf.csv") {
+        let [mean, sd, p, q, expected_x] = row[..] else {
+            panic!("width");
+        };
+        let n = Normal::new(mean, sd).unwrap();
+        if p <= 0.5 {
+            assert_close_eps(
+                n.inverse_cdf(p).unwrap(),
+                expected_x,
+                DINVNR_REL_TOL,
+                DINVNR_REL_TOL,
+            );
+        }
+        if q <= 0.5 {
+            assert_close_eps(
+                n.inverse_sf(q).unwrap(),
+                expected_x,
+                DINVNR_REL_TOL,
+                DINVNR_REL_TOL,
+            );
+        }
+    }
+}
