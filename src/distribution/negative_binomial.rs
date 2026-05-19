@@ -177,3 +177,41 @@ impl Variance for NegativeBinomial {
         m / self.pr
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_parameters() {
+        assert!(matches!(
+            NegativeBinomial::new(0, 0.5),
+            Err(NegativeBinomialError::RNotPositive)
+        ));
+        assert!(matches!(
+            NegativeBinomial::new(1, 0.0),
+            Err(NegativeBinomialError::PrOutOfRange(0.0))
+        ));
+    }
+
+    #[test]
+    fn inverse_zero_and_moments() {
+        let d = NegativeBinomial::new(5, 0.4).unwrap();
+        assert_eq!(d.inverse_cdf(0.0).unwrap(), 0);
+        assert!(d.ln_pmf(3).is_finite());
+        assert!(d.mean().is_finite());
+        assert!(d.variance().is_finite());
+    }
+
+    #[test]
+    fn solve_helpers_reject_invalid_inputs() {
+        assert!(matches!(
+            NegativeBinomial::solve_trials(-0.1, 0.5, 3),
+            Err(NegativeBinomialError::ProbabilityOutOfRange(-0.1))
+        ));
+        assert!(matches!(
+            NegativeBinomial::solve_trials(0.5, 0.0, 3),
+            Err(NegativeBinomialError::PrOutOfRange(0.0))
+        ));
+    }
+}

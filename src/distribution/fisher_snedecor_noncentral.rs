@@ -294,3 +294,49 @@ impl Variance for FisherSnedecorNoncentral {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_inputs() {
+        assert!(matches!(
+            FisherSnedecorNoncentral::new(0.0, 5.0, 1.0),
+            Err(FisherSnedecorNoncentralError::DfnInvalid(0.0))
+        ));
+        assert!(matches!(
+            FisherSnedecorNoncentral::new(5.0, 0.0, 1.0),
+            Err(FisherSnedecorNoncentralError::DfdInvalid(0.0))
+        ));
+        assert!(matches!(
+            FisherSnedecorNoncentral::new(5.0, 5.0, -1.0),
+            Err(FisherSnedecorNoncentralError::NcpNegative(-1.0))
+        ));
+        assert!(matches!(
+            FisherSnedecorNoncentral::solve_ncp(-0.1, 1.0, 5.0, 10.0),
+            Err(FisherSnedecorNoncentralError::ProbabilityOutOfRange(-0.1))
+        ));
+    }
+
+    #[test]
+    fn inverse_and_moment_edges() {
+        let d = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0).unwrap();
+        assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
+        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
+        assert!(d.inverse_sf(0.25).unwrap().is_finite());
+        assert!(d.mean().is_finite());
+        assert!(d.variance().is_finite());
+        assert!(FisherSnedecorNoncentral::new(5.0, 2.0, 2.0).unwrap().mean().is_nan());
+        assert!(FisherSnedecorNoncentral::new(5.0, 4.0, 2.0).unwrap().variance().is_nan());
+    }
+
+    #[test]
+    fn central_reduction_path_is_consistent() {
+        let d = FisherSnedecorNoncentral::new(5.0, 10.0, 0.0).unwrap();
+        let x = 1.5;
+        let cdf = d.cdf(x);
+        let sf = d.sf(x);
+        assert!((cdf + sf - 1.0).abs() < 1e-12);
+    }
+}

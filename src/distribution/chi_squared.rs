@@ -231,4 +231,26 @@ mod tests {
         assert!(m > c.pdf(0.5));
         assert!(m > c.pdf(10.0));
     }
+
+    #[test]
+    fn rejects_invalid_inputs_and_covers_edges() {
+        assert!(matches!(
+            ChiSquared::new(f64::INFINITY),
+            Err(ChiSquaredError::DfNotFinite(x)) if x.is_infinite()
+        ));
+        assert!(matches!(ChiSquared::new(0.0), Err(ChiSquaredError::DfNotPositive(0.0))));
+        assert!(matches!(
+            ChiSquared::solve_df(0.5, 0.0),
+            Err(ChiSquaredError::ProbabilityOutOfRange(0.5))
+        ));
+
+        let c = ChiSquared::new(5.0).unwrap();
+        assert_eq!(c.cdf(0.0), 0.0);
+        assert_eq!(c.sf(0.0), 1.0);
+        assert_eq!(c.inverse_cdf(0.0).unwrap(), 0.0);
+        assert_eq!(c.inverse_sf(1.0).unwrap(), 0.0);
+        assert_eq!(c.pdf(0.0), 0.0);
+        assert_eq!(c.ln_pdf(0.0), f64::NEG_INFINITY);
+        assert!(c.entropy().is_finite());
+    }
 }

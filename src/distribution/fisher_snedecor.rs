@@ -229,3 +229,53 @@ impl Entropy for FisherSnedecor {
             + 0.5 * (dfn + dfd) * psi((dfn + dfd) / 2.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_parameters() {
+        assert!(matches!(
+            FisherSnedecor::new(0.0, 1.0),
+            Err(FisherSnedecorError::DfnNotPositive(0.0))
+        ));
+        assert!(matches!(
+            FisherSnedecor::new(1.0, 0.0),
+            Err(FisherSnedecorError::DfdNotPositive(0.0))
+        ));
+    }
+
+    #[test]
+    fn inverse_and_density_edges() {
+        let d = FisherSnedecor::new(5.0, 10.0).unwrap();
+        assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
+        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
+        assert_eq!(d.pdf(0.0), 0.0);
+        assert_eq!(d.ln_pdf(0.0), f64::NEG_INFINITY);
+        assert!(d.inverse_sf(0.25).unwrap().is_finite());
+        assert!(d.pdf(1.5).is_finite());
+        assert!(d.ln_pdf(1.5).is_finite());
+        assert!(d.entropy().is_finite());
+    }
+
+    #[test]
+    fn moment_thresholds_and_invalid_solves() {
+        assert!(FisherSnedecor::new(5.0, 2.0).unwrap().mean().is_nan());
+        assert!(FisherSnedecor::new(5.0, 4.0).unwrap().variance().is_nan());
+        assert!(FisherSnedecor::new(5.0, 10.0).unwrap().mean().is_finite());
+        assert!(FisherSnedecor::new(5.0, 10.0).unwrap().variance().is_finite());
+        assert!(matches!(
+            FisherSnedecor::solve_dfn(-0.1, 1.0, 5.0),
+            Err(FisherSnedecorError::ProbabilityOutOfRange(-0.1))
+        ));
+        assert!(matches!(
+            FisherSnedecor::solve_dfn(0.5, 0.0, 5.0),
+            Err(FisherSnedecorError::DfdNotPositive(5.0))
+        ));
+        assert!(matches!(
+            FisherSnedecor::solve_dfd(0.5, 1.0, 0.0),
+            Err(FisherSnedecorError::DfnNotPositive(0.0))
+        ));
+    }
+}

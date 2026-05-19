@@ -267,4 +267,48 @@ mod tests {
         assert!(pm > g.pdf(mode * 0.5));
         assert!(pm > g.pdf(mode * 2.0));
     }
+
+    #[test]
+    fn rejects_invalid_parameters_and_probabilities() {
+        assert!(matches!(Gamma::new(0.0, 1.0), Err(GammaError::ShapeNotPositive(0.0))));
+        assert!(matches!(Gamma::new(1.0, 0.0), Err(GammaError::RateNotPositive(0.0))));
+        assert!(matches!(
+            Gamma::new(f64::INFINITY, 1.0),
+            Err(GammaError::ShapeNotFinite(x)) if x.is_infinite()
+        ));
+        assert!(matches!(
+            Gamma::new(1.0, f64::INFINITY),
+            Err(GammaError::RateNotFinite(x)) if x.is_infinite()
+        ));
+        assert!(matches!(
+            Gamma::solve_shape(-0.1, 1.0, 1.0),
+            Err(GammaError::ProbabilityOutOfRange(-0.1))
+        ));
+    }
+
+    #[test]
+    fn inverse_and_density_edges() {
+        let g = Gamma::new(2.0, 3.0).unwrap();
+        assert_eq!(g.inverse_cdf(0.0).unwrap(), 0.0);
+        assert_eq!(g.inverse_sf(1.0).unwrap(), 0.0);
+        assert_eq!(g.pdf(0.0), 0.0);
+        assert_eq!(g.ln_pdf(0.0), f64::NEG_INFINITY);
+        assert_eq!(g.cdf(-1.0), 0.0);
+        assert_eq!(g.sf(-1.0), 1.0);
+        assert!(g.sf(1.0).is_finite());
+        assert!(g.inverse_sf(0.25).unwrap().is_finite());
+        assert!(g.entropy().is_finite());
+    }
+
+    #[test]
+    fn solve_parameter_rejects_nonpositive_inputs() {
+        assert!(matches!(
+            Gamma::solve_shape(0.5, 0.0, 1.0),
+            Err(GammaError::RateNotPositive(1.0))
+        ));
+        assert!(matches!(
+            Gamma::solve_rate(0.5, 1.0, 0.0),
+            Err(GammaError::ShapeNotPositive(0.0))
+        ));
+    }
 }

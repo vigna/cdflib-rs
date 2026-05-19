@@ -169,7 +169,7 @@ impl ZrorState {
     fn refine_iteration(&mut self) -> Option<ZrorAction> {
         // S80: swap so |fb| is the smaller residual.
         if self.fc.abs() < self.fb.abs() {
-            if self.c != self.a {
+            if self.c == self.a {
                 self.d = self.a;
                 self.fd = self.fa;
             }
@@ -214,8 +214,16 @@ impl ZrorState {
                 q = self.fa - self.fb;
                 self.first = false;
             } else {
-                let fdb = (self.fd - self.fb) / (self.d - self.b);
-                let fda = (self.fd - self.fa) / (self.d - self.a);
+                let fdb = if self.d == self.b {
+                    1.0
+                } else {
+                    (self.fd - self.fb) / (self.d - self.b)
+                };
+                let fda = if self.d == self.a {
+                    1.0
+                } else {
+                    (self.fd - self.fa) / (self.d - self.a)
+                };
                 p *= fda;
                 q = fdb * self.fa - fda * self.fb;
             }
@@ -242,5 +250,161 @@ impl ZrorState {
         self.xlo = self.b;
         self.stage = Stage::AwaitFbStep;
         Some(ZrorAction::NeedEval(self.b))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg() -> ZrorConfig {
+        ZrorConfig {
+            xlo: 0.0,
+            xhi: 1.0,
+            abstol: 1.0e-50,
+            reltol: 1.0e-8,
+        }
+    }
+
+    #[test]
+    fn swap_branch_preserves_history_when_c_equals_a() {
+        let mut z = ZrorState {
+            cfg: cfg(),
+            stage: Stage::AwaitFbStep,
+            xlo: 0.0,
+            xhi: 0.0,
+            a: 1.0,
+            b: 2.0,
+            c: 1.0,
+            d: 99.0,
+            fa: 3.0,
+            fb: 2.0,
+            fc: 1.0,
+            fd: 77.0,
+            w: 0.0,
+            mb: 0.0,
+            ext: 0,
+            first: false,
+        };
+
+        let action = z.refine_iteration();
+        match action {
+            Some(ZrorAction::NeedEval(x)) => assert!((x - 4.0 / 3.0).abs() < 1e-15),
+            other => panic!("unexpected action: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn guarded_divided_difference_when_d_equals_a() {
+        let mut z = ZrorState {
+            cfg: cfg(),
+            stage: Stage::AwaitFbStep,
+            xlo: 2.0,
+            xhi: 4.0,
+            a: 1.0,
+            b: 2.0,
+            c: 4.0,
+            d: 1.0,
+            fa: 4.0,
+            fb: -1.0,
+            fc: 5.0,
+            fd: 5.0,
+            w: 0.0,
+            mb: 0.0,
+            ext: 0,
+            first: false,
+        };
+
+        let action = z.refine_iteration();
+        match action {
+            Some(ZrorAction::NeedEval(x)) => assert!((x - (2.0 + 1.0 / 23.0)).abs() < 1e-15),
+            other => panic!("unexpected action: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn guarded_divided_difference_when_d_equals_b() {
+        let mut z = ZrorState {
+            cfg: cfg(),
+            stage: Stage::AwaitFbStep,
+            xlo: 2.0,
+            xhi: 4.0,
+            a: 1.0,
+            b: 2.0,
+            c: 4.0,
+            d: 2.0,
+            fa: 4.0,
+            fb: -1.0,
+            fc: 5.0,
+            fd: 5.0,
+            w: 0.0,
+            mb: 0.0,
+            ext: 0,
+            first: false,
+        };
+
+        let action = z.refine_iteration();
+        match action {
+            Some(ZrorAction::NeedEval(x)) => assert_eq!(x, 3.0),
+            other => panic!("unexpected action: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn fails_when_both_initial_values_are_negative() {
+        let mut z = ZrorState::new(cfg());
+        assert!(matches!(z.step(0.0), ZrorAction::NeedEval(0.0)));
+        assert!(matches!(z.step(-2.0), ZrorAction::NeedEval(1.0)));
+        assert!(matches!(
+            z.step(-1.0),
+            ZrorAction::Failed {
+                qleft: false,
+                qhi: false
+            }
+        ));
+    }
+
+    #[test]
+    fn fails_when_both_initial_values_are_positive() {
+        let mut z = ZrorState::new(cfg());
+        assert!(matches!(z.step(0.0), ZrorAction::NeedEval(0.0)));
+        assert!(matches!(z.step(1.0), ZrorAction::NeedEval(1.0)));
+        assert!(matches!(
+            z.step(2.0),
+            ZrorAction::Failed {
+                qleft: true,
+                qhi: true
+            }
+        ));
+    }
+
+    #[test]
+    fn reports_failed_convergence_if_interval_no_longer_straddles_zero() {
+        let mut z = ZrorState {
+            cfg: cfg(),
+            stage: Stage::AwaitFbStep,
+            xlo: 1.0,
+            xhi: 1.0,
+            a: 1.0,
+            b: 1.0,
+            c: 1.0,
+            d: 0.0,
+            fa: 1.0,
+            fb: 1.0,
+            fc: 1.0,
+            fd: 0.0,
+            w: 0.0,
+            mb: 0.0,
+            ext: 0,
+            first: false,
+        };
+
+        assert!(matches!(
+            z.refine_iteration(),
+            Some(ZrorAction::Failed {
+                qleft: false,
+                qhi: false
+            })
+        ));
     }
 }

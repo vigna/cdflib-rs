@@ -137,8 +137,8 @@ impl ContinuousCdf for StudentsT {
         // dt1 is not ported. The bracket expansion will compensate.
         Ok(solve_monotone(
             BracketStrategy::Increasing {
-                small: -SOLVER_BOUND,
-                big: SOLVER_BOUND,
+                small: -SOLVER_BOUND.sqrt(),
+                big: SOLVER_BOUND.sqrt(),
                 start: 0.0,
             },
             f,
@@ -155,8 +155,8 @@ impl ContinuousCdf for StudentsT {
         // Mirror inverse_cdf's bracket setup for the upper-tail direction.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
-                small: -SOLVER_BOUND,
-                big: SOLVER_BOUND,
+                small: -SOLVER_BOUND.sqrt(),
+                big: SOLVER_BOUND.sqrt(),
                 start: 0.0,
             },
             f,
@@ -207,5 +207,64 @@ impl Entropy for StudentsT {
         0.5 * (df + 1.0) * (psi((df + 1.0) / 2.0) - psi(df / 2.0))
             + 0.5 * df.ln()
             + beta_log(df / 2.0, 0.5)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_rejects_nonpositive_or_nonfinite_df() {
+        assert!(matches!(StudentsT::new(0.0), Err(StudentsTError::DfNotPositive(0.0))));
+        assert!(matches!(StudentsT::new(-1.0), Err(StudentsTError::DfNotPositive(-1.0))));
+        assert!(matches!(
+            StudentsT::new(f64::INFINITY),
+            Err(StudentsTError::DfNotPositive(x)) if x.is_infinite()
+        ));
+    }
+
+    #[test]
+    fn solve_df_handles_t_zero_special_case() {
+        assert_eq!(StudentsT::solve_df(0.5, 0.0).unwrap(), 5.0);
+        assert!(matches!(
+            StudentsT::solve_df(0.6, 0.0),
+            Err(StudentsTError::Solver(SolverError::SearchOutOfBounds {
+                searched_in: (1e-300, 1.0e10),
+                nearest: 5.0
+            }))
+        ));
+    }
+
+    #[test]
+    fn rejects_probability_out_of_range() {
+        let d = StudentsT::new(10.0).unwrap();
+        assert!(matches!(
+            d.inverse_cdf(-1.0),
+            Err(StudentsTError::ProbabilityOutOfRange(-1.0))
+        ));
+        assert!(matches!(
+            d.inverse_sf(2.0),
+            Err(StudentsTError::ProbabilityOutOfRange(2.0))
+        ));
+    }
+
+    #[test]
+    fn inverse_sf_is_zero_at_median() {
+        let d = StudentsT::new(7.0).unwrap();
+        assert_eq!(d.inverse_sf(0.5).unwrap(), 0.0);
+        let t = d.inverse_sf(0.25).unwrap();
+        assert!(t.is_finite());
+        assert!((d.sf(t) - 0.25).abs() < 1e-8);
+    }
+
+    #[test]
+    fn pdf_ln_pdf_and_entropy_are_finite() {
+        let d = StudentsT::new(5.0).unwrap();
+        let x = 1.25;
+        let ln_pdf = d.ln_pdf(x);
+        assert!(ln_pdf.is_finite());
+        assert!((d.pdf(x) - ln_pdf.exp()).abs() < 1e-15);
+        assert!(d.entropy().is_finite());
     }
 }

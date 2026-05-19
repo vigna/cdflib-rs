@@ -187,14 +187,14 @@ contains
 
   subroutine gen_cdfchn()
     real(kind=rk), parameter :: rows(3, 8) = reshape((/ &
-       5.0_rk,  5.0_rk,  2.0_rk, &
-      10.0_rk,  5.0_rk,  2.0_rk, &
-      20.0_rk,  5.0_rk,  2.0_rk, &
-      15.0_rk,  5.0_rk, 10.0_rk, &
-      20.0_rk, 10.0_rk,  5.0_rk, &
-      30.0_rk, 10.0_rk,  5.0_rk, &
-      50.0_rk, 20.0_rk,  5.0_rk, &
-      25.0_rk,  5.0_rk, 20.0_rk /), (/3, 8/))
+        5.0_rk,  5.0_rk,  2.0_rk, &
+       10.0_rk,  5.0_rk,  2.0_rk, &
+       20.0_rk,  5.0_rk,  2.0_rk, &
+       15.0_rk,  5.0_rk, 10.0_rk, &
+       20.0_rk, 10.0_rk,  5.0_rk, &
+       30.0_rk, 10.0_rk,  5.0_rk, &
+       50.0_rk, 20.0_rk,  5.0_rk, &
+       25.0_rk,  5.0_rk, 20.0_rk /), (/3, 8/))
     integer :: i, fx, fdf, fnc, which, status
     real(kind=rk) :: x, df, pnonc, p, q, bound, xx, dd, pp
 
@@ -331,13 +331,19 @@ contains
   end subroutine gen_cdffnc
 
   subroutine gen_cdfgam()
-    real(kind=rk), parameter :: rows(3, 6) = reshape((/ &
+    real(kind=rk), parameter :: rows(3, 12) = reshape((/ &
        0.5_rk,  1.0_rk, 1.0_rk, &
        1.5_rk,  1.0_rk, 1.0_rk, &
        3.0_rk,  2.0_rk, 1.0_rk, &
        5.0_rk,  2.0_rk, 2.0_rk, &
-      10.0_rk,  5.0_rk, 1.0_rk, &
-      25.0_rk, 10.0_rk, 2.0_rk /), (/3, 6/))
+       10.0_rk,  5.0_rk, 1.0_rk, &
+       25.0_rk, 10.0_rk, 2.0_rk, &
+       0.15_rk, 0.15_rk, 1.0_rk, &
+       0.8_rk,  0.8_rk,  1.0_rk, &
+       2.25_rk, 2.25_rk, 1.0_rk, &
+       10.0_rk, 10.0_rk, 1.0_rk, &
+       20.0_rk, 20.0_rk, 1.0_rk, &
+       20.0_rk, 0.8_rk,  20.0_rk /), (/3, 12/))
     integer :: i, fx, fsh, fsc, which, status
     real(kind=rk) :: x, shape, scale, p, q, bound, xx, ss, sc
 
@@ -347,11 +353,12 @@ contains
     write(fx,  '(a)') '# p, q, shape, scale, x'
     write(fsh, '(a)') '# p, q, x, scale, shape'
     write(fsc, '(a)') '# p, q, x, shape, scale'
-    do i = 1, 6
+    do i = 1, 12
       x = rows(1, i); shape = rows(2, i); scale = rows(3, i)
       which = 1
       call cdfgam(which, p, q, x, shape, scale, status, bound)
       if (status /= 0) cycle
+      if (p <= 0.0_rk .or. p >= 1.0_rk .or. q <= 0.0_rk .or. q >= 1.0_rk) cycle
       xx = 5.0_rk; which = 2
       call cdfgam(which, p, q, xx, shape, scale, status, bound)
       if (status == 0) then
@@ -499,15 +506,18 @@ contains
   end subroutine gen_cdfpoi
 
   subroutine gen_cdft()
-    real(kind=rk), parameter :: rows(2, 8) = reshape((/ &
+    real(kind=rk), parameter :: rows(2, 11) = reshape((/ &
         0.0_rk,   1.0_rk, &
         1.0_rk,   1.0_rk, &
        -1.0_rk,   1.0_rk, &
         2.0_rk,   5.0_rk, &
         2.776_rk, 4.0_rk, &
-       -2.0_rk,  10.0_rk, &
+        -2.0_rk,  10.0_rk, &
         3.0_rk, 100.0_rk, &
-       -1.96_rk, 1000.0_rk /), (/2, 8/))
+        -1.96_rk, 1000.0_rk, &
+         0.5_rk,   1.000000000001_rk, &
+         0.5_rk,   2.0_rk, &
+         0.5_rk,   2.000000000001_rk /), (/2, 11/))
     integer :: i, ft, fdf, which, status
     real(kind=rk) :: t, df, p, q, bound, tt, dd
 
@@ -515,7 +525,7 @@ contains
     open(newunit=fdf, file='tests/data/cdft_df.csv', status='replace', action='write')
     write(ft,  '(a)') '# p, q, df, t'
     write(fdf, '(a)') '# p, q, t, df'
-    do i = 1, 8
+    do i = 1, 11
       t = rows(1, i); df = rows(2, i)
       which = 1
       call cdft(which, p, q, t, df, status, bound)

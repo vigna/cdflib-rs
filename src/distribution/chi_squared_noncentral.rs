@@ -269,3 +269,46 @@ impl Variance for ChiSquaredNoncentral {
         2.0 * (self.df + 2.0 * self.ncp)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_inputs() {
+        assert!(matches!(
+            ChiSquaredNoncentral::new(0.0, 1.0),
+            Err(ChiSquaredNoncentralError::DfNotPositive(0.0))
+        ));
+        assert!(matches!(
+            ChiSquaredNoncentral::new(1.0, -1.0),
+            Err(ChiSquaredNoncentralError::NcpNegative(-1.0))
+        ));
+        assert!(matches!(
+            ChiSquaredNoncentral::solve_df(-0.1, 1.0, 2.0),
+            Err(ChiSquaredNoncentralError::ProbabilityOutOfRange(-0.1))
+        ));
+    }
+
+    #[test]
+    fn inverse_and_density_edges() {
+        let d = ChiSquaredNoncentral::new(5.0, 2.0).unwrap();
+        assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
+        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
+        assert_eq!(d.pdf(0.0), 0.0);
+        assert_eq!(d.ln_pdf(0.0), f64::NEG_INFINITY);
+        assert!(d.inverse_sf(0.25).unwrap().is_finite());
+        assert!(d.mean().is_finite());
+        assert!(d.variance().is_finite());
+    }
+
+    #[test]
+    fn central_limit_path_is_consistent() {
+        let d = ChiSquaredNoncentral::new(4.0, 0.0).unwrap();
+        let x = 3.0;
+        let cdf = d.cdf(x);
+        let sf = d.sf(x);
+        assert!((cdf + sf - 1.0).abs() < 1e-12);
+        assert!(d.ln_pdf(x).is_finite());
+    }
+}

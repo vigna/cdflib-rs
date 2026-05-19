@@ -900,10 +900,10 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64, i32) {
     // comparisons return false, so NaN passes through here and the
     // x == 0 / y == 0 short-circuits below get a chance to fire — that
     // matches what C beta_inc does for e.g. cumt with extreme |t|.
-    if x < 0.0 || x > 1.0 {
+    if !(0.0..=1.0).contains(&x) {
         return (0.0, 0.0, 3);
     }
-    if y < 0.0 || y > 1.0 {
+    if !(0.0..=1.0).contains(&y) {
         return (0.0, 0.0, 4);
     }
     let z = x + y - 0.5 - 0.5;

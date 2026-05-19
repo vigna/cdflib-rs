@@ -9,7 +9,29 @@ program gen_gamma_kernels
   real(kind=rk), parameter :: as(*) = (/ &
     0.25_rk, 0.5_rk, 0.9_rk, 1.0_rk, 1.5_rk, 2.5_rk, 5.0_rk, &
     9.5_rk, 12.0_rk, 17.0_rk, 25.0_rk, 50.0_rk, 100.0_rk, 500.0_rk /)
-  integer :: i, unit, ind
+  real(kind=rk), parameter :: log_special(*) = (/ &
+    0.149999999999_rk, 0.15_rk, 0.150000000001_rk, &
+    0.374999999999_rk, 0.375_rk, 0.375000000001_rk, &
+    0.799999999999_rk, 0.8_rk, 0.800000000001_rk, &
+    2.249999999999_rk, 2.25_rk, 2.250000000001_rk, &
+    9.999999999999_rk, 10.0_rk, 10.000000000001_rk /)
+  real(kind=rk), parameter :: gamma_x_special(*) = (/ &
+    14.999999999999_rk, 15.0_rk, 15.000000000001_rk /)
+  real(kind=rk), parameter :: inc_special_a(*) = (/ &
+    0.149999999999_rk, 0.15_rk, 0.150000000001_rk, &
+    0.374999999999_rk, 0.375_rk, 0.375000000001_rk, &
+    0.799999999999_rk, 0.8_rk, 0.800000000001_rk, &
+    2.249999999999_rk, 2.25_rk, 2.250000000001_rk, &
+    9.999999999999_rk, 10.0_rk, 10.000000000001_rk, &
+    19.999999999999_rk, 20.0_rk, 20.000000000001_rk /)
+  real(kind=rk), parameter :: inc_special_x(*) = (/ &
+    0.149999999999_rk, 0.15_rk, 0.150000000001_rk, &
+    0.374999999999_rk, 0.375_rk, 0.375000000001_rk, &
+    0.799999999999_rk, 0.8_rk, 0.800000000001_rk, &
+    1.999999999999_rk, 2.0_rk, 2.000000000001_rk, &
+    9.999999999999_rk, 10.0_rk, 10.000000000001_rk, &
+    19.999999999999_rk, 20.0_rk, 20.000000000001_rk /)
+  integer :: i, j, unit, ind
   real(kind=rk) :: a, x, p, q, max_x, step
 
   ! gamma_log
@@ -21,6 +43,11 @@ program gen_gamma_kernels
     call putval(unit, gamma_log(a), .true.)
     a = a + 0.05_rk
   end do
+  do i = 1, size(log_special)
+    a = log_special(i)
+    call putval(unit, a, .false.)
+    call putval(unit, gamma_log(a), .true.)
+  end do
   close(unit)
 
   ! gamma_x
@@ -31,6 +58,11 @@ program gen_gamma_kernels
     call putval(unit, a, .false.)
     call putval(unit, gamma_user(a), .true.)
     a = a + 0.1_rk
+  end do
+  do i = 1, size(gamma_x_special)
+    a = gamma_x_special(i)
+    call putval(unit, a, .false.)
+    call putval(unit, gamma_user(a), .true.)
   end do
   close(unit)
 
@@ -58,6 +90,22 @@ program gen_gamma_kernels
         call putval(unit, q, .true.)
       end if
       x = x + step
+    end do
+  end do
+  do i = 1, size(inc_special_a)
+    a = inc_special_a(i)
+    do j = 1, size(inc_special_x)
+      x = inc_special_x(j)
+      ind = 0
+      p = 0.0_rk
+      q = 0.0_rk
+      call gamma_inc(a, x, p, q, ind)
+      if (p /= 2.0_rk) then
+        call putval(unit, a, .false.)
+        call putval(unit, x, .false.)
+        call putval(unit, p, .false.)
+        call putval(unit, q, .true.)
+      end if
     end do
   end do
   close(unit)

@@ -196,3 +196,37 @@ impl Variance for Binomial {
         self.n as f64 * self.pr * (1.0 - self.pr)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_inputs() {
+        assert!(matches!(Binomial::new(10, -0.1), Err(BinomialError::PrOutOfRange(-0.1))));
+        assert!(matches!(
+            Binomial::solve_trials(-0.1, 0.5, 3),
+            Err(BinomialError::ProbabilityOutOfRange(-0.1))
+        ));
+        assert!(matches!(
+            Binomial::solve_trials(0.5, f64::NAN, 3),
+            Err(BinomialError::PrOutOfRange(x)) if x.is_nan()
+        ));
+        assert!(matches!(
+            Binomial::solve_pr(0.5, 3, 4),
+            Err(BinomialError::ProbabilityOutOfRange(0.5))
+        ));
+    }
+
+    #[test]
+    fn edge_and_moment_cases() {
+        let b = Binomial::new(10, 0.3).unwrap();
+        assert_eq!(b.inverse_cdf(0.0).unwrap(), 0);
+        assert_eq!(b.pmf(11), 0.0);
+        assert_eq!(b.ln_pmf(11), f64::NEG_INFINITY);
+        assert_eq!(Binomial::new(10, 0.0).unwrap().ln_pmf(0), 0.0);
+        assert_eq!(Binomial::new(10, 1.0).unwrap().ln_pmf(10), 0.0);
+        assert_eq!(b.mean(), 3.0);
+        assert!((b.variance() - 2.1).abs() < 1e-15);
+    }
+}

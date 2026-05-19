@@ -229,3 +229,114 @@ impl InvrState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg() -> InvrConfig {
+        InvrConfig {
+            small: 0.0,
+            big: 1.0,
+            abs_step: 0.5,
+            rel_step: 0.5,
+            stp_mul: 5.0,
+            abs_tol: 1.0e-50,
+            rel_tol: 1.0e-8,
+        }
+    }
+
+    #[test]
+    fn rejects_increasing_bracket_when_small_is_already_positive() {
+        let mut state = InvrState::new(cfg(), 0.5);
+        assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
+        assert!(matches!(state.step(1.0), InvrAction::NeedEval(1.0)));
+        assert!(matches!(
+            state.step(2.0),
+            InvrAction::Failed {
+                qleft: true,
+                qhi: true,
+                x: 0.0
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_increasing_bracket_when_big_is_still_negative() {
+        let mut state = InvrState::new(cfg(), 0.5);
+        assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
+        assert!(matches!(state.step(-2.0), InvrAction::NeedEval(1.0)));
+        assert!(matches!(
+            state.step(-1.0),
+            InvrAction::Failed {
+                qleft: false,
+                qhi: false,
+                x: 1.0
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_decreasing_bracket_when_small_is_already_negative() {
+        let mut state = InvrState::new(cfg(), 0.5);
+        assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
+        assert!(matches!(state.step(-1.0), InvrAction::NeedEval(1.0)));
+        assert!(matches!(
+            state.step(-2.0),
+            InvrAction::Failed {
+                qleft: true,
+                qhi: false,
+                x: 0.0
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_decreasing_bracket_when_big_is_still_positive() {
+        let mut state = InvrState::new(cfg(), 0.5);
+        assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
+        assert!(matches!(state.step(2.0), InvrAction::NeedEval(1.0)));
+        assert!(matches!(
+            state.step(1.0),
+            InvrAction::Failed {
+                qleft: false,
+                qhi: true,
+                x: 1.0
+            }
+        ));
+    }
+
+    #[test]
+    fn reports_upper_bound_failure_when_search_runs_out_of_room() {
+        let mut state = InvrState::new(cfg(), 0.9);
+        assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
+        assert!(matches!(state.step(-1.0), InvrAction::NeedEval(1.0)));
+        assert!(matches!(state.step(1.0), InvrAction::NeedEval(0.9)));
+        assert!(matches!(state.step(-0.1), InvrAction::NeedEval(1.0)));
+        assert!(matches!(
+            state.step(-0.05),
+            InvrAction::Failed {
+                qleft: false,
+                qhi: false,
+                x: 1.0
+            }
+        ));
+    }
+
+    #[test]
+    fn reports_lower_bound_failure_when_search_runs_out_of_room() {
+        let mut state = InvrState::new(cfg(), 0.1);
+        assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
+        assert!(matches!(state.step(-1.0), InvrAction::NeedEval(1.0)));
+        assert!(matches!(state.step(1.0), InvrAction::NeedEval(0.1)));
+        assert!(matches!(state.step(0.1), InvrAction::NeedEval(0.0)));
+        assert!(matches!(
+            state.step(0.05),
+            InvrAction::Failed {
+                qleft: true,
+                qhi: true,
+                x: 0.0
+            }
+        ));
+    }
+}

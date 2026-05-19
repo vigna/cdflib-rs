@@ -3,6 +3,7 @@
 
 mod common;
 
+use cdflib::traits::{Mean, Variance};
 use cdflib::{
     Beta, Binomial, ContinuousCdf, Discrete, DiscreteCdf, FisherSnedecor, NegativeBinomial,
     Poisson, StudentsT,
@@ -51,6 +52,32 @@ fn students_t_round_trip() {
             assert_close_eps(d.cdf(t), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
         }
     }
+}
+
+#[test]
+fn students_t_extreme_quantiles_stay_finite() {
+    let d = StudentsT::new(10.0).unwrap();
+    for &p in &[1.0e-12, 1.0 - 1.0e-12] {
+        let t = d.inverse_cdf(p).unwrap();
+        assert!(t.is_finite(), "p={p}, t={t}");
+        assert_close_eps(d.cdf(t), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
+    }
+}
+
+#[test]
+fn students_t_moments_switch_at_documented_df_thresholds() {
+    assert!(StudentsT::new(1.0).unwrap().mean().is_nan());
+    assert_eq!(StudentsT::new(1.0 + 1.0e-12).unwrap().mean(), 0.0);
+
+    assert!(StudentsT::new(1.0).unwrap().variance().is_nan());
+    assert!(StudentsT::new(1.5).unwrap().variance().is_infinite());
+    assert_eq!(StudentsT::new(2.0).unwrap().variance(), f64::INFINITY);
+    assert!(
+        StudentsT::new(2.0 + 1.0e-12)
+            .unwrap()
+            .variance()
+            .is_finite()
+    );
 }
 
 #[test]

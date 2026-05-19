@@ -150,4 +150,64 @@ mod tests {
         let e = std::f64::consts::E;
         assert!((r - e).abs() / e < 1e-8, "r = {r}, e = {e}");
     }
+
+    #[test]
+    fn maps_lower_search_failure_to_solver_error() {
+        let err = solve_monotone(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: 1.0,
+                start: 0.5,
+            },
+            |x| x + 1.0,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            SolverError::SearchOutOfBounds {
+                searched_in: (0.0, 1.0),
+                nearest: 0.0
+            }
+        ));
+    }
+
+    #[test]
+    fn maps_upper_search_failure_to_solver_error() {
+        let err = solve_monotone(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: 1.0,
+                start: 0.5,
+            },
+            |x| x - 2.0,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            SolverError::SearchOutOfBounds {
+                searched_in: (0.0, 1.0),
+                nearest: 1.0
+            }
+        ));
+    }
+
+    #[test]
+    fn nan_objective_surfaces_as_search_failure() {
+        let err = solve_monotone(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: 1.0,
+                start: 0.5,
+            },
+            |_| f64::NAN,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            SolverError::SearchOutOfBounds {
+                searched_in: (0.0, 1.0),
+                nearest: 0.0
+            }
+        ));
+    }
 }

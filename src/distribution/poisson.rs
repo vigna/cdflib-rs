@@ -146,3 +146,26 @@ impl Variance for Poisson {
         self.lambda
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_lambda_and_probability() {
+        assert!(matches!(Poisson::new(0.0), Err(PoissonError::LambdaNotPositive(0.0))));
+        assert!(matches!(
+            Poisson::solve_lambda(-0.1, 3),
+            Err(PoissonError::ProbabilityOutOfRange(-0.1))
+        ));
+    }
+
+    #[test]
+    fn inverse_zero_and_moments() {
+        let p = Poisson::new(4.0).unwrap();
+        assert_eq!(p.inverse_cdf(0.0).unwrap(), 0);
+        assert_eq!(p.mean(), 4.0);
+        assert_eq!(p.variance(), 4.0);
+        assert!(p.ln_pmf(3).is_finite());
+    }
+}

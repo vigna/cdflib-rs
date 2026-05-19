@@ -6,10 +6,12 @@ program gen_noncentral_distributions
   external :: cumchn, cumfnc
 
   real(kind=rk), parameter :: dfs(5)  = (/ 1.0_rk, 2.0_rk, 5.0_rk, 10.0_rk, 30.0_rk /)
-  real(kind=rk), parameter :: ncps(5) = (/ 0.0_rk, 0.5_rk, 2.0_rk, 10.0_rk, 50.0_rk /)
+  real(kind=rk), parameter :: ncps(8) = (/ &
+    0.0_rk, 1.0e-12_rk, 1.0e-10_rk, 1.0e-9_rk, 0.5_rk, 2.0_rk, 10.0_rk, 50.0_rk /)
   real(kind=rk), parameter :: dfns(4) = (/ 2.0_rk, 5.0_rk, 10.0_rk, 30.0_rk /)
   real(kind=rk), parameter :: dfds(4) = (/ 2.0_rk, 5.0_rk, 10.0_rk, 30.0_rk /)
-  real(kind=rk), parameter :: ncps_f(4) = (/ 0.0_rk, 1.0_rk, 5.0_rk, 20.0_rk /)
+  real(kind=rk), parameter :: ncps_f(7) = (/ &
+    0.0_rk, 1.0e-12_rk, 1.0e-10_rk, 1.0e-9_rk, 1.0_rk, 5.0_rk, 20.0_rk /)
 
   integer :: i, j, k, unit
   real(kind=rk) :: df, ncp, mean, sd, x_max, step, x, cum, ccum
