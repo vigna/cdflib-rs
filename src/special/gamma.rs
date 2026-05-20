@@ -1224,7 +1224,7 @@ fn temme_general(
     // a short sub-branch for |s| <= 1e-3), Digits6 a moderate expansion,
     // Digits3 the shortest.
     //
-    // Indeterminate-sentinel check (cdflib.f90 L10744, cdflib.f L840): when s ≈
+    // Indeterminate-sentinel check (cdflib.f90:10744, cdflib.f:840): when s ≈
     // 0 and a is so large that a*ε² > 3.28e-3, the Tricomi-Temme expansion
     // cannot resolve P/Q reliably. Returns the sentinel 2.0.
     let s = 0.5 + (0.5 - l);
@@ -1442,7 +1442,7 @@ fn temme_for_l_eq_1(
     // regime selects the truncation depth: Max uses the full c0..c6 + d70
     // expansion, Digits6 a shallow expansion, Digits3 the shallowest.
     //
-    // Indeterminate-sentinel check (cdflib.f90 L10910, cdflib.f L915): when
+    // Indeterminate-sentinel check (cdflib.f90:10910, cdflib.f:915): when
     // a*ε² > 3.28e-3, the Tricomi-Temme L=1 expansion cannot resolve P/Q.
     if 3.28e-3 < a * e * e {
         return (2.0, 0.0);
@@ -1679,7 +1679,7 @@ pub fn try_gamma_inc_inv(
     p: f64,
     q: f64,
 ) -> Result<(f64, u32), GammaIncInvError> {
-    // Constants from cdflib.f90 L11070+.
+    // Constants from cdflib.f90:11070 onward.
     const A0: f64 = 3.31125922108741;
     const A1: f64 = 11.6616720288968;
     const A2: f64 = 4.28342155967104;

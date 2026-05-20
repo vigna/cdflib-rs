@@ -179,7 +179,7 @@ impl FisherSnedecorNoncentral {
         }
         let func = |dfn: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // Match cdffnc's which=3: bracket (1.0, inf) with inf = 1.0D+30
-        // (Fortran cdflib.f90 L4460 + L4619: cdffnc caps inf at 1e30 and
+        // (Fortran cdflib.f90:4460, :4619: cdffnc caps inf at 1e30 and
         // explicitly lifts the lower bound from 0 to 1, since dfn < 1
         // makes cumfnc's beta_inc call diverge).
         Ok(solve_monotone(
@@ -225,7 +225,7 @@ impl FisherSnedecorNoncentral {
         let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // CDF is increasing in dfd for fixed f, dfn, ncp.
         // Match cdffnc's which=4: bracket (1.0, inf) with inf = 1.0D+30
-        // (Fortran cdflib.f90 L4460 + L4658: same rationale as solve_dfn).
+        // (Fortran cdflib.f90:4460, :4658: same rationale as solve_dfn).
         Ok(solve_monotone(
             BracketStrategy::Increasing {
                 small: 1.0,
@@ -411,7 +411,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         let ncp = self.ncp;
         let func = |x: f64| cumfnc(x, dfn, dfd, ncp).0 - p;
         // Match cdffnc's which=2: bracket (0, inf) with inf = 1.0D+30
-        // (Fortran cdflib.f90 L4460 + L4579: cdffnc caps inf at 1e30
+        // (Fortran cdflib.f90:4460, :4579: cdffnc caps inf at 1e30
         // because cumfnc's series overflows further out).
         Ok(solve_monotone(
             BracketStrategy::Increasing {

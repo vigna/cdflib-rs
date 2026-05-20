@@ -129,7 +129,7 @@ impl StudentsT {
                 SolverError::AnswerBelowLowerBound { bound: 1.0 }
             }));
         }
-        // Match cdft's which=3 setup: Fortran cdflib.f90 L6251 uses
+        // Match cdft's which=3 setup: Fortran cdflib.f90:6251 uses
         // dstinv(1.0D+00, maxdf, ...) with maxdf = 1.0D+10: small=1.0
         // (df < 1 makes cumt's beta_inc call diverge), big=1e10.
         let strat = if t > 0.0 {
@@ -215,9 +215,9 @@ impl ContinuousCdf for StudentsT {
         let df = self.df;
         let f = |t: f64| StudentsT { df }.cdf(t) - p;
         // Match cdft's which=2: bracket (-inf, inf) with inf = 1.0D+30
-        // (cdflib.f90 L6094: cdft caps inf at 1e30 because cumt's
+        // (cdflib.f90:6094: cdft caps inf at 1e30 because cumt's
         // beta_inc reduction overflows at extreme |t|). Starting guess
-        // from dt1 (cdflib.f90 L8493), the asymptotic-series t-quantile
+        // from dt1 (cdflib.f90:8493), the asymptotic-series t-quantile
         // approximation CDFLIB itself uses.
         let start = dt1(p, 1.0 - p, df);
         Ok(solve_monotone(

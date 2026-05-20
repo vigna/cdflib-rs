@@ -7,7 +7,7 @@
 ///
 /// Matches F90's `exparg(1)` exactly: `0.99999 × (-1022) × 0.69314718055995`,
 /// where -1022 = `ipmpar(9) - 1` for IEEE binary64 and `0.69314718055995` is
-/// the literal `lnb` used by F90 for base b=2 (cdflib.f90 L9544).
+/// the literal `lnb` used by F90 for base b=2 (cdflib.f90:9544).
 const NEG_EXPARG: f64 = -708.389_334_568_083_540_9;
 
 // Coefficients for |x| ≤ 0.5.

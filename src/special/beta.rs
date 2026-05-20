@@ -8,7 +8,7 @@ use super::gamma::{alnrel, gam1, gamma_ln1, gamma_log, gsumln, psi, rexp, rlog1}
 
 /// Largest negative argument to `exp` for which the result is nonzero in
 /// IEEE 754 binary64; corresponds to CDFLIB's `exparg(1)`.
-/// 0.99999 · (−1022) · 0.69314718055995 matching F90 cdflib.f90 L9544+9555.
+/// 0.99999 · (−1022) · 0.69314718055995 matching F90 cdflib.f90:9544, :9555.
 const NEG_EXPARG: f64 = -708.389_334_568_083_540_9;
 /// Largest positive argument to `exp`; F90's `exparg(0)`.
 /// 0.99999 · 1024 · 0.69314718055995.
