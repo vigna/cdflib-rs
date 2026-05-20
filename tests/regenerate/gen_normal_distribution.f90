@@ -36,7 +36,7 @@ program gen_normal_distribution
   end do
   close(unit)
 
-  ! normal_inverse_cdf — generate by x, store (mean, sd, p, q, x).
+  ! normal_inverse_cdf: generate by x, store (mean, sd, p, q, x).
   open(newunit=unit, file='tests/data/normal_inverse_cdf.csv', status='replace', action='write')
   write(unit, '(a)') '# mean, sd, p, q, x'
   do i = 1, 3

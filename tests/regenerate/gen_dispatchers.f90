@@ -37,7 +37,7 @@ contains
     end if
   end subroutine putval
 
-  ! cdfbet — Beta(a, b), x in (0, 1)
+  ! cdfbet: Beta(a, b), x in (0, 1)
   subroutine gen_cdfbet()
     real(kind=rk), parameter :: rows(3, 11) = reshape((/ &
       0.10_rk,  0.5_rk,  0.5_rk, &

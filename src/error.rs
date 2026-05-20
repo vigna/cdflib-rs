@@ -5,8 +5,8 @@
 //! go through the reverse-communication root-finder carry a [`SolverError`]
 //! variant; distributions that are closed-form everywhere (e.g. [`Normal`])
 //! do not. A few distributions whose kernels bubble up their own structured
-//! errors carry additional pass-through variants — see [`GammaError`] for an
-//! example.
+//! errors carry additional pass-through variants (see [`GammaError`] for an
+//! example).
 //!
 //! [`SolverError`]: crate::error::SolverError
 //! [`Normal`]: crate::Normal
@@ -17,10 +17,10 @@ use thiserror::Error;
 /// Errors of the internal root-finder used by parameter solvers and
 /// non-closed-form inverse CDFs.
 ///
-/// The two out-of-bounds variants mirror CDFLIB's `status = 1` and
-/// `status = 2` (cdflib.f90:5568) — the answer fell below the lowest
-/// search bound or above the highest, respectively. `bound` carries
-/// the violated endpoint (CDFLIB's `bound` output).
+/// The two out-of-bounds variants mirror CDFLIB's `status = 1` and `status = 2`
+/// (cdflib.f90:5568): the answer fell below the lowest search bound or above
+/// the highest, respectively. `bound` carries the violated endpoint (CDFLIB's
+/// `bound` output).
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum SolverError {
     /// The solution lay below the lower search bound (CDFLIB `status = 1`).

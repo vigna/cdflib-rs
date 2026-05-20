@@ -96,7 +96,7 @@ fn psi_reflection_and_overflow_branches() {
     assert!(p462.is_finite());
 
     // Singularity at a negative integer: z = 0 inside the m+m == n
-    // branch. psi(-2.0) hits this exactly — Pole variant.
+    // branch. psi(-2.0) hits this exactly (Pole variant.
     assert_eq!(try_psi(-2.0), Err(PsiError::Pole(-2.0)));
     assert_eq!(try_psi(-3.0), Err(PsiError::Pole(-3.0)));
 
