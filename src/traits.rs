@@ -71,11 +71,13 @@ pub trait DiscreteCdf {
 
     /// Returns Pr\[*X* > *x*\] = 1 − [cdf]\(*x*\).
     ///
+    /// Required method: implementors must compute the upper tail
+    /// independently from the lower tail rather than as `1.0 - cdf(x)`,
+    /// so the small tail keeps its precision deep into the tails (where
+    /// the subtraction would lose digits to cancellation).
+    ///
     /// [cdf]: DiscreteCdf::cdf
-    #[inline]
-    fn sf(&self, x: u64) -> f64 {
-        1.0 - self.cdf(x)
-    }
+    fn sf(&self, x: u64) -> f64;
 
     /// Returns the smallest integer *x* such that [cdf]\(*x*\) ≥ *p*.
     ///

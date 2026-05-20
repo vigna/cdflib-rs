@@ -56,10 +56,10 @@ pub enum BinomialError {
 
 impl Binomial {
     /// Construct a Binomial(*n*, *pr*) distribution with *n* trials and success
-    /// probability *pr* ∈ [0 . . 1]. Returns [`PrOutOfRange`] if *pr* is
-    /// outside that interval or non-finite.
+    /// probability *pr* ∈ [0 . . 1]. Panics if *pr* is invalid; use
+    /// [`try_new`] for a fallible variant.
     ///
-    /// [`PrOutOfRange`]: BinomialError::PrOutOfRange
+    /// [`try_new`]: Self::try_new
     #[inline]
     pub fn new(n: u64, pr: f64) -> Self {
         Self::try_new(n, pr).unwrap()
@@ -67,6 +67,11 @@ impl Binomial {
 
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`BinomialError`] instead of panicking.
+    ///
+    /// Returns [`PrOutOfRange`] if *pr* falls outside [0 . . 1] or is
+    /// non-finite.
+    ///
+    /// [`PrOutOfRange`]: BinomialError::PrOutOfRange
     #[inline]
     pub fn try_new(n: u64, pr: f64) -> Result<Self, BinomialError> {
         if !(0.0..=1.0).contains(&pr) || !pr.is_finite() {

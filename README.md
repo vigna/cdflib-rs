@@ -49,17 +49,14 @@ lower- and upper-tail probabilities of a distribution. The synonyms are:
 | Pr[*X* ≤ *x*]    | [`cdf`] | `cum`    | _P_         | lower-tail probability |
 | Pr[*X* &gt; *x*] | [`sf`]  | `ccum`   | _Q_         | upper-tail / survival  |
 
-The two are mathematically complementary (_P_ + _Q_ = 1), but the crate
-computes them _independently_ rather than deriving one from the other by
-subtraction. This is what lets the small tail keep its precision deep into the
-tails, where `1.0 - cdf(x)` would lose digits to cancellation.
+The two are mathematically complementary (_P_ + _Q_ = 1), but the crate computes
+them independently rather than deriving one from the other by subtraction. This
+is what lets the small tail keep its precision deep into the tails, where `1.0 -
+cdf(x)` would lose digits to cancellation.
 
 The incomplete-Γ and incomplete-Β kernels follow the same convention:
 [`gamma_inc`] returns the pair (_P_, _Q_), [`beta_inc`] returns
-(_Iₓ_(_a_, _b_), 1 − _Iₓ_(_a_, _b_)) — both computed independently.
-
-Probability statements are written as Pr[*X* ≤ *x*] (square brackets,
-italic variables) throughout the crate's documentation.
+(_Iₓ_(_a_, _b_), 1 − _Iₓ_(_a_, _b_)).
 
 ## Why CDFLIB?
 

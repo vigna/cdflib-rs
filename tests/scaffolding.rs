@@ -123,13 +123,16 @@ impl DiscreteCdf for StubDiscrete {
     fn cdf(&self, x: u64) -> f64 {
         if x >= 1 { 1.0 } else { 0.0 }
     }
+    fn sf(&self, x: u64) -> f64 {
+        if x >= 1 { 0.0 } else { 1.0 }
+    }
     fn inverse_cdf(&self, p: f64) -> Result<u64, SolverError> {
         Ok(if p > 0.0 { 1 } else { 0 })
     }
 }
 
 #[test]
-fn discrete_cdf_default_sf_and_inverse_sf_compose() {
+fn discrete_cdf_default_inverse_sf_composes() {
     let d = StubDiscrete;
     assert_close(d.sf(0), 1.0);
     assert_close(d.sf(1), 0.0);
