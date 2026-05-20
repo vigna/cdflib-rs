@@ -273,7 +273,7 @@ The code has been extensively tested against the original Fortran 90 and C
 sources. In the process, we found [serious bugs in `rmathlib`] and a major
 mistake in the [Fortran 90 version of the library] that has remained undetected
 for 25 years: a coefficient for the computation of the error function had been
-transcribed from the [original FORTRAN77 code] with a wrong exponent.
+transcribed from the [original Fortran 77 code] with a wrong exponent.
 
 [CDFLIB]: https://people.sc.fsu.edu/~jburkardt/cpp_src/cdflib/cdflib.html
 [ACM Algorithm 654]: https://dl.acm.org/doi/10.1145/29380.214348
@@ -288,7 +288,7 @@ transcribed from the [original FORTRAN77 code] with a wrong exponent.
 [`thiserror`]: https://crates.io/crates/thiserror
 [incomplete-Γ/Β routines]: https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.gammainc.html
 [serious bugs in `rmathlib`]: https://github.com/tla-org/rmathlib/issues/38
-[original FORTRAN77 code]: https://dl.acm.org/doi/10.1145/131766.131776#supplementary-materials
+[original Fortran 77 code]: https://dl.acm.org/doi/10.1145/131766.131776#supplementary-materials
 [traits]: https://docs.rs/cdflib/latest/cdflib/traits/index.html
 [`cdflib::special::internal`]: https://docs.rs/cdflib/latest/cdflib/special/internal/index.html
 [`gamma`]: https://docs.rs/cdflib/latest/cdflib/special/fn.gamma.html
