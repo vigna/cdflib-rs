@@ -6,9 +6,9 @@ use crate::special::gamma_inc;
 use crate::special::{gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
-/// *χ*² distribution with *df* degrees of freedom.
+/// χ² distribution with *df* degrees of freedom.
 ///
-/// *χ*²(*df*) is Γ(*df*/2, 2) in shape-scale parameterization. The
+/// χ²(*df*) is Γ(*df*/2, 2) in shape-scale parameterization. The
 /// CDF reduces to the regularized incomplete Γ function:
 /// *F*(*x*; *df*) = *P*(*df*/2, *x*/2).
 ///
@@ -56,7 +56,10 @@ pub enum ChiSquaredError {
 }
 
 impl ChiSquared {
-    /// Construct a *χ*²(*df*) distribution with *df* > 0 degrees of freedom.
+    /// Construct a χ²(*df*) distribution with *df* > 0 degrees of freedom.
+    ///
+    /// # Panics
+    ///
     /// Panics if *df* is invalid; use [`try_new`] for a fallible variant.
     ///
     /// [`try_new`]: Self::try_new

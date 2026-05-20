@@ -52,8 +52,11 @@ pub enum StudentsTError {
 
 impl StudentsT {
     /// Construct a Student's *t* distribution with *df* > 0 degrees of
-    /// freedom. Panics if *df* is invalid; use [`try_new`] for a fallible
-    /// variant.
+    /// freedom.
+    ///
+    /// # Panics
+    ///
+    /// Panics if *df* is invalid; use [`try_new`] for a fallible variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

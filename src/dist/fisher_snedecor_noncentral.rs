@@ -85,8 +85,12 @@ impl FisherSnedecorNoncentral {
     /// Construct a noncentral *F*(*dfn*, *dfd*, *λ*) distribution with
     /// *dfn* ≥ 1, *dfd* ≥ 1, and *λ* ≥ 0. The lower bound of 1 on the
     /// degrees of freedom is required by the underlying incomplete-Β
-    /// reduction. Panics if any argument is invalid; use [`try_new`] for a
-    /// fallible variant.
+    /// reduction.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any argument is invalid; use [`try_new`] for a fallible
+    /// variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

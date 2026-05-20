@@ -58,8 +58,11 @@ pub enum PoissonError {
 }
 
 impl Poisson {
-    /// Construct a Poisson(*λ*) distribution with rate *λ* > 0. Panics if
-    /// *λ* is invalid; use [`try_new`] for a fallible variant.
+    /// Construct a Poisson(*λ*) distribution with rate *λ* > 0.
+    ///
+    /// # Panics
+    ///
+    /// Panics if *λ* is invalid; use [`try_new`] for a fallible variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

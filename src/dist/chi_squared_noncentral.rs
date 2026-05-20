@@ -6,7 +6,7 @@ use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
 
-/// Noncentral *χ*² distribution with *df* > 0 degrees of freedom and
+/// Noncentral χ² distribution with *df* > 0 degrees of freedom and
 /// noncentrality parameter *λ* ≥ 0.
 ///
 /// # Example
@@ -58,9 +58,13 @@ pub enum ChiSquaredNoncentralError {
 }
 
 impl ChiSquaredNoncentral {
-    /// Construct a noncentral *χ*²(*df*, *λ*) distribution with *df* > 0
-    /// degrees of freedom and noncentrality *λ* ≥ 0. Panics if either
-    /// argument is invalid; use [`try_new`] for a fallible variant.
+    /// Construct a noncentral χ²(*df*, *λ*) distribution with *df* > 0
+    /// degrees of freedom and noncentrality *λ* ≥ 0.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either argument is invalid; use [`try_new`] for a fallible
+    /// variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]
@@ -158,7 +162,7 @@ fn check_prob(p: f64) -> Result<(), ChiSquaredNoncentralError> {
     }
 }
 
-/// `cumchn`: noncentral *χ*² CDF and SF.
+/// `cumchn`: noncentral χ² CDF and SF.
 fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     if x <= 0.0 {
         return (0.0, 1.0);

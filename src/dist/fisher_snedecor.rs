@@ -83,8 +83,12 @@ pub enum FisherSnedecorError {
 
 impl FisherSnedecor {
     /// Construct an *F*(*dfn*, *dfd*) distribution with strictly positive
-    /// numerator and denominator degrees of freedom. Panics if either is
-    /// invalid; use [`try_new`] for a fallible variant.
+    /// numerator and denominator degrees of freedom.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either argument is invalid; use [`try_new`] for a fallible
+    /// variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

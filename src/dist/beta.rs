@@ -63,6 +63,9 @@ pub enum BetaError {
 
 impl Beta {
     /// Construct a Β(*a*, *b*) distribution with the given shape parameters.
+    ///
+    /// # Panics
+    ///
     /// Panics if either parameter is invalid; use [`try_new`] for a fallible
     /// variant.
     ///

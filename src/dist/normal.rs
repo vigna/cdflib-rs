@@ -55,8 +55,12 @@ pub enum NormalError {
 
 impl Normal {
     /// Construct a normal distribution with mean *μ* and standard deviation
-    /// *σ* > 0. Panics if either argument is invalid; use [`try_new`] for a
-    /// fallible variant.
+    /// *σ* > 0.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either argument is invalid; use [`try_new`] for a fallible
+    /// variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

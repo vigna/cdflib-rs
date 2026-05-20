@@ -59,11 +59,14 @@ pub enum NegativeBinomialError {
 
 impl NegativeBinomial {
     /// Construct a NegBin(*r*, *pr*) distribution with target successes
-    /// *r* ≥ 1 and success probability *pr* ∈ (0 . . 1]. Returns
-    /// [`RNotPositive`] or [`PrOutOfRange`] otherwise.
+    /// *r* ≥ 1 and success probability *pr* ∈ (0 . . 1].
     ///
-    /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
-    /// [`PrOutOfRange`]: NegativeBinomialError::PrOutOfRange
+    /// # Panics
+    ///
+    /// Panics if either argument is invalid; use [`try_new`] for a fallible
+    /// variant.
+    ///
+    /// [`try_new`]: Self::try_new
     #[inline]
     pub fn new(r: u64, pr: f64) -> Self {
         Self::try_new(r, pr).unwrap()

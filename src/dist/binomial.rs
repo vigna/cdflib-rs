@@ -56,8 +56,11 @@ pub enum BinomialError {
 
 impl Binomial {
     /// Construct a Binomial(*n*, *pr*) distribution with *n* trials and success
-    /// probability *pr* ∈ [0 . . 1]. Panics if *pr* is invalid; use
-    /// [`try_new`] for a fallible variant.
+    /// probability *pr* ∈ [0 . . 1].
+    ///
+    /// # Panics
+    ///
+    /// Panics if *pr* is invalid; use [`try_new`] for a fallible variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

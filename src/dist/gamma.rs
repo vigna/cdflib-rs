@@ -6,7 +6,7 @@ use crate::special::gamma_inc;
 use crate::special::{GammaIncInvError, gamma_log, psi, try_gamma_inc_inv};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
-/// Gamma distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
+/// Γ distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
 ///
 /// Density *f*(*x*; *α*, *β*) = (*βᵅ* / Γ(*α*)) · *xᵅ* ⁻ ¹ · exp(−*β*·*x*) for
 /// *x* > 0. The CDF reduces to the regularized incomplete Γ function:
@@ -77,8 +77,12 @@ pub enum GammaError {
 
 impl Gamma {
     /// Construct a Γ(*α*, *β*) distribution with shape *α* > 0 and rate
-    /// *β* > 0. Panics if either argument is invalid; use [`try_new`] for
-    /// a fallible variant.
+    /// *β* > 0.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either argument is invalid; use [`try_new`] for a fallible
+    /// variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

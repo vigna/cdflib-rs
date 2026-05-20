@@ -84,7 +84,7 @@ pub trait DiscreteCdf {
     /// [cdf]: DiscreteCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;
 
-    /// Returns the largest integer *x* such that [sf]\(*x*) ≥ *q*, saturating at 0 when
+    /// Returns the largest integer *x* such that [sf]\(*x*\) ≥ *q*, saturating at 0 when
     /// no support point satisfies the inequality.
     ///
     /// The default implementation derives this from [`inverse_cdf`] by
@@ -113,6 +113,13 @@ pub trait DiscreteCdf {
 }
 
 /// Probability density function (and its log) for a continuous distribution.
+///
+/// Implemented only when the density admits a closed-form expression. The
+/// noncentral χ² and noncentral *F* distributions are intentionally not
+/// `Continuous` because their densities require an infinite Poisson-weighted
+/// series of central densities; callers needing those should compute them
+/// directly from the moment-generating recurrence rather than expect a
+/// `pdf` method here.
 pub trait Continuous {
     /// Returns the density *f*(*x*) of the distribution at *x*.
     fn pdf(&self, x: f64) -> f64;

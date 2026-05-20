@@ -615,7 +615,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
     bup * w
 }
 
-/// Returns the incomplete gamma ratios *P*(*a*, *x*), *Q*(*a*, *x*) specialized to
+/// Returns the incomplete Γ ratios *P*(*a*, *x*), *Q*(*a*, *x*) specialized to
 /// *a* ≤ 1. Used by [`beta_grat`].
 ///
 /// [`beta_grat`]: crate::special::internal::beta_grat
