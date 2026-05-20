@@ -7,7 +7,7 @@
 mod common;
 
 use cdflib::{Binomial, DiscreteCdf, NegativeBinomial, Poisson};
-use common::{DISTRIBUTION_ABS_TOL, DISTRIBUTION_REL_TOL, assert_close_eps, read_csv};
+use common::{assert_close_eps, read_csv, DISTRIBUTION_ABS_TOL, DISTRIBUTION_REL_TOL};
 
 #[test]
 fn binomial_cdf_matches_cumbin_reference() {

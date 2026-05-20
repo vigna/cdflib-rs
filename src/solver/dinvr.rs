@@ -99,8 +99,12 @@ impl InvrState {
             Stage::AwaitFbig => {
                 self.fbig = fx;
                 self.qincr = self.fbig > self.fsmall;
-                // Check that small and big bracket the zero.
-                if self.qincr {
+                // Check that small and big bracket the zero. F90 dinvr
+                // (cdflib.f90:8054-8083) splits on fsmall <= fbig
+                // (inclusive) versus fbig < fsmall (strict). The tie
+                // case fsmall == fbig takes the <= branch — qincr above
+                // is strict (used only for search-direction logic below).
+                if self.fsmall <= self.fbig {
                     if self.fsmall > 0.0 {
                         return InvrAction::Failed {
                             qleft: true,

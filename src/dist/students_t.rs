@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, solve_monotone};
+use crate::solver::{solve_monotone, BracketStrategy};
 use crate::special::beta_inc;
 use crate::special::{dt1, gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -46,7 +46,7 @@ pub enum StudentsTError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -112,7 +112,11 @@ impl StudentsT {
         // Mirror cdft's cum-p if p<=q else ccum-q precision pivot.
         let f = |df: f64| {
             let (cum, ccum) = cumt(t, df);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         // CDF at fixed t > 0 is increasing in df (more mass below); at
         // t < 0 it's decreasing. Use the appropriate strategy.
@@ -225,7 +229,17 @@ impl ContinuousCdf for StudentsT {
             return Ok(0.0);
         }
         let df = self.df;
-        let f = |t: f64| StudentsT { df }.cdf(t) - p;
+        // Mirror cdft's which=2 precision pivot: cum-p if p<=q else
+        // ccum-q (cdflib.f90:6172), with q = 1 - p.
+        let q = 1.0 - p;
+        let f = |t: f64| {
+            let (cum, ccum) = cumt(t, df);
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
+        };
         // Match cdft's which=2: bracket (-inf, inf) with inf = 1.0D+30
         // (cdflib.f90:6094: cdft caps inf at 1e30 because cumt's
         // beta_inc reduction overflows at extreme |t|). Starting guess
@@ -290,7 +304,11 @@ impl Mean for StudentsT {
     /// for *df* ≤ 1.
     #[inline]
     fn mean(&self) -> f64 {
-        if self.df > 1.0 { 0.0 } else { f64::NAN }
+        if self.df > 1.0 {
+            0.0
+        } else {
+            f64::NAN
+        }
     }
 }
 
@@ -351,15 +369,15 @@ mod tests {
         assert_eq!(StudentsT::solve_df(0.5, 0.5, 0.0).unwrap(), 5.0);
         assert!(matches!(
             StudentsT::solve_df(0.6, 0.4, 0.0),
-            Err(StudentsTError::Solver(
-                SolverError::AnswerAboveUpperBound { bound: 1.0e10 }
-            ))
+            Err(StudentsTError::Solver(SolverError::AnswerAboveUpperBound {
+                bound: 1.0e10
+            }))
         ));
         assert!(matches!(
             StudentsT::solve_df(0.4, 0.6, 0.0),
-            Err(StudentsTError::Solver(
-                SolverError::AnswerBelowLowerBound { bound: 1.0 }
-            ))
+            Err(StudentsTError::Solver(SolverError::AnswerBelowLowerBound {
+                bound: 1.0
+            }))
         ));
     }
 

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, solve_monotone};
+use crate::solver::{solve_monotone, BracketStrategy};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
@@ -43,21 +43,17 @@ pub struct FisherSnedecorNoncentral {
 /// [`FisherSnedecorNoncentral`]: crate::FisherSnedecorNoncentral
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum FisherSnedecorNoncentralError {
-    /// The numerator degrees of freedom *dfn* was less than 1. The CDF
-    /// reduction's [`beta_inc`] call diverges below 1.
-    ///
-    /// [`beta_inc`]: crate::special::beta_inc
-    #[error("numerator df must be ≥ 1, got {0}")]
-    DfnLessThanOne(f64),
+    /// The numerator degrees of freedom *dfn* was not strictly positive.
+    /// Mirrors CDFLIB's `cdffnc` status -5.
+    #[error("numerator df must be > 0, got {0}")]
+    DfnNotPositive(f64),
     /// The numerator degrees of freedom *dfn* was not finite.
     #[error("numerator df must be finite, got {0}")]
     DfnNotFinite(f64),
-    /// The denominator degrees of freedom *dfd* was less than 1. The CDF
-    /// reduction's [`beta_inc`] call diverges below 1.
-    ///
-    /// [`beta_inc`]: crate::special::beta_inc
-    #[error("denominator df must be ≥ 1, got {0}")]
-    DfdLessThanOne(f64),
+    /// The denominator degrees of freedom *dfd* was not strictly positive.
+    /// Mirrors CDFLIB's `cdffnc` status -6.
+    #[error("denominator df must be > 0, got {0}")]
+    DfdNotPositive(f64),
     /// The denominator degrees of freedom *dfd* was not finite.
     #[error("denominator df must be finite, got {0}")]
     DfdNotFinite(f64),
@@ -76,7 +72,7 @@ pub enum FisherSnedecorNoncentralError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The internal root-finder failed; see [`SolverError`].
@@ -110,14 +106,14 @@ impl FisherSnedecorNoncentral {
         if !dfn.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
         }
-        if dfn < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfnLessThanOne(dfn));
+        if dfn <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
         }
         if !dfd.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
         }
-        if dfd < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfdLessThanOne(dfd));
+        if dfd <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
         }
         if !ncp.is_finite() {
             return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
@@ -171,8 +167,8 @@ impl FisherSnedecorNoncentral {
         if !dfd.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
         }
-        if dfd < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfdLessThanOne(dfd));
+        if dfd <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
         }
         if !ncp.is_finite() {
             return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
@@ -216,8 +212,8 @@ impl FisherSnedecorNoncentral {
         if !dfn.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
         }
-        if dfn < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfnLessThanOne(dfn));
+        if dfn <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
         }
         if !ncp.is_finite() {
             return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
@@ -261,14 +257,14 @@ impl FisherSnedecorNoncentral {
         if !dfn.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
         }
-        if dfn < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfnLessThanOne(dfn));
+        if dfn <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
         }
         if !dfd.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
         }
-        if dfd < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfdLessThanOne(dfd));
+        if dfd <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
         }
         let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // Upper bound 1e4 matches CDFLIB's hard cap; larger bounds (e.g.
@@ -493,11 +489,11 @@ mod tests {
     fn rejects_invalid_inputs() {
         assert!(matches!(
             FisherSnedecorNoncentral::try_new(0.0, 5.0, 1.0),
-            Err(FisherSnedecorNoncentralError::DfnLessThanOne(0.0))
+            Err(FisherSnedecorNoncentralError::DfnNotPositive(0.0))
         ));
         assert!(matches!(
             FisherSnedecorNoncentral::try_new(5.0, 0.0, 1.0),
-            Err(FisherSnedecorNoncentralError::DfdLessThanOne(0.0))
+            Err(FisherSnedecorNoncentralError::DfdNotPositive(0.0))
         ));
         assert!(matches!(
             FisherSnedecorNoncentral::try_new(5.0, 5.0, -1.0),
@@ -518,11 +514,9 @@ mod tests {
         assert!(d.mean().is_finite());
         assert!(d.variance().is_finite());
         assert!(FisherSnedecorNoncentral::new(5.0, 2.0, 2.0).mean().is_nan());
-        assert!(
-            FisherSnedecorNoncentral::new(5.0, 4.0, 2.0)
-                .variance()
-                .is_nan()
-        );
+        assert!(FisherSnedecorNoncentral::new(5.0, 4.0, 2.0)
+            .variance()
+            .is_nan());
     }
 
     #[test]

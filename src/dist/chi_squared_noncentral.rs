@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone_with_atol};
+use crate::solver::{solve_monotone_with_atol, BracketStrategy, SOLVER_BOUND};
 use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
@@ -63,7 +63,7 @@ pub enum ChiSquaredNoncentralError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The internal root-finder failed; see [`SolverError`].

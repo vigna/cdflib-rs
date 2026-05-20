@@ -1,9 +1,12 @@
+use std::cell::Cell;
+
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
-use crate::special::gamma_inc;
-use crate::special::{GammaIncInvError, gamma_log, psi, try_gamma_inc_inv};
+use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::special::{
+    gamma_inc, gamma_log, psi, try_gamma_inc, try_gamma_inc_inv, GammaIncError, GammaIncInvError,
+};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Γ distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
@@ -66,7 +69,7 @@ pub enum GammaError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -83,6 +86,11 @@ pub enum GammaError {
     /// [`GammaIncInvError`]: crate::special::GammaIncInvError
     #[error(transparent)]
     GammaIncInv(#[from] GammaIncInvError),
+    /// The Γ-incomplete kernel failed during the search (CDFLIB `cdfgam`
+    /// status 10, cdflib.f90:5286). Triggered when the kernel returns its
+    /// indeterminate sentinel.
+    #[error(transparent)]
+    GammaInc(#[from] GammaIncError),
 }
 
 impl Gamma {
@@ -160,20 +168,41 @@ impl Gamma {
         }
         // F(x; shape, rate) = P(shape, rate·x) is decreasing in shape
         // for fixed x > 0. Mirror Fortran cdfgam's precision pivot.
+        // Propagate kernel indeterminate sentinel as F90 status 10
+        // (cdflib.f90:5286).
         let xr = x * rate;
+        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |shape: f64| {
-            let (cum, ccum) = gamma_inc(shape, xr);
-            if p <= q { cum - p } else { ccum - q }
+            if kernel_err.get().is_some() {
+                return 0.0;
+            }
+            match try_gamma_inc(shape, xr) {
+                Err(e) => {
+                    kernel_err.set(Some(e));
+                    0.0
+                }
+                Ok((cum, ccum)) => {
+                    if p <= q {
+                        cum - p
+                    } else {
+                        ccum - q
+                    }
+                }
+            }
         };
         // Match cdfgam's which=3: bracket (zero, inf), start = 5.0.
-        Ok(solve_monotone(
+        let result = solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
                 start: 5.0,
             },
             f,
-        )?)
+        );
+        if let Some(e) = kernel_err.into_inner() {
+            return Err(e.into());
+        }
+        Ok(result?)
     }
 
     /// Returns the rate parameter *β* satisfying Pr[*X* ≤ *x*] = *p*.

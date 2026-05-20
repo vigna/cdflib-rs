@@ -5,7 +5,7 @@
 mod common;
 
 use cdflib::{ContinuousCdf, Normal};
-use common::{DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL, assert_close_eps, read_csv};
+use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL};
 
 #[test]
 fn cdf_and_sf_match_cdfnor_reference() {

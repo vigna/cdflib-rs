@@ -73,8 +73,6 @@ fn read_csv_parses_a_simple_table() {
 
 #[test]
 fn solver_error_displays_useful_messages() {
-    let e = SolverError::NotConverged { iterations: 42 };
-    assert!(e.to_string().contains("42"), "got: {e}");
     let e = SolverError::AnswerBelowLowerBound { bound: -1.0 };
     assert!(e.to_string().contains("-1"), "got: {e}");
     let e = SolverError::AnswerAboveUpperBound { bound: 1.0 };
@@ -119,10 +117,18 @@ struct StubDiscrete;
 impl DiscreteCdf for StubDiscrete {
     type Error = SolverError;
     fn cdf(&self, x: u64) -> f64 {
-        if x >= 1 { 1.0 } else { 0.0 }
+        if x >= 1 {
+            1.0
+        } else {
+            0.0
+        }
     }
     fn sf(&self, x: u64) -> f64 {
-        if x >= 1 { 0.0 } else { 1.0 }
+        if x >= 1 {
+            0.0
+        } else {
+            1.0
+        }
     }
     fn inverse_cdf(&self, p: f64) -> Result<u64, SolverError> {
         Ok(if p > 0.0 { 1 } else { 0 })

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
 use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -47,16 +47,20 @@ pub struct Poisson {
 /// [`Poisson`]: crate::Poisson
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum PoissonError {
-    /// The rate parameter *λ* was not strictly positive.
-    #[error("lambda must be positive, got {0}")]
-    LambdaNotPositive(f64),
+    /// The rate parameter *λ* was negative.
+    ///
+    /// CDFLIB's `cdfpoi` accepts *λ* = 0 (cdflib.f90:7541), a degenerate
+    /// distribution concentrated at 0, so we reject only strictly
+    /// negative values.
+    #[error("lambda must be ≥ 0, got {0}")]
+    LambdaNegative(f64),
     /// The rate parameter *λ* was not finite.
     #[error("lambda must be finite, got {0}")]
     LambdaNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -71,7 +75,8 @@ pub enum PoissonError {
 }
 
 impl Poisson {
-    /// Construct a Poisson(*λ*) distribution with rate *λ* > 0.
+    /// Construct a Poisson(*λ*) distribution with rate *λ* ≥ 0. The
+    /// degenerate case *λ* = 0 gives a point mass at *s* = 0.
     ///
     /// # Panics
     ///
@@ -86,18 +91,18 @@ impl Poisson {
     /// Fallible counterpart of [`new`](Self::new) returning a [`PoissonError`]
     /// instead of panicking.
     ///
-    /// Returns [`LambdaNotPositive`] or [`LambdaNotFinite`] if *λ* fails its
+    /// Returns [`LambdaNegative`] or [`LambdaNotFinite`] if *λ* fails its
     /// validity check.
     ///
-    /// [`LambdaNotPositive`]: PoissonError::LambdaNotPositive
+    /// [`LambdaNegative`]: PoissonError::LambdaNegative
     /// [`LambdaNotFinite`]: PoissonError::LambdaNotFinite
     #[inline]
     pub fn try_new(lambda: f64) -> Result<Self, PoissonError> {
         if !lambda.is_finite() {
             return Err(PoissonError::LambdaNotFinite(lambda));
         }
-        if lambda <= 0.0 {
-            return Err(PoissonError::LambdaNotPositive(lambda));
+        if lambda < 0.0 {
+            return Err(PoissonError::LambdaNegative(lambda));
         }
         Ok(Self { lambda })
     }
@@ -106,6 +111,39 @@ impl Poisson {
     #[inline]
     pub const fn lambda(&self) -> f64 {
         self.lambda
+    }
+
+    /// Returns the real-valued *s* ≥ 0 satisfying *cumpoi*(*s*, *λ*) = *p*,
+    /// where *cumpoi* is the smooth continuous extension of the Poisson
+    /// CDF via *Q*(*s* + 1, *λ*).
+    ///
+    /// Mirrors CDFLIB's `cdfpoi` with `which = 2` (cdflib.f90:7765). The
+    /// `DiscreteCdf::inverse_cdf` trait method returns the integer quantile;
+    /// this method returns F90's real-valued solution. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
+    #[inline]
+    pub fn inverse_cdf_continuous(&self, p: f64, q: f64) -> Result<f64, PoissonError> {
+        check_pq(p, q)?;
+        let lambda = self.lambda;
+        // cumpoi(s, λ) = Q(s+1, λ) is strictly increasing in s for fixed λ.
+        // Mirror cdfpoi's cum-p if p<=q else ccum-q precision pivot.
+        let f = |s: f64| {
+            let (sf_upper, cdf) = gamma_inc(s + 1.0, lambda);
+            if p <= q {
+                cdf - p
+            } else {
+                sf_upper - q
+            }
+        };
+        // Match cdfpoi's which=2: bracket (0, inf), start = 5.0.
+        Ok(solve_monotone(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
+            },
+            f,
+        )?)
     }
 
     /// Returns the rate parameter *λ* satisfying Pr[*X* ≤ *s*] = *p*.
@@ -120,7 +158,11 @@ impl Poisson {
         // Mirror cdfpoi's if p <= q then cum-p else ccum-q precision pivot.
         let f = |lambda: f64| {
             let (sf_upper, cdf) = gamma_inc(sf + 1.0, lambda);
-            if p <= q { cdf - p } else { sf_upper - q }
+            if p <= q {
+                cdf - p
+            } else {
+                sf_upper - q
+            }
         };
         // Match cdfpoi's which=3: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
@@ -249,12 +291,11 @@ mod tests {
     fn new_rejects_bad_lambda() {
         assert!(matches!(
             Poisson::try_new(-1.0),
-            Err(PoissonError::LambdaNotPositive(_))
+            Err(PoissonError::LambdaNegative(_))
         ));
-        assert!(matches!(
-            Poisson::try_new(0.0),
-            Err(PoissonError::LambdaNotPositive(_))
-        ));
+        // λ = 0 is the degenerate point mass at 0; CDFLIB accepts it
+        // (cdflib.f90:7541), so the Rust port does too.
+        assert!(Poisson::try_new(0.0).is_ok());
         assert!(matches!(
             Poisson::try_new(f64::NAN),
             Err(PoissonError::LambdaNotFinite(_))
@@ -263,6 +304,29 @@ mod tests {
             Poisson::try_new(f64::INFINITY),
             Err(PoissonError::LambdaNotFinite(_))
         ));
+    }
+
+    #[test]
+    fn inverse_cdf_continuous_matches_integer_quantile_at_integer_p() {
+        // At the integer quantile boundary, the continuous solver should
+        // return the exact integer (because cumpoi(s_int, λ) for integer s
+        // is the discrete CDF value at s_int).
+        let p = Poisson::new(3.0);
+        let p_target = p.cdf(2); // = Pr[X ≤ 2] for Poisson(3)
+        let s = p.inverse_cdf_continuous(p_target, 1.0 - p_target).unwrap();
+        assert!((s - 2.0).abs() < 1e-6, "got s = {s}");
+    }
+
+    #[test]
+    fn inverse_cdf_continuous_between_integers() {
+        // For a target p strictly between two integer CDFs, the result
+        // should be a real value strictly between the two integers.
+        let p = Poisson::new(3.0);
+        let lo_cdf = p.cdf(2); // CDF at 2
+        let hi_cdf = p.cdf(3); // CDF at 3
+        let target = 0.5 * (lo_cdf + hi_cdf);
+        let s = p.inverse_cdf_continuous(target, 1.0 - target).unwrap();
+        assert!(s > 2.0 && s < 3.0, "got s = {s}");
     }
 
     #[test]

@@ -325,13 +325,6 @@ fn cdfnor_sd_matches_normal_solve_sd() {
         let [p, q, x, mean, sd_ref] = row[..] else {
             panic!("width")
         };
-        if p == 0.5 && x == mean {
-            assert!(matches!(
-                Normal::solve_sd(p, q, x, mean),
-                Err(cdflib::NormalError::UnderdeterminedSd)
-            ));
-            continue;
-        }
         let got = Normal::solve_sd(p, q, x, mean).unwrap();
         assert_close_eps(got, sd_ref, REL, ABS);
     }

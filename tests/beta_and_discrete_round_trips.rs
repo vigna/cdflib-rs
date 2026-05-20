@@ -10,7 +10,7 @@ use cdflib::{
     Beta, Binomial, ContinuousCdf, Discrete, DiscreteCdf, FisherSnedecor, NegativeBinomial,
     Poisson, StudentsT,
 };
-use common::{CHAINED_INVERSE_REL_TOL, DEFAULT_REL_TOL, INVERSE_REL_TOL, assert_close_eps};
+use common::{assert_close_eps, CHAINED_INVERSE_REL_TOL, DEFAULT_REL_TOL, INVERSE_REL_TOL};
 
 #[test]
 fn beta_round_trip() {

@@ -8,7 +8,7 @@
 mod common;
 
 use cdflib::{Beta, ContinuousCdf, FisherSnedecor, StudentsT};
-use common::{DISTRIBUTION_ABS_TOL, DISTRIBUTION_REL_TOL, assert_close_eps, read_csv};
+use common::{assert_close_eps, read_csv, DISTRIBUTION_ABS_TOL, DISTRIBUTION_REL_TOL};
 
 #[test]
 fn beta_cdf_matches_cumbet_reference() {

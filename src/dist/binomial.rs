@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -53,7 +53,7 @@ pub enum BinomialError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -128,7 +128,11 @@ impl Binomial {
                 return if p <= q { 1.0 - p } else { -q };
             }
             let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, n - sf, pr, 1.0 - pr);
-            if p <= q { cdf_bin - p } else { sf_bin - q }
+            if p <= q {
+                cdf_bin - p
+            } else {
+                sf_bin - q
+            }
         };
         // Match cdfbin's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
@@ -156,7 +160,11 @@ impl Binomial {
         // For n, s fixed, Pr[S ≤ s] is decreasing in pr.
         let f = |pr: f64| {
             let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
-            if p <= q { cdf_bin - p } else { sf_bin - q }
+            if p <= q {
+                cdf_bin - p
+            } else {
+                sf_bin - q
+            }
         };
         // Match cdfbin's which=4 dstzr setup: bounded [0..1].
         Ok(solve_monotone(
@@ -266,12 +274,20 @@ impl Discrete for Binomial {
         // ln C(n,s) + s ln pr + (n-s) ln(1-pr)
         let log_c = gamma_log(n + 1.0) - gamma_log(sf + 1.0) - gamma_log(n - sf + 1.0);
         let log_pr = if pr == 0.0 {
-            if s == 0 { 0.0 } else { f64::NEG_INFINITY }
+            if s == 0 {
+                0.0
+            } else {
+                f64::NEG_INFINITY
+            }
         } else {
             sf * pr.ln()
         };
         let log_q = if pr == 1.0 {
-            if s == self.n { 0.0 } else { f64::NEG_INFINITY }
+            if s == self.n {
+                0.0
+            } else {
+                f64::NEG_INFINITY
+            }
         } else {
             (n - sf) * (1.0 - pr).ln()
         };

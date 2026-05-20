@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -59,7 +59,7 @@ pub enum FisherSnedecorError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -146,7 +146,11 @@ impl FisherSnedecor {
             let dist = FisherSnedecor { dfn, dfd };
             let cum = dist.cdf(f);
             let ccum = dist.sf(f);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         Ok(solve_monotone(
             BracketStrategy::Increasing {
@@ -185,7 +189,11 @@ impl FisherSnedecor {
             let dist = FisherSnedecor { dfn, dfd };
             let cum = dist.cdf(f);
             let ccum = dist.sf(f);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         Ok(solve_monotone(
             BracketStrategy::Increasing {
@@ -272,7 +280,17 @@ impl ContinuousCdf for FisherSnedecor {
         }
         let dfn = self.dfn;
         let dfd = self.dfd;
-        let func = |x: f64| cumf(x, dfn, dfd).0 - p;
+        // Mirror cdff's which=2 precision pivot: cum-p if p<=q else
+        // ccum-q (cdflib.f90:4258), with q = 1 - p.
+        let q = 1.0 - p;
+        let func = |x: f64| {
+            let (cum, ccum) = cumf(x, dfn, dfd);
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
+        };
         // Match cdff's which=2: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
             BracketStrategy::Increasing {

@@ -7,7 +7,7 @@
 mod common;
 
 use cdflib::special::{cumnor, dinvnr, error_f, error_fc, error_fc_scaled};
-use common::{DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL, assert_close_eps, read_csv};
+use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL};
 
 #[test]
 fn error_f_matches_reference() {

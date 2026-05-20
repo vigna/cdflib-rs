@@ -74,7 +74,11 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
     let u = d * alnrel(a / b);
     let v = a * (b.ln() - 1.0);
 
-    if v < u { w - v - u } else { w - u - v }
+    if v < u {
+        w - v - u
+    } else {
+        w - u - v
+    }
 }
 
 /// Returns ln Β(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*).

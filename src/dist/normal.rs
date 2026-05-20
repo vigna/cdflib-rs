@@ -49,18 +49,13 @@ pub enum NormalError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfnor` status 3 (cdflib.f90:5659).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The standard deviation is underdetermined by the inputs to
-    /// [`Normal::solve_sd`]: *p* = 1/2 fixes *z* = 0 and *x* = *μ*
-    /// makes the numerator zero, so every *σ* > 0 satisfies the equation.
-    #[error("standard deviation is underdetermined (p = 0.5 and x = mean)")]
-    UnderdeterminedSd,
 }
 
 impl Normal {
@@ -147,12 +142,13 @@ impl Normal {
     ///
     /// CDFLIB's `cdfnor` with `which = 4` (cdflib.f90:5702). Caller passes
     /// both *p* and *q*; see [`solve_mean`] for the (*p*, *q*) convention.
-    /// Returns [`UnderdeterminedSd`] when *p* = 1/2 (which makes the
-    /// standard normal quantile *z* = 0) and *x* = *μ*, since in that case
-    /// every *σ* > 0 satisfies the equation.
+    ///
+    /// The case *p* = 1/2 with *x* = *μ* is underdetermined (every *σ* > 0
+    /// satisfies the equation); the formula returns a meaningless value
+    /// (typically 0 since the numerator is 0 and *dinvnr* converges to a
+    /// tiny non-zero denominator). F90 produces the same value.
     ///
     /// [`solve_mean`]: Self::solve_mean
-    /// [`UnderdeterminedSd`]: NormalError::UnderdeterminedSd
     #[inline]
     pub fn solve_sd(p: f64, q: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
         check_pq(p, q)?;
@@ -161,9 +157,6 @@ impl Normal {
         }
         if !mean.is_finite() {
             return Err(NormalError::MeanNotFinite(mean));
-        }
-        if p == 0.5 && x == mean {
-            return Err(NormalError::UnderdeterminedSd);
         }
         let z = dinvnr(p, q);
         Ok((x - mean) / z)
@@ -384,13 +377,13 @@ mod tests {
     }
 
     #[test]
-    fn solve_sd_reports_underdetermined_case() {
-        // p = 1/2 makes z = 0 and x = mean makes the numerator zero, so
-        // every sd > 0 satisfies the equation.
-        assert!(matches!(
-            Normal::solve_sd(0.5, 0.5, 3.0, 3.0),
-            Err(NormalError::UnderdeterminedSd)
-        ));
+    fn solve_sd_underdetermined_no_longer_typed_error() {
+        // p = 1/2 makes z ≈ 0 and x = mean makes the numerator zero, so
+        // every sd > 0 satisfies the equation. F90 returns the meaningless
+        // value (x - mean) / dinvnr(0.5, 0.5) ≈ 0/tiny ≈ 0; we let that
+        // propagate rather than catching it with a typed error.
+        let r = Normal::solve_sd(0.5, 0.5, 3.0, 3.0).unwrap();
+        assert_eq!(r, 0.0, "expected the F90 underdetermined value 0; got {r}");
     }
 
     #[test]

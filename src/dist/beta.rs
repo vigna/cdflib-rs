@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -54,7 +54,7 @@ pub enum BetaError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -139,7 +139,11 @@ impl Beta {
         }
         let f = |a: f64| {
             let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         // I_x(a, b) is decreasing in a (more weight near 1 when a grows).
         // Match cdfbet's which=3: bracket (zero, inf), start = 5.0;
@@ -172,7 +176,11 @@ impl Beta {
         }
         let f = |b: f64| {
             let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         // I_x(a, b) is increasing in b. Match cdfbet's which=4 setup and
         // precision pivot.
@@ -253,9 +261,16 @@ impl ContinuousCdf for Beta {
         }
         let a = self.a;
         let b = self.b;
+        // Mirror cdfbet's which=2 precision pivot: cum-p if p<=q else
+        // ccum-q (cdflib.f90:2570), with q = 1 - p.
+        let q = 1.0 - p;
         let f = |x: f64| {
-            let (cum, _) = beta_inc(a, b, x, 1.0 - x);
-            cum - p
+            let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         Ok(solve_monotone(
             BracketStrategy::Increasing {

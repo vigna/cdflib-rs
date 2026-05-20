@@ -13,8 +13,8 @@ use cdflib::special::internal::{
     apser, beta_grat, beta_rcomp, beta_rcomp1, beta_up, fpser, gam1, gamma_rat1, rcomp, rexp,
 };
 use cdflib::special::{
-    GammaIncError, GammaIncInvError, beta_inc, gamma, gamma_inc, gamma_inc_inv, gamma_log, psi,
-    try_gamma_inc, try_gamma_inc_inv,
+    beta_inc, gamma, gamma_inc, gamma_inc_inv, gamma_log, psi, try_gamma_inc, try_gamma_inc_inv,
+    GammaIncError, GammaIncInvError,
 };
 use cdflib::{ContinuousCdf, DiscreteCdf, FisherSnedecorNoncentral, NegativeBinomial, Poisson};
 
@@ -51,7 +51,7 @@ fn gam1_above_one_and_negative() {
 
 #[test]
 fn gamma_negative_argument_and_overflow_paths() {
-    use cdflib::special::{GammaDomainError, try_gamma};
+    use cdflib::special::{try_gamma, GammaDomainError};
 
     // |a| ≥ 15 reflection branch with t > 0.9. Γ(-15.95) routes through
     // `t = 0.95` → `t = 1 - 0.95 = 0.05`.
@@ -76,7 +76,7 @@ fn gamma_negative_argument_and_overflow_paths() {
 
 #[test]
 fn psi_reflection_and_overflow_branches() {
-    use cdflib::special::{PsiError, try_psi};
+    use cdflib::special::{try_psi, PsiError};
 
     // psi(0) is a pole.
     assert_eq!(try_psi(0.0), Err(PsiError::Pole(0.0)));

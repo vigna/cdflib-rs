@@ -1,8 +1,10 @@
 use thiserror::Error;
 
+use std::cell::Cell;
+
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
-use crate::special::gamma_inc;
+use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::special::{gamma_inc, try_gamma_inc, GammaIncError};
 use crate::special::{gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
@@ -51,7 +53,7 @@ pub enum ChiSquaredError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -63,6 +65,11 @@ pub enum ChiSquaredError {
     /// [`SolverError`]: crate::error::SolverError
     #[error(transparent)]
     Solver(#[from] SolverError),
+    /// The Γ-incomplete kernel failed during the search (CDFLIB `cdfchi`
+    /// status 10, cdflib.f90:5260). Triggered when the kernel returns its
+    /// indeterminate sentinel (equivalent to F90's `1.5 < fx + porq`).
+    #[error(transparent)]
+    GammaInc(#[from] GammaIncError),
 }
 
 impl ChiSquared {
@@ -117,20 +124,41 @@ impl ChiSquared {
         }
         // F(x; df) = P(df/2, x/2) is decreasing in df for fixed x > 0.
         // Mirror cdfchi's cum-p if p<=q else ccum-q precision pivot so
-        // the residual stays small near both tails of p.
+        // the residual stays small near both tails of p. If the kernel
+        // returns its indeterminate sentinel (F90 cdfchi status 10,
+        // cdflib.f90:5301), stash and propagate the error.
+        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |df: f64| {
-            let (cum, ccum) = gamma_inc(df / 2.0, x / 2.0);
-            if p <= q { cum - p } else { ccum - q }
+            if kernel_err.get().is_some() {
+                return 0.0;
+            }
+            match try_gamma_inc(df / 2.0, x / 2.0) {
+                Err(e) => {
+                    kernel_err.set(Some(e));
+                    0.0
+                }
+                Ok((cum, ccum)) => {
+                    if p <= q {
+                        cum - p
+                    } else {
+                        ccum - q
+                    }
+                }
+            }
         };
         // Match cdfchi's which=3 dstinv setup: bracket (0, inf), start = 5.0.
-        Ok(solve_monotone(
+        let result = solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
                 start: 5.0,
             },
             f,
-        )?)
+        );
+        if let Some(e) = kernel_err.into_inner() {
+            return Err(e.into());
+        }
+        Ok(result?)
     }
 }
 
@@ -194,19 +222,42 @@ impl ContinuousCdf for ChiSquared {
         }
         let df = self.df;
         // F(x; df) = P(df/2, x/2) is strictly increasing in x.
+        // Mirror cdfchi's which=2 precision pivot: cum-p if p<=q else
+        // ccum-q (cdflib.f90:5305), with q = 1 - p. Propagate kernel
+        // indeterminate sentinel as F90 status 10 (cdflib.f90:5251).
+        let q = 1.0 - p;
+        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |x: f64| {
-            let (cum, _) = gamma_inc(df / 2.0, x / 2.0);
-            cum - p
+            if kernel_err.get().is_some() {
+                return 0.0;
+            }
+            match try_gamma_inc(df / 2.0, x / 2.0) {
+                Err(e) => {
+                    kernel_err.set(Some(e));
+                    0.0
+                }
+                Ok((cum, ccum)) => {
+                    if p <= q {
+                        cum - p
+                    } else {
+                        ccum - q
+                    }
+                }
+            }
         };
         // Match cdfchi's which=2: bracket (0, inf), start = 5.0.
-        Ok(solve_monotone(
+        let result = solve_monotone(
             BracketStrategy::Increasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
                 start: 5.0,
             },
             f,
-        )?)
+        );
+        if let Some(e) = kernel_err.into_inner() {
+            return Err(e.into());
+        }
+        Ok(result?)
     }
 
     #[inline]
@@ -220,19 +271,33 @@ impl ContinuousCdf for ChiSquared {
         }
         let df = self.df;
         // sf(x; df) = Q(df/2, x/2) is decreasing in x; solve directly.
+        // Propagate kernel indeterminate sentinel as F90 status 10.
+        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |x: f64| {
-            let (_, ccum) = gamma_inc(df / 2.0, x / 2.0);
-            ccum - q
+            if kernel_err.get().is_some() {
+                return 0.0;
+            }
+            match try_gamma_inc(df / 2.0, x / 2.0) {
+                Err(e) => {
+                    kernel_err.set(Some(e));
+                    0.0
+                }
+                Ok((_, ccum)) => ccum - q,
+            }
         };
         // Match cdfchi's which=2 setup (same as inverse_cdf); use start = 5.0.
-        Ok(solve_monotone(
+        let result = solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
                 start: 5.0,
             },
             f,
-        )?)
+        );
+        if let Some(e) = kernel_err.into_inner() {
+            return Err(e.into());
+        }
+        Ok(result?)
     }
 }
 

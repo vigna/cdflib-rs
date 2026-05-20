@@ -7,7 +7,7 @@
 mod common;
 
 use cdflib::{ChiSquared, ContinuousCdf, Gamma};
-use common::{INVERSE_REL_TOL, assert_close_eps};
+use common::{assert_close_eps, INVERSE_REL_TOL};
 
 #[test]
 fn chi_squared_inverse_cdf_round_trip() {

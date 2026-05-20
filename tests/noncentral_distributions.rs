@@ -12,7 +12,7 @@ mod common;
 
 use cdflib::{ChiSquaredNoncentral, ContinuousCdf, FisherSnedecorNoncentral};
 use common::{
-    DEFAULT_ABS_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_REL_TOL, assert_close_eps, read_csv,
+    assert_close_eps, read_csv, DEFAULT_ABS_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_REL_TOL,
 };
 
 #[test]

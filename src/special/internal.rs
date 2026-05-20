@@ -19,8 +19,8 @@
 //! [`cumnor`]: crate::special::cumnor
 
 pub use super::beta::{
-    BetaGratError, algdiv, apser, bcorr, beta_asym, beta_frac, beta_grat, beta_pser, beta_rcomp,
-    beta_rcomp1, beta_up, dbetrm, esum, fpser, gamma_rat1,
+    algdiv, apser, bcorr, beta_asym, beta_frac, beta_grat, beta_pser, beta_rcomp, beta_rcomp1,
+    beta_up, dbetrm, esum, fpser, gamma_rat1, BetaGratError,
 };
 pub use super::gamma::{alnrel, dexpm1, dstrem, gam1, gamma_ln1, gsumln, rcomp, rexp, rlog, rlog1};
 pub use super::normal::stvaln;

@@ -65,7 +65,6 @@ const REL_STEP: f64 = 0.5;
 const STP_MUL: f64 = 5.0;
 pub(crate) const ABS_TOL: f64 = 1.0e-10;
 const REL_TOL: f64 = 1.0e-8;
-const MAX_EVAL: u32 = 1000;
 
 /// Returns *x* such that *f*(*x*) = 0 on a monotone function, driving
 /// CDFLIB's `dinvr` state machine internally.
@@ -110,9 +109,11 @@ pub(crate) fn solve_monotone_with_atol(
     let big = big.min(SOLVER_BOUND);
     let small = small.max(-SOLVER_BOUND);
 
-    // Clamp the initial guess into the bracket. dinvr aborts in CDFLIB
-    // (ftnstop) if small ≤ x ≤ big doesn't hold.
-    let start = start.clamp(small, big);
+    // CDFLIB's dinvr aborts (ftnstop) if start ∉ [small . . big]
+    // (cdflib.f90:8020-8024). Return a typed error instead.
+    if !(small <= start && start <= big) {
+        return Err(SolverError::StartOutOfBracket { start, small, big });
+    }
 
     let cfg = InvrConfig {
         small,
@@ -126,14 +127,11 @@ pub(crate) fn solve_monotone_with_atol(
 
     let mut state = InvrState::new(cfg, start);
     let mut fx = 0.0;
-    let mut evals: u32 = 0;
+    // F90's dinvr has no eval cap; iteration runs until the state machine
+    // reports Converged or Failed (cdflib.f90:E0000 reverse-communication).
     loop {
         match state.step(fx) {
             InvrAction::NeedEval(x) => {
-                if evals >= MAX_EVAL {
-                    return Err(SolverError::NotConverged { iterations: evals });
-                }
-                evals += 1;
                 fx = sign * f(x);
             }
             InvrAction::Converged(x) => return Ok(x),
@@ -201,7 +199,7 @@ mod tests {
     // ============================ Failure paths in dinvr ============================
     //
     // These cover the four bracket-validity branches and the qlim overshoot
-    // failures. Each one constructs a function where the bracket [small, big]
+    // failures. Each one constructs a function where the bracket [small . . big]
     // does NOT enclose a root, or the root lies outside even after expansion.
 
     #[test]

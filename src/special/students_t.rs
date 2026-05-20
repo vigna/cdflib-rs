@@ -49,7 +49,11 @@ pub fn dt1(p: f64, q: f64, df: f64) -> f64 {
         sum1 += term / (denpow * DENOM[i]);
     }
 
-    if p >= 0.5 { sum1 } else { -sum1 }
+    if p >= 0.5 {
+        sum1
+    } else {
+        -sum1
+    }
 }
 
 #[cfg(test)]

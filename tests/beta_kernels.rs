@@ -6,8 +6,8 @@ mod common;
 
 use cdflib::special::{beta_inc, beta_log};
 use common::{
-    DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL, ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
-    assert_close_eps, read_csv,
+    assert_close_eps, read_csv, DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL,
+    ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
 };
 
 #[test]

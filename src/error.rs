@@ -23,13 +23,14 @@ use thiserror::Error;
 /// the violated endpoint (CDFLIB's `bound` output).
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum SolverError {
-    /// The iteration limit was reached before the convergence criterion held.
-    #[error("root-finder failed to converge after {iterations} iterations")]
-    NotConverged { iterations: u32 },
     /// The solution lay below the lower search bound (CDFLIB `status = 1`).
     #[error("answer fell below lower search bound {bound}")]
     AnswerBelowLowerBound { bound: f64 },
     /// The solution lay above the upper search bound (CDFLIB `status = 2`).
     #[error("answer fell above upper search bound {bound}")]
     AnswerAboveUpperBound { bound: f64 },
+    /// The initial guess `start` fell outside the bracket `[small . . big]`.
+    /// Mirrors CDFLIB's `DINVR` fatal-error abort at cdflib.f90:8020-8024.
+    #[error("start {start} fell outside the bracket [{small}, {big}]")]
+    StartOutOfBracket { start: f64, small: f64, big: f64 },
 }

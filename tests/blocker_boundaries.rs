@@ -208,11 +208,9 @@ fn continuous_cdf_nan_returns_nan() {
     assert!(ChiSquaredNoncentral::new(5.0, 2.0).cdf(f64::NAN).is_nan());
     assert!(Beta::new(2.0, 5.0).cdf(f64::NAN).is_nan());
     assert!(FisherSnedecor::new(5.0, 10.0).cdf(f64::NAN).is_nan());
-    assert!(
-        FisherSnedecorNoncentral::new(5.0, 10.0, 2.0)
-            .cdf(f64::NAN)
-            .is_nan()
-    );
+    assert!(FisherSnedecorNoncentral::new(5.0, 10.0, 2.0)
+        .cdf(f64::NAN)
+        .is_nan());
     assert!(StudentsT::new(10.0).cdf(f64::NAN).is_nan());
 }
 

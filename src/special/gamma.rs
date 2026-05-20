@@ -1673,12 +1673,7 @@ pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> (f64, u32) {
 ///
 /// [`GammaIncInvError`]: crate::special::GammaIncInvError
 #[inline]
-pub fn try_gamma_inc_inv(
-    a: f64,
-    x0: f64,
-    p: f64,
-    q: f64,
-) -> Result<(f64, u32), GammaIncInvError> {
+pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), GammaIncInvError> {
     // Constants from cdflib.f90:11070 onward.
     const A0: f64 = 3.31125922108741;
     const A1: f64 = 11.6616720288968;

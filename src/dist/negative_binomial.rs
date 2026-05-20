@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -56,7 +56,7 @@ pub enum NegativeBinomialError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
@@ -126,7 +126,11 @@ impl NegativeBinomial {
         // beta_inc's cum here is the CDF and ccum is the SF.
         let f = |r: f64| {
             let (cum, ccum) = beta_inc(r, sf + 1.0, pr, 1.0 - pr);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         // Match cdfnbn's which=3: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
@@ -150,7 +154,11 @@ impl NegativeBinomial {
         let sf = s as f64;
         let f = |pr: f64| {
             let (cum, ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         // I_pr(r, s+1) is increasing in pr; cdfnbn's which=4 uses dstzr
         // on (0, 1).
