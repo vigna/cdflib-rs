@@ -27,7 +27,7 @@ use super::normal::dinvnr;
 #[inline]
 pub fn dt1(p: f64, q: f64, df: f64) -> f64 {
     // Coefficient table from cdflib.f90 L8531–L8534; the F90 stores it
-    // as a `reshape((/ ... /), (/ 5, 4 /))` 5×4 matrix indexed
+    // as a reshape((/ ... /), (/ 5, 4 /)) 5×4 matrix indexed
     // column-by-column. We unpack each column (a polynomial in xx of
     // ascending degree i) into its own row.
     const COEF: [&[f64]; 4] = [

@@ -135,7 +135,7 @@ impl Beta {
         };
         // I_x(a, b) is decreasing in a (more weight near 1 when a grows).
         // Match cdfbet's which=3: bracket (zero, inf), start = 5.0;
-        // mirror Fortran's `cum-p if p<=q else ccum-q` precision pivot.
+        // mirror Fortran's cum-p if p<=q else ccum-q precision pivot.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,

@@ -280,8 +280,8 @@ mod tests {
         ));
     }
 
-    // `ln_pmf(0)` on a degenerate Bernoulli (pr = 0) is exactly 0.0 only
-    // when the FPU evaluates the two `gamma_log(11)` calls bit-identically.
+    // ln_pmf(0) on a degenerate Bernoulli (pr = 0) is exactly 0.0 only
+    // when the FPU evaluates the two gamma_log(11) calls bit-identically.
     // Miri's soft-float libm shims drift by ~1 ULP; skip under miri.
     #[cfg(not(miri))]
     #[test]

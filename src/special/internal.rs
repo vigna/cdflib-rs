@@ -21,3 +21,4 @@ pub use super::beta::{
     beta_rcomp1, beta_up, dbetrm, esum, fpser, gamma_rat1,
 };
 pub use super::gamma::{alnrel, dexpm1, dstrem, gam1, gamma_ln1, gsumln, rcomp, rexp, rlog, rlog1};
+pub use super::normal::stvaln;

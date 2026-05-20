@@ -80,8 +80,8 @@ pub fn cumnor(x: f64) -> (f64, f64) {
     const THRSH: f64 = 0.66291;
     const ROOT32: f64 = 5.656854248; // √32
 
-    // CDFLIB uses `eps = 0.5 * f64::EPSILON` and `min = f64::MIN_POSITIVE`
-    // sourced from `dpmpar`; the constants are identical in IEEE 754
+    // CDFLIB uses eps = 0.5 * f64::EPSILON and min = f64::MIN_POSITIVE
+    // sourced from dpmpar; the constants are identical in IEEE 754
     // binary64, so we just use Rust's intrinsics.
     let eps = 0.5 * f64::EPSILON;
     let min = f64::MIN_POSITIVE;
@@ -196,7 +196,7 @@ pub fn dinvnr(p: f64, q: f64) -> f64 {
 /// Newton to converge in a handful of iterations.
 ///
 /// [`dinvnr`]: crate::special::dinvnr
-fn stvaln(p: f64) -> f64 {
+pub fn stvaln(p: f64) -> f64 {
     const XDEN: [f64; 5] = [
         0.993484626060e-1,
         0.588581570495e0,

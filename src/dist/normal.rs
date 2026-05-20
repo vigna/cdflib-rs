@@ -394,7 +394,7 @@ mod tests {
         }
     }
 
-    // Entropy compares two `ln` values to a 1e-15 (sub-ULP) tolerance,
+    // Entropy compares two ln values to a 1e-15 (sub-ULP) tolerance,
     // which miri's soft-float libm cannot match. Skipped under miri.
     #[cfg(not(miri))]
     #[test]

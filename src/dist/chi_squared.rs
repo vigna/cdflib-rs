@@ -100,7 +100,7 @@ impl ChiSquared {
         }
         let q_target = 1.0 - p;
         // F(x; df) = P(df/2, x/2) is decreasing in df for fixed x > 0.
-        // Mirror cdfchi's `cum-p if p<=q else ccum-q` precision pivot so
+        // Mirror cdfchi's cum-p if p<=q else ccum-q precision pivot so
         // the residual stays small near both tails of p.
         let f = |df: f64| {
             let (cum, ccum) = gamma_inc(df / 2.0, x / 2.0);

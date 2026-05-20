@@ -201,7 +201,7 @@ impl FisherSnedecorNoncentral {
         check_prob(p)?;
         let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // Upper bound 1e4 matches CDFLIB's hard cap; larger bounds (e.g.
-        // 1e300) overflow inside `cumfnc`'s function evaluations.
+        // 1e300) overflow inside cumfnc's function evaluations.
         Ok(solve_monotone(
             BracketStrategy::Decreasing {
                 small: 0.0,

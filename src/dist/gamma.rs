@@ -228,8 +228,8 @@ impl ContinuousCdf for Gamma {
         if q == 1.0 {
             return Ok(0.0);
         }
-        // Same closed-form inversion as `inverse_cdf`, expressed in the
-        // upper-tail direction so a tiny `q` keeps its precision.
+        // Same closed-form inversion as inverse_cdf, expressed in the
+        // upper-tail direction so a tiny q keeps its precision.
         let p = 1.0 - q;
         let xx = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
         Ok(xx / self.rate)

@@ -50,16 +50,16 @@ pub(crate) enum BracketStrategy {
 
 pub(crate) const SOLVER_BOUND: f64 = 1.0e300;
 
-// CDFLIB's cdf* dispatchers all set up `dstinv` with the same K-block
+// CDFLIB's cdf* dispatchers all set up dstinv with the same K-block
 // constants: abs_step = rel_step = 0.5 (its K3/K4/K8), stp_mul = 5.0
-// (K4/K5/K9), tol = 1e-8. Match them so that `dinvr`'s iteration trace
+// (K4/K5/K9), tol = 1e-8. Match them so that dinvr's iteration trace
 // is bit-identical to CDFLIB at the dispatcher level. Callers that want
-// a tighter converged value can drive `InvrState` directly with their
+// a tighter converged value can drive InvrState directly with their
 // own config.
 //
-// The default `abs_tol = 1e-10` matches every F90 `cdf*` dispatcher
-// EXCEPT `cdfchn`, which uses `1.0D-50` (cdflib.f90:3719). Callers in
-// that regime use [`solve_monotone_with_atol`] to override the default.
+// The default abs_tol = 1e-10 matches every F90 cdf* dispatcher
+// EXCEPT cdfchn, which uses 1.0D-50 (cdflib.f90:3719). Callers in
+// that regime use [solve_monotone_with_atol] to override the default.
 const ABS_STEP: f64 = 0.5;
 const REL_STEP: f64 = 0.5;
 const STP_MUL: f64 = 5.0;
@@ -102,16 +102,16 @@ pub(crate) fn solve_monotone_with_atol(
         BracketStrategy::Decreasing { small, big, start } => (small, big, start, -1.0),
     };
 
-    // Cap the upper bound at 1e300 the way CDFLIB's `cdf*` callers do:
-    // `f64::MAX` causes many `cdflib::special::*` evaluators (e.g.
-    // `gamma_inc(a, MAX)`) to NaN due to Inf-Inf cancellation in their
+    // Cap the upper bound at 1e300 the way CDFLIB's cdf* callers do:
+    // f64::MAX causes many cdflib::special::* evaluators (e.g.
+    // gamma_inc(a, MAX)) to NaN due to Inf-Inf cancellation in their
     // tail formulas. 1e300 is several orders of magnitude beyond any
     // realistic distribution argument.
     let big = big.min(SOLVER_BOUND);
     let small = small.max(-SOLVER_BOUND);
 
-    // Clamp the initial guess into the bracket. `dinvr` aborts in CDFLIB
-    // (ftnstop) if `small ≤ x ≤ big` doesn't hold.
+    // Clamp the initial guess into the bracket. dinvr aborts in CDFLIB
+    // (ftnstop) if small ≤ x ≤ big doesn't hold.
     let start = start.clamp(small, big);
 
     let cfg = InvrConfig {

@@ -91,7 +91,7 @@ impl StudentsT {
     pub fn solve_df(p: f64, t: f64) -> Result<f64, StudentsTError> {
         check_prob(p)?;
         let q_target = 1.0 - p;
-        // Mirror cdft's `cum-p if p<=q else ccum-q` precision pivot.
+        // Mirror cdft's cum-p if p<=q else ccum-q precision pivot.
         let f = |df: f64| {
             let (cum, ccum) = cumt(t, df);
             if p <= q_target {
@@ -115,7 +115,7 @@ impl StudentsT {
             }));
         }
         // Match cdft's which=3 setup: Fortran cdflib.f90 L6251 uses
-        // `dstinv(1.0D+00, maxdf, ...)` with maxdf = 1.0D+10: small=1.0
+        // dstinv(1.0D+00, maxdf, ...) with maxdf = 1.0D+10: small=1.0
         // (df < 1 makes cumt's beta_inc call diverge), big=1e10.
         let strat = if t > 0.0 {
             BracketStrategy::Increasing {

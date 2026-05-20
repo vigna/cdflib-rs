@@ -715,7 +715,7 @@ pub fn gsumln(a: f64, b: f64) -> f64 {
 #[inline]
 pub fn dstrem(z: f64) -> f64 {
     const NCOEF: usize = 9;
-    // F90 `coef(0:9)`: a leading 0 followed by 9 Bernoulli coefficients.
+    // F90 coef(0:9): a leading 0 followed by 9 Bernoulli coefficients.
     const COEF: [f64; NCOEF + 1] = [
         0.0,
         0.0833333333333333333333333333333,
@@ -875,7 +875,7 @@ pub fn try_gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
 /// [`GammaIncError::Indeterminate`].
 fn gamma_inc_core(a: f64, x: f64) -> (f64, f64) {
     // The Tricomi–Temme coefficient tables D0..D6 live inside the dedicated
-    // helpers (`temme_general`, `temme_for_l_eq_1`); the dispatcher only needs
+    // helpers (temme_general, temme_for_l_eq_1); the dispatcher only needs
     // ALOG10 (the log(10) cutoff between series and continued
     // fraction) and the regime-selection constants below.
     const ALOG10: f64 = 2.30258509299405;
@@ -891,7 +891,7 @@ fn gamma_inc_core(a: f64, x: f64) -> (f64, f64) {
         return if x <= a { (0.0, 1.0) } else { (1.0, 0.0) };
     }
 
-    // ---------- Compute `r` and dispatch to the right tail formula. ----
+    // ---------- Compute r and dispatch to the right tail formula. ----
 
     let r;
     if a < 1.0 {
@@ -1527,8 +1527,8 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
     const TWO: f64 = 2.0;
     const LN10: f64 = 2.302585;
 
-    // iop-indexed tables. The F90 uses `iop ∈ {1, 2}` (one-based); we
-    // use `iop ∈ {0, 1}` to fit Rust array indexing.
+    // iop-indexed tables. The F90 uses iop ∈ {1, 2} (one-based); we
+    // use iop ∈ {0, 1} to fit Rust array indexing.
     const AMIN: [f64; 2] = [500.0, 100.0];
     const BMIN: [f64; 2] = [1.0e-28, 1.0e-13];
     const DMIN: [f64; 2] = [1.0e-6, 1.0e-4];
@@ -1560,14 +1560,14 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
     let iop = if e > 1.0e-10 { 1 } else { 0 };
     let eps = EPS0[iop];
 
-    // `xn` is the running approximation; `use_q` selects which Schröder
+    // xn is the running approximation; use_q selects which Schröder
     // branch to use after the initial approximation is chosen.
     let xn;
     let use_q;
 
     if x0 > 0.0 {
         // F90 L11160 path: caller supplied an initial approximation.
-        // F90 L11445: branch on `p` after `go to 160`.
+        // F90 L11445: branch on p after go to 160.
         xn = x0;
         use_q = p > 0.5;
     } else if a < 1.0 {
@@ -1587,7 +1587,7 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
             let t = (-(b + C)).exp();
             let u = t * t.exp();
             xn = t * u.exp();
-            // L11217 `go to 160`: then L11445 → use P (since p must be ≤ 0.5
+            // L11217 go to 160: then L11445 → use P (since p must be ≤ 0.5
             // here: for a < 0.3, q is large, so p = 1 − q is small).
             use_q = p > 0.5;
         } else if !go_to_40 && b >= 0.45 {
@@ -1634,7 +1634,7 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
             if xn == 0.0 {
                 return Err(GammaIncInvError::NoSolution);
             }
-            // F90 L11296 → `go to 160`.
+            // F90 L11296 → go to 160.
             use_q = p > 0.5;
         }
     } else {
@@ -1752,7 +1752,7 @@ fn label_130(a: f64, p: f64, _q: f64, xn0: f64, emin_iop: f64) -> (f64, bool) {
     let mut w = p.ln() + gamma_log(ap1);
     let mut xn = xn0;
     if xn <= 0.15 * ap1 {
-        // F90 L11348: closed-form refinement via three corrective `x = exp(...)`
+        // F90 L11348: closed-form refinement via three corrective x = exp(...)
         // updates that match the F90 line by line.
         let ap2 = a + 2.0;
         let ap3 = a + 3.0;
@@ -1970,7 +1970,7 @@ mod tests {
         }
     }
 
-    // Exact 1e-15 agreement requires bit-identical libm `exp`; miri's
+    // Exact 1e-15 agreement requires bit-identical libm exp; miri's
     // soft-float shim drifts by 1 ULP at x = 2. Skipped under miri.
     #[cfg(not(miri))]
     #[test]
@@ -2141,7 +2141,7 @@ mod tests {
     #[test]
     fn gamma_inc_inv_sweeps_all_regimes() {
         // Fine grid exercising the initial-approximation tree's regimes:
-        //   a < 0.3 with various q levels (different `b = qg/a` ranges)
+        //   a < 0.3 with various q levels (different b = qg/a ranges)
         //   0.3 < a < 1 (the label-30 c1..c5 fallback)
         //   1 < a < 100 (the rational a > 1 path)
         //   a > 500 (the early-return-via-dmin path)
@@ -2189,7 +2189,7 @@ mod tests {
                 let dq = (qn - q).abs() / q.max(1e-300);
                 // Either tail should match to ~1e-5; CDFLIB's stated goal
                 // is 10 significant digits when possible, but Schröder
-                // iteration's tolerance constant `tol = 1e-5` is the
+                // iteration's tolerance constant tol = 1e-5 is the
                 // floor.
                 assert!(dp.min(dq) < 1e-4, "a={a}, p={p}, x={x}: dp={dp}, dq={dq}",);
             }

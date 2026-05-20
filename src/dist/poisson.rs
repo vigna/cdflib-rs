@@ -99,7 +99,7 @@ impl Poisson {
         let sf = s as f64;
         let q_target = 1.0 - p;
         // CDF is decreasing in λ for fixed s (more mass shifts right).
-        // Mirror cdfpoi's `if p <= q then cum-p else ccum-q` precision
+        // Mirror cdfpoi's if p <= q then cum-p else ccum-q precision
         // pivot so the residual stays small near both tails of p.
         let f = |lambda: f64| {
             let (sf_upper, cdf) = gamma_inc(sf + 1.0, lambda);
@@ -260,7 +260,7 @@ mod tests {
 
     // Solver convergence in this regime depends on the host FPU's exact
     // ln/exp results; miri's soft-float libm shims accumulate enough drift
-    // through `gamma_inc` that the bracket-and-refine step can no longer
+    // through gamma_inc that the bracket-and-refine step can no longer
     // certify a sign change. Skipped under miri.
     #[cfg(not(miri))]
     #[test]

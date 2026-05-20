@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_debug_implementations)]
-// The `γ` (Euler–Mascheroni) identifier in one psi test is intentional.
+// The γ (Euler–Mascheroni) identifier in one psi test is intentional.
 #![allow(mixed_script_confusables, confusable_idents)]
 
 mod dist;

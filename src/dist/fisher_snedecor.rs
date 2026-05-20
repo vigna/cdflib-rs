@@ -145,7 +145,7 @@ impl FisherSnedecor {
         let q_target = 1.0 - p;
         // Lower bound 1.0 (not 1e-300): the Fortran reference notes that
         // dfn < 1 makes cumf's internal beta_inc call diverge.
-        // Mirror Fortran cdff's `cum-p if p<=q else ccum-q` precision pivot.
+        // Mirror Fortran cdff's cum-p if p<=q else ccum-q precision pivot.
         let func = |dfn: f64| {
             let dist = FisherSnedecor { dfn, dfd };
             let cum = dist.cdf(f);

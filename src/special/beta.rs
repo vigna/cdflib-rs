@@ -395,11 +395,11 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
             e - (x / x0).ln()
         };
         let e = lambda / b;
-        // Use y0 directly, not `1.0 - x0`. The two are mathematically
-        // equal but `1.0 - x0` loses precision (down to exactly 0) when
-        // `h = min(a,b)/max(a,b)` is below f64 epsilon, while
-        // `y0 = h/(1+h)` preserves the small value. Matches C
-        // `brcomp`'s use of `log(y/y0)`.
+        // Use y0 directly, not 1.0 - x0. The two are mathematically
+        // equal but 1.0 - x0 loses precision (down to exactly 0) when
+        // h = min(a,b)/max(a,b) is below f64 epsilon, while
+        // y0 = h/(1+h) preserves the small value. Matches C
+        // brcomp's use of log(y/y0).
         let v = if e.abs() <= 0.6 {
             rlog1(e)
         } else {
@@ -562,9 +562,10 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
     let mut mu = 0;
     let mut d = 1.0;
     if n != 1 && a >= 1.0 && apb >= 1.1 * ap1 {
-        mu = POS_EXPARG.abs() as i32; // approximate magnitude
-        // CDFLIB uses exparg(1) for the negative bound; we approximate.
-        let k = NEG_EXPARG.abs() as i32;
+        // F90 (cdflib.f90:2267-2273): mu = abs(exparg(1)), k = exparg(0).
+        // NEG_EXPARG = exparg(1) (negative bound), POS_EXPARG = exparg(0).
+        mu = NEG_EXPARG.abs() as i32;
+        let k = POS_EXPARG.abs() as i32;
         if k < mu {
             mu = k;
         }
@@ -1029,7 +1030,7 @@ pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIn
     if a == 0.0 && b == 0.0 {
         return Err(BetaIncError::BothZero);
     }
-    // Mirror CDFLIB's `x < 0 || x > 1` form. With NaN inputs, both
+    // Mirror CDFLIB's x < 0 || x > 1 form. With NaN inputs, both
     // comparisons return false, so NaN passes through here and the
     // x == 0 / y == 0 short-circuits below get a chance to fire,
     // matching CDFLIB's behavior for e.g. cumt with extreme |t|.
@@ -1492,8 +1493,8 @@ mod tests {
 
     #[test]
     fn beta_rcomp_at_extreme_b() {
-        // At a = 41, b = 1e300, x = 0.8, y = 0.2 the intermediate `1 - x0`
-        // cancels to zero, so the result has to be computed via `y0`
+        // At a = 41, b = 1e300, x = 0.8, y = 0.2 the intermediate 1 - x0
+        // cancels to zero, so the result has to be computed via y0
         // directly to stay finite. Regression-guards that path.
         let r = beta_rcomp(41.0, 1e300, 0.8, 0.2);
         assert!(r.is_finite(), "beta_rcomp returned non-finite: {r}");
