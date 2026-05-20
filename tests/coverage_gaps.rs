@@ -13,7 +13,7 @@ use cdflib::special::internal::{
     apser, beta_grat, beta_rcomp, beta_rcomp1, beta_up, fpser, gam1, gamma_rat1, rcomp, rexp,
 };
 use cdflib::special::{
-    GammaIncError, GammaIncInvError, beta_inc, gamma_inc, gamma_inc_inv, gamma_log, gamma_x, psi,
+    GammaIncError, GammaIncInvError, beta_inc, gamma_inc, gamma_inc_inv, gamma_log, gamma, psi,
 };
 use cdflib::{ContinuousCdf, DiscreteCdf, FisherSnedecorNoncentral, NegativeBinomial, Poisson};
 
@@ -35,13 +35,13 @@ fn gam1_above_one_and_negative() {
     // gam1(1.2): the a > 1 branch (d > 0 and t > 0).
     // 1/Γ(2.2) - 1 ≈ 1/1.10180 - 1 ≈ -0.0924.
     let g_big = gam1(1.2);
-    let expected_big = 1.0 / gamma_x(2.2) - 1.0;
+    let expected_big = 1.0 / gamma(2.2) - 1.0;
     assert!((g_big - expected_big).abs() < 1e-12, "gam1(1.2) = {g_big}");
 
     // gam1(-0.3): the a < 0 branch (t < 0 AND d ≤ 0).
     // 1/Γ(0.7) - 1.
     let g_neg = gam1(-0.3);
-    let expected_neg = 1.0 / gamma_x(0.7) - 1.0;
+    let expected_neg = 1.0 / gamma(0.7) - 1.0;
     assert!(
         (g_neg - expected_neg).abs() < 1e-12,
         "gam1(-0.3) = {g_neg}, want {expected_neg}"
@@ -49,30 +49,30 @@ fn gam1_above_one_and_negative() {
 }
 
 #[test]
-fn gamma_x_negative_argument_and_overflow_paths() {
+fn gamma_negative_argument_and_overflow_paths() {
     // |a| ≥ 15 reflection branch with t > 0.9. Γ(-15.95) routes through
     // `t = 0.95` → `t = 1 - 0.95 = 0.05`.
-    let g_307 = gamma_x(-15.95);
+    let g_307 = gamma(-15.95);
     assert!(g_307.is_finite() && g_307 != 0.0, "g_307 = {g_307}");
 
     // Reflection at a negative integer with |a| ≥ 15: sin(πt) = 0 → return 0.
-    assert_eq!(gamma_x(-20.0), 0.0);
-    assert_eq!(gamma_x(-25.0), 0.0);
+    assert_eq!(gamma(-20.0), 0.0);
+    assert_eq!(gamma(-25.0), 0.0);
 
     // Same sentinel via |a| < 15.
-    let g_neg_int = gamma_x(-2.0);
+    let g_neg_int = gamma(-2.0);
     assert_eq!(g_neg_int, 0.0);
-    let g_neg_int2 = gamma_x(-5.0);
+    let g_neg_int2 = gamma(-5.0);
     assert_eq!(g_neg_int2, 0.0);
 
     // Reflection-branch overflow: g exceeds POS_EXPARG for a far enough
     // negative non-integer, triggering the early-0 return.
-    let g_overflow = gamma_x(-200.7);
+    let g_overflow = gamma(-200.7);
     assert_eq!(g_overflow, 0.0);
 
     // Large positive overflow: a ≥ 15 and g > 0.99999·POS_EXPARG.
     // Γ(200) is astronomically large; CDFLIB returns 0 by design.
-    let g_pos_overflow = gamma_x(200.0);
+    let g_pos_overflow = gamma(200.0);
     assert_eq!(g_pos_overflow, 0.0);
 }
 
@@ -391,8 +391,8 @@ fn gamma_log_does_not_regress() {
 // Several defensive paths in `gamma_inc_inv` are structurally unreachable
 // in IEEE 754 f64 yet are retained for strict F90 fidelity:
 //
-//   * `qg == 0` (qg = q · gamma_x(a+1) underflow). For a ∈ (0, 1),
-//     gamma_x(a+1) attains its minimum ≈ 0.8856 near a ≈ 0.4616, so
+//   * `qg == 0` (qg = q · gamma(a+1) underflow). For a ∈ (0, 1),
+//     gamma(a+1) attains its minimum ≈ 0.8856 near a ≈ 0.4616, so
 //     q · g ≥ 0.4428 · 2⁻¹⁰⁷⁴ for any positive f64 q. That rounds up to
 //     2⁻¹⁰⁷⁴, never to 0.
 //   * `b == 0` after the qg check (b = qg/a with a < 1 only magnifies qg).
@@ -419,7 +419,7 @@ fn gamma_inc_inv_small_a_label_30_early_return() {
     // The label-30 c1..c5 fallback path with `BMIN[iop] ≥ b` returns the
     // c1..c5 approximation directly. f64::EPSILON ≈ 2.22e-16 is *not* >
     // 1e-10, so iop = 0 and BMIN[0] = 1e-28. With a = 0.5 and q = 1e-29,
-    // b = q · gamma_x(1.5) / 0.5 ≈ 1.8e-29 < 1e-28.
+    // b = q · gamma(1.5) / 0.5 ≈ 1.8e-29 < 1e-28.
     let q = 1.0e-29;
     let p = 1.0 - q;
     let r = gamma_inc_inv(0.5, -1.0, p, q).unwrap();

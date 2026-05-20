@@ -4,7 +4,7 @@
 //!
 //! The top-level [`cdflib::special`](crate::special) namespace exposes the
 //! user-facing special functions a statistical user is likely to call
-//! directly: [`beta`], [`beta_log`], [`beta_inc`], [`gamma_x`],
+//! directly: [`beta`], [`beta_log`], [`beta_inc`], [`gamma`],
 //! [`gamma_log`], [`gamma_inc`], [`gamma_inc_inv`], [`psi`], [`error_f`],
 //! [`error_fc`], [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`],
 //! and [`dt1`].
@@ -30,7 +30,7 @@
 //! [`beta`]: crate::special::beta()
 //! [`beta_log`]: crate::special::beta_log
 //! [`beta_inc`]: crate::special::beta_inc
-//! [`gamma_x`]: crate::special::gamma_x
+//! [`gamma`]: crate::special::gamma
 //! [`gamma_log`]: crate::special::gamma_log
 //! [`gamma_inc`]: crate::special::gamma_inc
 //! [`gamma_inc_inv`]: crate::special::gamma_inc_inv
@@ -64,7 +64,7 @@ pub(crate) fn eval_pol(c: &[f64], x: f64) -> f64 {
 pub use beta::{BetaIncError, beta, beta_inc, beta_log};
 pub use erf::{error_f, error_fc, error_fc_scaled};
 pub use gamma::{
-    GammaIncError, GammaIncInvError, gamma_inc, gamma_inc_inv, gamma_log, gamma_x, psi,
+    GammaIncError, GammaIncInvError, gamma_inc, gamma_inc_inv, gamma_log, gamma, psi,
 };
 pub use normal::{cumnor, dinvnr, dlanor};
 pub use students_t::dt1;

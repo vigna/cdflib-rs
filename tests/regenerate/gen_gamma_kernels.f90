@@ -1,4 +1,4 @@
-! Reference tables for the gamma kernels: gamma_log, gamma_x, gamma_inc.
+! Reference tables for the gamma kernels: gamma_log, gamma, gamma_inc.
 
 program gen_gamma_kernels
   implicit none
@@ -15,7 +15,7 @@ program gen_gamma_kernels
     0.799999999999_rk, 0.8_rk, 0.800000000001_rk, &
     2.249999999999_rk, 2.25_rk, 2.250000000001_rk, &
     9.999999999999_rk, 10.0_rk, 10.000000000001_rk /)
-  real(kind=rk), parameter :: gamma_x_special(*) = (/ &
+  real(kind=rk), parameter :: gamma_special(*) = (/ &
     14.999999999999_rk, 15.0_rk, 15.000000000001_rk /)
   real(kind=rk), parameter :: inc_special_a(*) = (/ &
     0.149999999999_rk, 0.15_rk, 0.150000000001_rk, &
@@ -50,8 +50,8 @@ program gen_gamma_kernels
   end do
   close(unit)
 
-  ! gamma_x
-  open(newunit=unit, file='tests/data/gamma_x.csv', status='replace', action='write')
+  ! gamma
+  open(newunit=unit, file='tests/data/gamma.csv', status='replace', action='write')
   write(unit, '(a)') '# a, gamma(a)'
   a = 0.1_rk
   do while (a <= 14.0_rk + 1.0e-12_rk)
@@ -59,8 +59,8 @@ program gen_gamma_kernels
     call putval(unit, gamma_user(a), .true.)
     a = a + 0.1_rk
   end do
-  do i = 1, size(gamma_x_special)
-    a = gamma_x_special(i)
+  do i = 1, size(gamma_special)
+    a = gamma_special(i)
     call putval(unit, a, .false.)
     call putval(unit, gamma_user(a), .true.)
   end do

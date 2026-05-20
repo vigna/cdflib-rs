@@ -253,13 +253,13 @@ pub fn gam1(a: f64) -> f64 {
 /// # Example
 ///
 /// ```
-/// use cdflib::special::gamma_x;
+/// use cdflib::special::gamma;
 ///
-/// let y = gamma_x(3.0);
+/// let y = gamma(3.0);
 /// assert!((y - 2.0).abs() < 1e-14);
 /// ```
 #[inline]
-pub fn gamma_x(a: f64) -> f64 {
+pub fn gamma(a: f64) -> f64 {
     const D: f64 = 0.41893853320467274178;
     const PI: f64 = 3.1415926535898;
     const P_COEF: [f64; 7] = [
@@ -670,7 +670,7 @@ pub fn rcomp(a: f64, x: f64) -> f64 {
         if a < 1.0 {
             a * t.exp() * (1.0 + gam1(a))
         } else {
-            t.exp() / gamma_x(a)
+            t.exp() / gamma(a)
         }
     } else {
         let u = x / a;
@@ -829,7 +829,7 @@ fn gamma_inc_core(a: f64, x: f64) -> (f64, f64) {
         }
         // S20: r = exp(t1) / Γ(a).
         let t1 = a * x.ln() - x;
-        r = t1.exp() / gamma_x(a);
+        r = t1.exp() / gamma(a);
     } else {
         // a >= big
         let l = x / a;
@@ -1421,7 +1421,7 @@ pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIncInv
         use_q = p > 0.5;
     } else if a < 1.0 {
         // ---- a < 1 branch (F90 L11185+) -----------------------------
-        let g = gamma_x(a + 1.0);
+        let g = gamma(a + 1.0);
         let qg = q * g;
         if qg == 0.0 {
             return Err(GammaIncInvError::UncertainAccuracy { value: f64::MAX });
@@ -2064,12 +2064,12 @@ mod tests {
     }
 
     #[test]
-    fn gamma_x_at_small_integers() {
-        assert!((gamma_x(1.0) - 1.0).abs() < 1e-14);
-        assert!((gamma_x(2.0) - 1.0).abs() < 1e-14);
-        assert!((gamma_x(3.0) - 2.0).abs() < 1e-14);
-        assert!((gamma_x(4.0) - 6.0).abs() < 1e-14);
-        assert!((gamma_x(5.0) - 24.0).abs() < 1e-13);
+    fn gamma_at_small_integers() {
+        assert!((gamma(1.0) - 1.0).abs() < 1e-14);
+        assert!((gamma(2.0) - 1.0).abs() < 1e-14);
+        assert!((gamma(3.0) - 2.0).abs() < 1e-14);
+        assert!((gamma(4.0) - 6.0).abs() < 1e-14);
+        assert!((gamma(5.0) - 24.0).abs() < 1e-13);
     }
 
     #[test]
@@ -2094,12 +2094,12 @@ mod tests {
     #[test]
     fn psi_at_known_points() {
         // ψ(1) = -γ (Euler–Mascheroni)
-        let gamma = 0.5772156649015328606;
-        assert!((psi(1.0) + gamma).abs() < 1e-9, "psi(1) = {}", psi(1.0));
+        let γ = 0.5772156649015328606;
+        assert!((psi(1.0) + γ).abs() < 1e-9, "psi(1) = {}", psi(1.0));
         // ψ(2) = 1 - γ
-        assert!((psi(2.0) - (1.0 - gamma)).abs() < 1e-9);
+        assert!((psi(2.0) - (1.0 - γ)).abs() < 1e-9);
         // ψ(0.5) = -γ - 2 ln 2
-        let expected = -gamma - 2.0 * 2.0_f64.ln();
+        let expected = -γ - 2.0 * 2.0_f64.ln();
         assert!(
             (psi(0.5) - expected).abs() < 1e-9,
             "psi(0.5) = {}",
@@ -2219,32 +2219,32 @@ mod tests {
     }
 
     #[test]
-    fn gamma_x_at_half_integer() {
+    fn gamma_at_half_integer() {
         // Γ(1/2) = √π.
-        assert!((gamma_x(0.5) - std::f64::consts::PI.sqrt()).abs() < 1e-13);
+        assert!((gamma(0.5) - std::f64::consts::PI.sqrt()).abs() < 1e-13);
         // Γ(3/2) = √π/2.
-        assert!((gamma_x(1.5) - std::f64::consts::PI.sqrt() / 2.0).abs() < 1e-13);
+        assert!((gamma(1.5) - std::f64::consts::PI.sqrt() / 2.0).abs() < 1e-13);
     }
 
     #[test]
-    fn gamma_x_overflow_returns_zero() {
+    fn gamma_overflow_returns_zero() {
         // Per CDFLIB convention: Γ(a > 1e3) returns 0 (overflow sentinel).
-        assert_eq!(gamma_x(1001.0), 0.0);
-        assert_eq!(gamma_x(1e10), 0.0);
+        assert_eq!(gamma(1001.0), 0.0);
+        assert_eq!(gamma(1e10), 0.0);
     }
 
     #[test]
-    fn gamma_x_at_negative_non_integer() {
+    fn gamma_at_negative_non_integer() {
         // Γ(-0.5) = -2√π via reflection.
         let expected = -2.0 * std::f64::consts::PI.sqrt();
-        let got = gamma_x(-0.5);
+        let got = gamma(-0.5);
         assert!(
             (got - expected).abs() < 1e-12,
             "got = {got}, expected = {expected}"
         );
         // Γ(-1.5) = 4√π/3.
         let expected = 4.0 / 3.0 * std::f64::consts::PI.sqrt();
-        let got = gamma_x(-1.5);
+        let got = gamma(-1.5);
         assert!(
             (got - expected).abs() < 1e-12,
             "got = {got}, expected = {expected}"
@@ -2252,50 +2252,50 @@ mod tests {
     }
 
     #[test]
-    fn gamma_x_at_negative_mid_range() {
+    fn gamma_at_negative_mid_range() {
         // Γ(-3.5) = -8√π/15 via reflection identity.
         // Γ(n+0.5) = (2n)! √π / (4^n n!). For n=3: 6! / (4^3 3!) = 720/384 = 15/8.
         // So Γ(3.5) = (15/8)√π. And Γ(-3.5) = (-1)^4 π / (sin(3.5π) Γ(4.5))
         // ... easier: numerical check vs known-stable computation.
-        let g = gamma_x(-3.5);
+        let g = gamma(-3.5);
         assert!(g.is_finite());
         // The reflection formula: Γ(z)Γ(1-z) = π/sin(πz)
         // → Γ(-3.5) = π / (sin(-3.5π) Γ(4.5))
-        let g_45 = gamma_x(4.5);
+        let g_45 = gamma(4.5);
         let expected = std::f64::consts::PI / ((-3.5_f64 * std::f64::consts::PI).sin() * g_45);
         assert!((g - expected).abs() / expected.abs() < 1e-10);
     }
 
     #[test]
-    fn gamma_x_at_negative_large_magnitude() {
+    fn gamma_at_negative_large_magnitude() {
         // Γ(-20.5): asymptotic-reflection branch for |a| ≥ 15.
-        let g = gamma_x(-20.5);
+        let g = gamma(-20.5);
         // Should be finite and tiny (~1e-19).
         assert!(g.is_finite() && g.abs() < 1e-15);
     }
 
     #[test]
-    fn gamma_x_at_negative_integer_returns_zero() {
+    fn gamma_at_negative_integer_returns_zero() {
         // CDFLIB sentinel: Γ at negative integer returns 0 (would diverge).
-        assert_eq!(gamma_x(-3.0), 0.0);
-        assert_eq!(gamma_x(-10.0), 0.0);
+        assert_eq!(gamma(-3.0), 0.0);
+        assert_eq!(gamma(-10.0), 0.0);
     }
 
     #[test]
-    fn gamma_x_at_zero_returns_zero() {
+    fn gamma_at_zero_returns_zero() {
         // Γ at 0 is +inf in math but CDFLIB returns 0 sentinel.
-        assert_eq!(gamma_x(0.0), 0.0);
+        assert_eq!(gamma(0.0), 0.0);
     }
 
     #[test]
-    fn gamma_x_at_large_positive() {
+    fn gamma_at_large_positive() {
         // a in [15, 1000] uses asymptotic.
         let ln_gamma_50 = gamma_log(50.0);
-        let g_50 = gamma_x(50.0);
+        let g_50 = gamma(50.0);
         // log(g_50) should match ln_gamma_50 to high precision.
         assert!((g_50.ln() - ln_gamma_50).abs() < 1e-9);
         // For very large a (but still < 1000), result should be huge but finite.
-        let g_100 = gamma_x(100.0);
+        let g_100 = gamma(100.0);
         assert!(g_100.is_finite() && g_100 > 1e150);
     }
 

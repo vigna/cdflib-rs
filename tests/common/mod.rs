@@ -28,7 +28,7 @@ pub const DEFAULT_REL_TOL: f64 = 1e-14;
 /// relative criterion is meaningless (e.g. `cdf(x) = 0.0`).
 pub const DEFAULT_ABS_TOL: f64 = 1e-300;
 
-/// Direct math kernels (`error_f`, `cumnor`, `gamma_log`, `gamma_x`,
+/// Direct math kernels (`error_f`, `cumnor`, `gamma_log`, `gamma`,
 /// `beta_log`, …). Compared against fixtures generated from the
 /// Fortran `cdflib.f90` via `tests/regenerate/gen_*.f90`.
 /// Measured max is about `2.9e-13` on saturated `error_f` / `error_fc`

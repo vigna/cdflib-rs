@@ -30,17 +30,22 @@ pub trait ContinuousCdf {
     /// Domain-specific error type returned by the inverse routines.
     type Error;
 
-    /// Pr[*X* ≤ *x*].
+    /// Returns Pr[*X* ≤ *x*].
     fn cdf(&self, x: f64) -> f64;
 
-    /// Pr\[*X* > *x*\] = 1 − cdf(*x*).
+    /// Returns Pr\[*X* > *x*\] = 1 − [cdf]\(*x*\).
+    ///
+    /// [cdf]: ContinuousCdf::cdf
     fn sf(&self, x: f64) -> f64;
 
-    /// Smallest *x* such that cdf(*x*) ≥ *p*, for *p* ∈ [0 . . 1].
+    /// Returns the smallest *x* such that [cdf]\(*x*\) ≥ *p*, for *p* ∈ [0 . . 1].
+    ///
+    /// [cdf]: ContinuousCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<f64, Self::Error>;
 
-    /// Largest *x* such that sf(*x*) ≥ *q*, for *q* ∈ [0 . . 1]. Implementors
-    /// should override the default and compute this directly.
+    /// Returns the largest *x* such that [sf]\(*x*\) ≥ *q*, for *q* ∈ [0 . . 1].
+    ///
+    /// [sf]: ContinuousCdf::sf
     fn inverse_sf(&self, q: f64) -> Result<f64, Self::Error>;
 }
 
@@ -61,26 +66,33 @@ pub trait DiscreteCdf {
     /// Domain-specific error type returned by the inverse routines.
     type Error;
 
-    /// Pr[*X* ≤ *x*].
+    /// Returns Pr[*X* ≤ *x*].
     fn cdf(&self, x: u64) -> f64;
 
-    /// Pr\[*X* > *x*\] = 1 − cdf(*x*).
+    /// Returns Pr\[*X* > *x*\] = 1 − [cdf]\(*x*\).
+    ///
+    /// [cdf]: DiscreteCdf::cdf
     #[inline]
     fn sf(&self, x: u64) -> f64 {
         1.0 - self.cdf(x)
     }
 
-    /// Smallest integer *x* such that cdf(*x*) ≥ *p*.
+    /// Returns the smallest integer *x* such that [cdf]\(*x*\) ≥ *p*.
+    ///
+    /// [cdf]: DiscreteCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;
 
-    /// Largest integer *x* such that sf(*x*) ≥ *q*, saturating at 0 when
+    /// Returns the largest integer *x* such that [sf]\(*x*) ≥ *q*, saturating at 0 when
     /// no support point satisfies the inequality.
     ///
-    /// The default implementation derives this from `inverse_cdf` by
+    /// The default implementation derives this from [`inverse_cdf`] by
     /// asking for the first point whose CDF is strictly greater than
     /// 1 − *q*, then stepping back by one. Stepping to the next
     /// representable `f64` above 1 − *q* preserves the exact jump
     /// semantics when 1 − *q* lands exactly on a CDF value.
+    ///
+    /// [sf]: DiscreteCdf::sf
+    /// [inverse_cdf]: DiscreteCdf::inverse_cdf
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<u64, Self::Error> {
         if q == 1.0 {
@@ -116,28 +128,34 @@ pub trait Discrete {
     fn ln_pmf(&self, x: u64) -> f64;
 }
 
-/// First moment.
+/// First moment, AKA the mean.
 pub trait Mean {
-    /// Expected value E\[*X*\]. Returns NaN when the mean is not defined for
-    /// the distribution's parameters (for example a Cauchy or low-df *t*).
+    /// Returns the expected value E\[*X*\].
+    ///
+    /// Returns NaN when the mean is not defined for the distribution's
+    /// parameters.
     fn mean(&self) -> f64;
 }
 
-/// Second central moment.
+/// Second central moment, AKA the variance.
 pub trait Variance {
-    /// Variance Var(*X*) = E\[(*X* − E\[*X*\])²\]. Returns NaN when the
-    /// variance is not defined for the distribution's parameters.
+    /// Returns the variance Var(*X*) = E\[(*X* − E\[*X*\])²\].
+    ///
+    /// Returns NaN when the variance is not defined for the distribution's
+    /// parameters.
     fn variance(&self) -> f64;
-    /// Standard deviation, the square root of the variance.
+    /// Returns the standard deviation (the square root of the [variance]).
+    ///
+    /// [variance]: Variance::variance
     #[inline]
     fn std_dev(&self) -> f64 {
         self.variance().sqrt()
     }
 }
 
-/// Differential entropy (for continuous distributions) or Shannon entropy
-/// (for discrete distributions), in nats.
+/// Differential entropy (for continuous distributions) or Shannon
+/// entropy (for discrete distributions), in nats.
 pub trait Entropy {
-    /// Entropy of the distribution, in nats.
+    /// Returns the entropy of the distribution in nats.
     fn entropy(&self) -> f64;
 }

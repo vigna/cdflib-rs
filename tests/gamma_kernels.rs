@@ -4,7 +4,7 @@
 
 mod common;
 
-use cdflib::special::{gamma_inc, gamma_log, gamma_x};
+use cdflib::special::{gamma_inc, gamma_log, gamma};
 use common::{
     DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL, ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
     assert_close_eps, read_csv,
@@ -21,12 +21,12 @@ fn gamma_log_matches_reference() {
 }
 
 #[test]
-fn gamma_x_matches_reference() {
-    for row in read_csv("tests/data/gamma_x.csv") {
+fn gamma_matches_reference() {
+    for row in read_csv("tests/data/gamma.csv") {
         let [a, expected] = row[..] else {
             panic!("width");
         };
-        assert_close_eps(gamma_x(a), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_close_eps(gamma(a), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }
 }
 

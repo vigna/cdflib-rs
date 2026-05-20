@@ -36,39 +36,8 @@ and comprehensive error handling via the [`thiserror`] crate.
 Expanding or altering the API beyond what CDFLIB offers is explicitly out of
 scope. This is a machine-translated port of the Fortran 90 code. Other
 libraries, such as [`statrs`], can use the high-precision functions provided by
-CDFLIB to build more ergonomic APIs. The only exception are ergonomical,
+CDFLIB to build more ergonomic APIs. The only exception are convenience
 textbook one-liners for mean, variance, and so on.
-
-## Fidelity to CDFLIB
-
-The port is semantically faithful: every algorithmic decision, polynomial
-coefficient, branch threshold, and truncation depth matches `cdflib.f90` to the
-digit. The intentional structural divergences are:
-
-- The Fortran routine `gamma_user` is exposed under the Rust name [`gamma_x`],
-  matching the original [ACM Algorithm 708] name and freeing the symbol
-  `gamma` for the Β-function-style helpers.
-- `error_fc(ind, x)` (which multiplexes plain and exponentially-scaled
-  output via an integer flag) is split into two Rust functions, [`error_fc`]
-  and [`error_fc_scaled`]. Same numerics, no flag argument.
-- The Fortran `cum*` and `cdf*` dispatcher families are folded into the
-  corresponding distribution module's `cdf` / `sf` / `inverse_cdf` /
-  `inverse_sf` / `solve_*` methods rather than exposed as bare functions.
-- `dinvr` and `dzror` (the reverse-communication root finders) live as
-  internal state machines in `crate::solver`. They are not part of the
-  public surface.
-- The solver setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
-  `rel_tol`) that the Fortran `cdf*` routines declare locally are
-  centralized in `src/solver/mod.rs`; the one routine that needs a
-  different absolute tolerance (`cdfchn`) uses an explicit
-  `solve_monotone_with_atol` call.
-
-The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
-etc.) live in [`cdflib::special::internal`] so the user-facing
-[`cdflib::special`] surface stays focused on the kernels a statistical
-user is likely to call. Both surfaces are public and documented; a port
-from C/Fortran can find every CDFLIB routine under its original name in
-one or the other.
 
 ## Why CDFLIB?
 
@@ -197,6 +166,40 @@ let (phi, sphi) = cumnor(1.96);          // (0.9750, 0.0250) = (Φ(1.96), 1 - Φ
 # Ok::<(), cdflib::special::GammaIncError>(())
 ```
 
+## Fidelity to CDFLIB
+
+The port is semantically faithful: every algorithmic decision, polynomial
+coefficient, branch threshold, and truncation depth matches `cdflib.f90` to the
+digit. The intentional structural divergences are:
+
+- The Fortran routine `gamma_user` is exposed under the Rust name [`gamma`].
+  The Fortran name encodes a Fortran-2008 workaround (the language added a
+  `gamma` intrinsic, so the bundled CDFLIB routine had to be renamed to
+  avoid the collision). Rust has no such conflict, so the routine takes the
+  bare family name, mirroring how [`beta`] is the bare-name principal
+  function of the Β family.
+- `error_fc(ind, x)` (which multiplexes plain and exponentially-scaled
+  output via an integer flag) is split into two Rust functions, [`error_fc`]
+  and [`error_fc_scaled`]. Same numerics, no flag argument.
+- The Fortran `cum*` and `cdf*` dispatcher families are folded into the
+  corresponding distribution module's `cdf` / `sf` / `inverse_cdf` /
+  `inverse_sf` / `solve_*` methods rather than exposed as bare functions.
+- `dinvr` and `dzror` (the reverse-communication root finders) live as
+  internal state machines in `crate::solver`. They are not part of the
+  public surface.
+- The solver setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
+  `rel_tol`) that the Fortran `cdf*` routines declare locally are
+  centralized in `src/solver/mod.rs`; the one routine that needs a
+  different absolute tolerance (`cdfchn`) uses an explicit
+  `solve_monotone_with_atol` call.
+
+The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
+etc.) live in [`cdflib::special::internal`] so the user-facing
+[`cdflib::special`] surface stays focused on the kernels a statistical
+user is likely to call. Both surfaces are public and documented; a port
+from C/Fortran can find every CDFLIB routine under its original name in
+one or the other.
+
 ## Testing
 
 Reference values for the test suite are pre-generated from the bundled Fortran 90
@@ -228,7 +231,8 @@ transcribed from the [original FORTRAN77 code] with a wrong exponent.
 [`thiserror`]: https://crates.io/crates/thiserror
 [traits]: https://docs.rs/cdflib/latest/cdflib/traits/index.html
 [`cdflib::special::internal`]: https://docs.rs/cdflib/latest/cdflib/special/internal/index.html
-[`gamma_x`]: https://docs.rs/cdflib/latest/cdflib/special/fn.gamma_x.html
+[`gamma`]: https://docs.rs/cdflib/latest/cdflib/special/fn.gamma.html
+[`beta`]: https://docs.rs/cdflib/latest/cdflib/special/fn.beta.html
 [`error_fc`]: https://docs.rs/cdflib/latest/cdflib/special/fn.error_fc.html
 [`error_fc_scaled`]: https://docs.rs/cdflib/latest/cdflib/special/fn.error_fc_scaled.html
 [`algdiv`]: https://docs.rs/cdflib/latest/cdflib/special/internal/fn.algdiv.html
