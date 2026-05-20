@@ -778,6 +778,27 @@ pub fn rcomp(a: f64, x: f64) -> f64 {
 // gamma_inc: regularized incomplete gamma P(a,x), Q(a,x)
 // =====================================================================
 
+/// Accuracy regime for [`gamma_inc_with_acc`] and [`try_gamma_inc_with_acc`].
+///
+/// Mirrors CDFLIB's `ind` selector (cdflib.f90:10218). The free-standing
+/// [`gamma_inc`] and [`try_gamma_inc`] entry points are equivalent to
+/// passing [`GammaIncAcc::Max`].
+///
+/// [`gamma_inc`]: crate::special::gamma_inc
+/// [`try_gamma_inc`]: crate::special::try_gamma_inc
+/// [`gamma_inc_with_acc`]: crate::special::gamma_inc_with_acc
+/// [`try_gamma_inc_with_acc`]: crate::special::try_gamma_inc_with_acc
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GammaIncAcc {
+    /// As much accuracy as possible (F90 ind = 0).
+    #[default]
+    Max,
+    /// Within one unit of the 6th significant digit (F90 ind = 1).
+    Digits6,
+    /// Within one unit of the 3rd significant digit (F90 ind = 2).
+    Digits3,
+}
+
 /// Errors of [`gamma_inc`].
 ///
 /// CDFLIB's `gamma_inc` signals invalid input and indeterminate results
@@ -834,10 +855,34 @@ pub enum GammaIncError {
 /// [`try_gamma_inc`]: crate::special::try_gamma_inc
 #[inline]
 pub fn gamma_inc(a: f64, x: f64) -> (f64, f64) {
+    gamma_inc_with_acc(a, x, GammaIncAcc::Max)
+}
+
+/// Accuracy-selectable form of [`gamma_inc`].
+///
+/// Lower accuracy uses shallower truncations of the Tricomi-Temme
+/// expansion and looser regime cutoffs. Most callers want
+/// [`GammaIncAcc::Max`]; the other levels exist for callers that
+/// can trade precision for speed (see CDFLIB's `ind` parameter).
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::{gamma_inc_with_acc, GammaIncAcc};
+///
+/// let (p, _) = gamma_inc_with_acc(2.5, 1.7, GammaIncAcc::Max);
+/// let (p3, _) = gamma_inc_with_acc(2.5, 1.7, GammaIncAcc::Digits3);
+/// assert!((p - p3).abs() < 1e-3);
+/// ```
+///
+/// [`gamma_inc`]: crate::special::gamma_inc
+#[inline]
+pub fn gamma_inc_with_acc(a: f64, x: f64, accuracy: GammaIncAcc) -> (f64, f64) {
     if a.is_nan() || x.is_nan() {
         return (f64::NAN, f64::NAN);
     }
-    try_gamma_inc(a, x).unwrap_or_else(|e| panic!("gamma_inc({a}, {x}): {e}"))
+    try_gamma_inc_with_acc(a, x, accuracy)
+        .unwrap_or_else(|e| panic!("gamma_inc_with_acc({a}, {x}, {accuracy:?}): {e}"))
 }
 
 /// Fallible form of [`gamma_inc`]: returns [`GammaIncError`] on invalid
@@ -861,6 +906,17 @@ pub fn gamma_inc(a: f64, x: f64) -> (f64, f64) {
 /// [`GammaIncError`]: crate::special::GammaIncError
 #[inline]
 pub fn try_gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
+    try_gamma_inc_with_acc(a, x, GammaIncAcc::Max)
+}
+
+/// Accuracy-selectable form of [`try_gamma_inc`].
+///
+/// [`try_gamma_inc`]: crate::special::try_gamma_inc
+pub fn try_gamma_inc_with_acc(
+    a: f64,
+    x: f64,
+    accuracy: GammaIncAcc,
+) -> Result<(f64, f64), GammaIncError> {
     if a < 0.0 {
         return Err(GammaIncError::ANegative(a));
     }
@@ -870,7 +926,7 @@ pub fn try_gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
     if a == 0.0 && x == 0.0 {
         return Err(GammaIncError::BothZero);
     }
-    let (p, q) = gamma_inc_core(a, x);
+    let (p, q) = gamma_inc_core(a, x, accuracy);
     if p == 2.0 {
         return Err(GammaIncError::Indeterminate { a, x });
     }
@@ -879,21 +935,23 @@ pub fn try_gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
 
 /// Core dispatcher of [`gamma_inc`] without input validation.
 ///
-/// Mirrors CDFLIB's internal logic; an output of `(2.0, 0.0)` represents
-/// the indeterminate-result sentinel that the public wrapper lifts into
-/// [`GammaIncError::Indeterminate`].
-fn gamma_inc_core(a: f64, x: f64) -> (f64, f64) {
-    // The Tricomi–Temme coefficient tables D0..D6 live inside the dedicated
+/// An output of `(2.0, 0.0)` represents the indeterminate-result sentinel
+/// that the public wrapper lifts into [`GammaIncError::Indeterminate`].
+fn gamma_inc_core(a: f64, x: f64, accuracy: GammaIncAcc) -> (f64, f64) {
+    use GammaIncAcc::{Digits3, Digits6, Max};
+    // The Tricomi-Temme coefficient tables D0..D6 live inside the dedicated
     // helpers (temme_general, temme_for_l_eq_1); the dispatcher only needs
-    // ALOG10 (the log(10) cutoff between series and continued
-    // fraction) and the regime-selection constants below.
+    // ALOG10 (the log(10) cutoff between series and continued fraction) and
+    // the per-regime tolerances and cutoffs (cdflib.f90:10342).
     const ALOG10: f64 = 2.30258509299405;
     const RT2PIN: f64 = 0.398942280401433;
 
-    // We always request maximum accuracy (CDFLIB's iop = 1, ind = 0).
-    let acc = (5e-15_f64).max(f64::EPSILON);
-    let e0: f64 = 0.25e-3;
-    let x0: f64 = 31.0;
+    let (acc_raw, e0, x0, big): (f64, f64, f64, f64) = match accuracy {
+        Max => (5.0e-15, 0.25e-3, 31.0, 20.0),
+        Digits6 => (5.0e-7, 0.25e-1, 17.0, 14.0),
+        Digits3 => (5.0e-4, 0.14, 9.7, 10.0),
+    };
+    let acc = acc_raw.max(f64::EPSILON);
     let e = f64::EPSILON;
 
     if a * x == 0.0 {
@@ -930,7 +988,6 @@ fn gamma_inc_core(a: f64, x: f64) -> (f64, f64) {
     }
 
     // a >= 1
-    let big: f64 = 20.0;
     if a < big {
         // Finite-sum branch for "a >= 1 and 2a is an integer", restricted
         // to a <= x < x0 where it's profitable.
@@ -964,10 +1021,10 @@ fn gamma_inc_core(a: f64, x: f64) -> (f64, f64) {
         let y = a * z;
         let rta = a.sqrt();
         if s.abs() <= e0 / rta {
-            return temme_for_l_eq_1(a, l, z, y, e);
+            return temme_for_l_eq_1(a, l, z, y, e, accuracy);
         }
         if s.abs() <= 0.4 {
-            return temme_general(a, l, z, y, rta, e);
+            return temme_general(a, l, z, y, rta, e, accuracy);
         }
         let t = (1.0 / a).powi(2);
         let mut t1 = (((0.75 * t - 1.0) * t + 3.5) * t - 105.0) / (a * 1260.0);
@@ -1151,10 +1208,24 @@ fn finite_q_half_integer(_a: f64, x: f64, i: i64, a_eq_i: bool) -> (f64, f64) {
     (ans, qans)
 }
 
-fn temme_general(a: f64, l: f64, z_in: f64, y: f64, rta: f64, e: f64) -> (f64, f64) {
-    // S270: general Tricomi–Temme expansion (|s| <= 0.4, s = 1 - l).
+fn temme_general(
+    a: f64,
+    l: f64,
+    z_in: f64,
+    y: f64,
+    rta: f64,
+    e: f64,
+    accuracy: GammaIncAcc,
+) -> (f64, f64) {
+    use GammaIncAcc::{Digits3, Digits6, Max};
+    // S270: general Tricomi-Temme expansion (|s| <= 0.4, s = 1 - l). The
+    // accuracy regime selects the truncation depth of the polynomial in z
+    // (cdflib.f90:10758, L10873, L10888): Max uses the long expansion (with
+    // a short sub-branch for |s| <= 1e-3), Digits6 a moderate expansion,
+    // Digits3 the shortest.
+    //
     // Indeterminate-sentinel check (cdflib.f90 L10744, cdflib.f L840): when s ≈
-    // 0 and a is so large that a*ε² > 3.28e-3, the Tricomi–Temme expansion
+    // 0 and a is so large that a*ε² > 3.28e-3, the Tricomi-Temme expansion
     // cannot resolve P/Q reliably. Returns the sentinel 2.0.
     let s = 0.5 + (0.5 - l);
     if s.abs() <= 2.0 * e && 3.28e-3 < a * e * e {
@@ -1243,64 +1314,111 @@ fn temme_general(a: f64, l: f64, z_in: f64, y: f64, rta: f64, e: f64) -> (f64, f
     if l < 1.0 {
         z = -z;
     }
-    // We always run iop=1 (max accuracy) → CDFLIB's S280 path.
-    let c0 = ((((((((((((D0[12] * z + D0[11]) * z + D0[10]) * z + D0[9]) * z + D0[8]) * z
-        + D0[7])
-        * z
-        + D0[6])
-        * z
-        + D0[5])
-        * z
-        + D0[4])
-        * z
-        + D0[3])
-        * z
-        + D0[2])
-        * z
-        + D0[1])
-        * z
-        + D0[0])
-        * z
-        - THIRD;
-    let c1 = (((((((((((D1[11] * z + D1[10]) * z + D1[9]) * z + D1[8]) * z + D1[7]) * z
-        + D1[6])
-        * z
-        + D1[5])
-        * z
-        + D1[4])
-        * z
-        + D1[3])
-        * z
-        + D1[2])
-        * z
-        + D1[1])
-        * z
-        + D1[0])
-        * z
-        + D10;
-    let c2 = (((((((((D2[9] * z + D2[8]) * z + D2[7]) * z + D2[6]) * z + D2[5]) * z + D2[4])
-        * z
-        + D2[3])
-        * z
-        + D2[2])
-        * z
-        + D2[1])
-        * z
-        + D2[0])
-        * z
-        + D20;
-    let c3 = (((((((D3[7] * z + D3[6]) * z + D3[5]) * z + D3[4]) * z + D3[3]) * z + D3[2]) * z
-        + D3[1])
-        * z
-        + D3[0])
-        * z
-        + D30;
-    let c4 = (((((D4[5] * z + D4[4]) * z + D4[3]) * z + D4[2]) * z + D4[1]) * z + D4[0]) * z + D40;
-    let c5 = (((D5[3] * z + D5[2]) * z + D5[1]) * z + D5[0]) * z + D50;
-    let c6 = (D6[1] * z + D6[0]) * z + D60;
-    let t = ((((((D70 * u + c6) * u + c5) * u + c4) * u + c3) * u + c2) * u + c1) * u + c0;
+    let t = match accuracy {
+        Max => {
+            // S270 / S280 (max accuracy, F90 iop=1). F90 splits this into
+            // two sub-branches at |s| <= 1e-3 (short) versus |s| > 1e-3
+            // (long), cdflib.f90:10760.
+            if s.abs() <= 1.0e-3 {
+                let c0 = ((((((D0[6] * z + D0[5]) * z + D0[4]) * z + D0[3]) * z + D0[2]) * z
+                    + D0[1])
+                    * z
+                    + D0[0])
+                    * z
+                    - THIRD;
+                let c1 =
+                    (((((D1[5] * z + D1[4]) * z + D1[3]) * z + D1[2]) * z + D1[1]) * z + D1[0]) * z
+                        + D10;
+                let c2 = ((((D2[4] * z + D2[3]) * z + D2[2]) * z + D2[1]) * z + D2[0]) * z + D20;
+                let c3 = (((D3[3] * z + D3[2]) * z + D3[1]) * z + D3[0]) * z + D30;
+                let c4 = (D4[1] * z + D4[0]) * z + D40;
+                let c5 = (D5[1] * z + D5[0]) * z + D50;
+                let c6 = D6[0] * z + D60;
+                ((((((D70 * u + c6) * u + c5) * u + c4) * u + c3) * u + c2) * u + c1) * u + c0
+            } else {
+                let c0 = ((((((((((((D0[12] * z + D0[11]) * z + D0[10]) * z + D0[9]) * z
+                    + D0[8])
+                    * z
+                    + D0[7])
+                    * z
+                    + D0[6])
+                    * z
+                    + D0[5])
+                    * z
+                    + D0[4])
+                    * z
+                    + D0[3])
+                    * z
+                    + D0[2])
+                    * z
+                    + D0[1])
+                    * z
+                    + D0[0])
+                    * z
+                    - THIRD;
+                let c1 = (((((((((((D1[11] * z + D1[10]) * z + D1[9]) * z + D1[8]) * z
+                    + D1[7])
+                    * z
+                    + D1[6])
+                    * z
+                    + D1[5])
+                    * z
+                    + D1[4])
+                    * z
+                    + D1[3])
+                    * z
+                    + D1[2])
+                    * z
+                    + D1[1])
+                    * z
+                    + D1[0])
+                    * z
+                    + D10;
+                let c2 = (((((((((D2[9] * z + D2[8]) * z + D2[7]) * z + D2[6]) * z + D2[5])
+                    * z
+                    + D2[4])
+                    * z
+                    + D2[3])
+                    * z
+                    + D2[2])
+                    * z
+                    + D2[1])
+                    * z
+                    + D2[0])
+                    * z
+                    + D20;
+                let c3 = (((((((D3[7] * z + D3[6]) * z + D3[5]) * z + D3[4]) * z + D3[3]) * z
+                    + D3[2])
+                    * z
+                    + D3[1])
+                    * z
+                    + D3[0])
+                    * z
+                    + D30;
+                let c4 =
+                    (((((D4[5] * z + D4[4]) * z + D4[3]) * z + D4[2]) * z + D4[1]) * z + D4[0]) * z
+                        + D40;
+                let c5 = (((D5[3] * z + D5[2]) * z + D5[1]) * z + D5[0]) * z + D50;
+                let c6 = (D6[1] * z + D6[0]) * z + D60;
+                ((((((D70 * u + c6) * u + c5) * u + c4) * u + c3) * u + c2) * u + c1) * u + c0
+            }
+        }
+        Digits6 => {
+            // S290 (within 1 unit of the 6th significant digit, F90 iop=2).
+            let c0 = (((((D0[5] * z + D0[4]) * z + D0[3]) * z + D0[2]) * z + D0[1]) * z + D0[0])
+                * z
+                - THIRD;
+            let c1 = (((D1[3] * z + D1[2]) * z + D1[1]) * z + D1[0]) * z + D10;
+            let c2 = D2[0] * z + D20;
+            (c2 * u + c1) * u + c0
+        }
+        Digits3 => {
+            // S300 (within 1 unit of the 3rd significant digit, F90 iop=3).
+            ((D0[2] * z + D0[1]) * z + D0[0]) * z - THIRD
+        }
+    };
 
-    // Tricomi–Temme normalization with the scaled erfc factor.
+    // Tricomi-Temme normalization with the scaled erfc factor.
     if l < 1.0 {
         let ans = c * (w - RT2PIN * t / rta);
         let qans = 0.5 + (0.5 - ans);
@@ -1311,12 +1429,21 @@ fn temme_general(a: f64, l: f64, z_in: f64, y: f64, rta: f64, e: f64) -> (f64, f
     (ans, qans)
 }
 
-fn temme_for_l_eq_1(a: f64, l: f64, z_in: f64, y: f64, e: f64) -> (f64, f64) {
-    // S330 / S340 (max-accuracy branch, iop = 1). We use the full
-    // c0..c6 + d70 expansion exactly as CDFLIB does for ind = 0; lower
-    // accuracy levels (S350, S360) would truncate further.
+fn temme_for_l_eq_1(
+    a: f64,
+    l: f64,
+    z_in: f64,
+    y: f64,
+    e: f64,
+    accuracy: GammaIncAcc,
+) -> (f64, f64) {
+    use GammaIncAcc::{Digits3, Digits6, Max};
+    // S330 / S340 / S350 / S360 in CDFLIB (cdflib.f90:10908). The accuracy
+    // regime selects the truncation depth: Max uses the full c0..c6 + d70
+    // expansion, Digits6 a shallow expansion, Digits3 the shallowest.
+    //
     // Indeterminate-sentinel check (cdflib.f90 L10910, cdflib.f L915): when
-    // a*ε² > 3.28e-3, the Tricomi–Temme L=1 expansion cannot resolve P/Q.
+    // a*ε² > 3.28e-3, the Tricomi-Temme L=1 expansion cannot resolve P/Q.
     if 3.28e-3 < a * e * e {
         return (2.0, 0.0);
     }
@@ -1404,17 +1531,35 @@ fn temme_for_l_eq_1(a: f64, l: f64, z_in: f64, y: f64, e: f64) -> (f64, f64) {
     if l < 1.0 {
         z = -z;
     }
-    let c0 = ((((((D0[6] * z + D0[5]) * z + D0[4]) * z + D0[3]) * z + D0[2]) * z + D0[1]) * z
-        + D0[0])
-        * z
-        - THIRD;
-    let c1 = (((((D1[5] * z + D1[4]) * z + D1[3]) * z + D1[2]) * z + D1[1]) * z + D1[0]) * z + D10;
-    let c2 = ((((D2[4] * z + D2[3]) * z + D2[2]) * z + D2[1]) * z + D2[0]) * z + D20;
-    let c3 = (((D3[3] * z + D3[2]) * z + D3[1]) * z + D3[0]) * z + D30;
-    let c4 = (D4[1] * z + D4[0]) * z + D40;
-    let c5 = (D5[1] * z + D5[0]) * z + D50;
-    let c6 = D6[0] * z + D60;
-    let t = ((((((D70 * u + c6) * u + c5) * u + c4) * u + c3) * u + c2) * u + c1) * u + c0;
+    let t = match accuracy {
+        Max => {
+            // S330 / S340 (F90 iop=1).
+            let c0 = ((((((D0[6] * z + D0[5]) * z + D0[4]) * z + D0[3]) * z + D0[2]) * z + D0[1])
+                * z
+                + D0[0])
+                * z
+                - THIRD;
+            let c1 = (((((D1[5] * z + D1[4]) * z + D1[3]) * z + D1[2]) * z + D1[1]) * z + D1[0])
+                * z
+                + D10;
+            let c2 = ((((D2[4] * z + D2[3]) * z + D2[2]) * z + D2[1]) * z + D2[0]) * z + D20;
+            let c3 = (((D3[3] * z + D3[2]) * z + D3[1]) * z + D3[0]) * z + D30;
+            let c4 = (D4[1] * z + D4[0]) * z + D40;
+            let c5 = (D5[1] * z + D5[0]) * z + D50;
+            let c6 = D6[0] * z + D60;
+            ((((((D70 * u + c6) * u + c5) * u + c4) * u + c3) * u + c2) * u + c1) * u + c0
+        }
+        Digits6 => {
+            // S350 (F90 iop=2).
+            let c0 = (D0[1] * z + D0[0]) * z - THIRD;
+            let c1 = D1[0] * z + D10;
+            (D20 * u + c1) * u + c0
+        }
+        Digits3 => {
+            // S360 (F90 iop=3).
+            D0[0] * z - THIRD
+        }
+    };
     let rta = a.sqrt();
     if l < 1.0 {
         let ans = c * (w - RT2PIN * t / rta);

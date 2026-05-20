@@ -26,6 +26,8 @@
 
 - Fixed erratic behavior at endpoints 0 and 1.
 
+- Restored accuracy selection for `gamma_inc` via `gamma_inc_with_acc`.
+
 ## [0.3.1] - 2026-05-20
 
 ### Fixed

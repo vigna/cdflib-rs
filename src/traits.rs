@@ -30,7 +30,7 @@ pub trait ContinuousCdf {
     /// Domain-specific error type returned by the inverse routines.
     type Error;
 
-    /// Returns Pr[*X* ≤ *x*].
+    /// Returns Pr\[*X* ≤ *x*\].
     fn cdf(&self, x: f64) -> f64;
 
     /// Returns Pr\[*X* > *x*\] = 1 − [cdf]\(*x*\).

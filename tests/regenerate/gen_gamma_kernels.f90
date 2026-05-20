@@ -66,53 +66,63 @@ program gen_gamma_kernels
   end do
   close(unit)
 
-  ! gamma_inc
-  open(newunit=unit, file='tests/data/gamma_inc.csv', status='replace', action='write')
-  write(unit, '(a)') '# a, x, P(a, x), Q(a, x)'
-  do i = 1, size(as)
-    a = as(i)
-    if (a > 1.0_rk) then
-      max_x = 3.0_rk * a
-    else
-      max_x = 8.0_rk
-    end if
-    step = max_x / 50.0_rk
-    x = step / 2.0_rk
-    do while (x <= max_x + 1.0e-12_rk)
-      ind = 0
-      p = 0.0_rk
-      q = 0.0_rk
-      call gamma_inc(a, x, p, q, ind)
-      if (p /= 2.0_rk) then  ! 2.0 is CDFLIB's error sentinel
-        call putval(unit, a, .false.)
-        call putval(unit, x, .false.)
-        call putval(unit, p, .false.)
-        call putval(unit, q, .true.)
-      end if
-      x = x + step
-    end do
-  end do
-  do i = 1, size(inc_special_a)
-    a = inc_special_a(i)
-    do j = 1, size(inc_special_x)
-      x = inc_special_x(j)
-      ind = 0
-      p = 0.0_rk
-      q = 0.0_rk
-      call gamma_inc(a, x, p, q, ind)
-      if (p /= 2.0_rk) then
-        call putval(unit, a, .false.)
-        call putval(unit, x, .false.)
-        call putval(unit, p, .false.)
-        call putval(unit, q, .true.)
-      end if
-    end do
-  end do
-  close(unit)
+  ! gamma_inc at all three accuracy regimes (ind = 0, 1, 2 in CDFLIB);
+  ! each ind writes to its own CSV so Rust can read the right fixture per
+  ! GammaIncAcc variant.
+  call write_gamma_inc('tests/data/gamma_inc.csv', 0)
+  call write_gamma_inc('tests/data/gamma_inc_d6.csv', 1)
+  call write_gamma_inc('tests/data/gamma_inc_d3.csv', 2)
 
-  write(0, '(a)') 'wrote 3 tables under tests/data/'
+  write(0, '(a)') 'wrote 5 tables under tests/data/'
 
 contains
+  subroutine write_gamma_inc(path, ind_arg)
+    character(len=*), intent(in) :: path
+    integer, intent(in) :: ind_arg
+    integer :: ii, jj, u
+    real(kind=rk) :: aa, xx, pp, qq, mx, st
+    open(newunit=u, file=path, status='replace', action='write')
+    write(u, '(a)') '# a, x, P(a, x), Q(a, x)'
+    do ii = 1, size(as)
+      aa = as(ii)
+      if (aa > 1.0_rk) then
+        mx = 3.0_rk * aa
+      else
+        mx = 8.0_rk
+      end if
+      st = mx / 50.0_rk
+      xx = st / 2.0_rk
+      do while (xx <= mx + 1.0e-12_rk)
+        pp = 0.0_rk
+        qq = 0.0_rk
+        call gamma_inc(aa, xx, pp, qq, ind_arg)
+        if (pp /= 2.0_rk) then  ! 2.0 is CDFLIB's error sentinel
+          call putval(u, aa, .false.)
+          call putval(u, xx, .false.)
+          call putval(u, pp, .false.)
+          call putval(u, qq, .true.)
+        end if
+        xx = xx + st
+      end do
+    end do
+    do ii = 1, size(inc_special_a)
+      aa = inc_special_a(ii)
+      do jj = 1, size(inc_special_x)
+        xx = inc_special_x(jj)
+        pp = 0.0_rk
+        qq = 0.0_rk
+        call gamma_inc(aa, xx, pp, qq, ind_arg)
+        if (pp /= 2.0_rk) then
+          call putval(u, aa, .false.)
+          call putval(u, xx, .false.)
+          call putval(u, pp, .false.)
+          call putval(u, qq, .true.)
+        end if
+      end do
+    end do
+    close(u)
+  end subroutine write_gamma_inc
+
   subroutine putval(unit, v, last)
     integer, intent(in) :: unit
     real(kind=rk), intent(in) :: v
