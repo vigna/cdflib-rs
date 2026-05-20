@@ -147,8 +147,10 @@ impl Binomial {
 
     /// Returns the success probability *pr* satisfying Pr[*S* ≤ *s*] = *p* given *n*.
     ///
-    /// Mirrors CDFLIB's `cdfbin` with `which = 4`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// Mirrors CDFLIB's `cdfbin` with `which = 4` (cdflib.f90:3232-3265).
+    /// Caller passes both *p* and *q* = 1 − *p*; consistency is enforced
+    /// within 3 ε. When *p* > *q* the solver searches on *ompr* = 1 − *pr*
+    /// (F90's variable-switch precision strategy) and returns *pr* = 1 − *ompr*.
     #[inline]
     pub fn solve_pr(p: f64, q: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
         check_pq(p, q)?;
@@ -157,24 +159,38 @@ impl Binomial {
         }
         let nf = n as f64;
         let sf = s as f64;
-        // For n, s fixed, Pr[S ≤ s] is decreasing in pr.
-        let f = |pr: f64| {
-            let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
-            if p <= q {
+        // Pr[S ≤ s] is decreasing in pr; its reflection in ompr (pr = 1 − ompr)
+        // gives a sf residual that's also decreasing in ompr. Use
+        // BracketStrategy::Decreasing in both branches; only the search
+        // variable differs (F90's dzror-on-pr versus dzror-on-ompr).
+        if p <= q {
+            let f = |pr: f64| {
+                let (_sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
                 cdf_bin - p
-            } else {
+            };
+            Ok(solve_monotone(
+                BracketStrategy::Decreasing {
+                    small: 0.0,
+                    big: 1.0,
+                    start: 0.5,
+                },
+                f,
+            )?)
+        } else {
+            let f = |ompr: f64| {
+                let (sf_bin, _cdf_bin) = beta_inc(sf + 1.0, nf - sf, 1.0 - ompr, ompr);
                 sf_bin - q
-            }
-        };
-        // Match cdfbin's which=4 dstzr setup: bounded [0..1].
-        Ok(solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: 1.0,
-                start: 0.5,
-            },
-            f,
-        )?)
+            };
+            let ompr = solve_monotone(
+                BracketStrategy::Decreasing {
+                    small: 0.0,
+                    big: 1.0,
+                    start: 0.5,
+                },
+                f,
+            )?;
+            Ok(1.0 - ompr)
+        }
     }
 }
 

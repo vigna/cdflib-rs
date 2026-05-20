@@ -145,31 +145,46 @@ impl NegativeBinomial {
 
     /// Returns the success probability *pr* satisfying Pr[*F* ≤ *s*] = *p* given *r*.
     ///
-    /// Mirrors CDFLIB's `cdfnbn` with `which = 4`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// Mirrors CDFLIB's `cdfnbn` with `which = 4` (cdflib.f90:5400-5430).
+    /// Caller passes both *p* and *q* = 1 − *p*; consistency is enforced
+    /// within 3 ε. When *p* > *q* the solver searches on *ompr* = 1 − *pr*
+    /// (F90's variable-switch precision strategy) and returns *pr* = 1 − *ompr*.
     #[inline]
     pub fn solve_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_pq(p, q)?;
         let rf = r as f64;
         let sf = s as f64;
-        let f = |pr: f64| {
-            let (cum, ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
-            if p <= q {
+        // I_pr(r, s+1) is increasing in pr; its reflection 1 − I_{1-ompr}
+        // is also increasing in ompr. Both branches use Increasing; only
+        // the search variable differs.
+        if p <= q {
+            let f = |pr: f64| {
+                let (cum, _ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
                 cum - p
-            } else {
+            };
+            Ok(solve_monotone(
+                BracketStrategy::Increasing {
+                    small: 0.0,
+                    big: 1.0,
+                    start: 0.5,
+                },
+                f,
+            )?)
+        } else {
+            let f = |ompr: f64| {
+                let (_cum, ccum) = beta_inc(rf, sf + 1.0, 1.0 - ompr, ompr);
                 ccum - q
-            }
-        };
-        // I_pr(r, s+1) is increasing in pr; cdfnbn's which=4 uses dstzr
-        // on (0, 1).
-        Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: 1.0,
-                start: 0.5,
-            },
-            f,
-        )?)
+            };
+            let ompr = solve_monotone(
+                BracketStrategy::Increasing {
+                    small: 0.0,
+                    big: 1.0,
+                    start: 0.5,
+                },
+                f,
+            )?;
+            Ok(1.0 - ompr)
+        }
     }
 }
 

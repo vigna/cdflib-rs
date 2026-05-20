@@ -123,23 +123,32 @@ pub fn rlog(x: f64) -> f64 {
     const Q1: f64 = -0.127408923933623e1;
     const Q2: f64 = 0.354508718369557;
 
-    if !(0.61..=1.57).contains(&x) {
+    // Mirror F90 rlog (cdflib.f90:13660-13700) branch boundaries exactly:
+    // strict less-than at 0.61, 0.82, 1.18, 1.57. Boundary points
+    // 0.82, 1.18, 1.57 fall into the next branch (not the previous one).
+    if x < 0.61 {
         let r = x - 0.5 - 0.5;
         return r - x.ln();
     }
-    let (u, w1) = if x < 0.82 {
-        let u = (x - 0.7) / 0.7;
-        (u, A - u * 0.3)
-    } else if x > 1.18 {
-        let u = 0.75 * x - 1.0;
-        (u, B + u / 3.0)
-    } else {
-        (x - 0.5 - 0.5, 0.0)
-    };
-    let r = u / (u + 2.0);
-    let t = r * r;
-    let w = ((P2 * t + P1) * t + P0) / ((Q2 * t + Q1) * t + 1.0);
-    2.0 * t * (1.0 / (1.0 - r) - r * w) + w1
+    if x < 1.57 {
+        let (u, w1) = if x < 0.82 {
+            let u = (x - 0.7) / 0.7;
+            (u, A - u * 0.3)
+        } else if x < 1.18 {
+            let u = x - 0.5 - 0.5;
+            (u, 0.0)
+        } else {
+            let u = 0.75 * x - 1.0;
+            (u, B + u / 3.0)
+        };
+        let r = u / (u + 2.0);
+        let t = r * r;
+        let w = ((P2 * t + P1) * t + P0) / ((Q2 * t + Q1) * t + 1.0);
+        return 2.0 * t * (1.0 / (1.0 - r) - r * w) + w1;
+    }
+    // 1.57 <= x
+    let r = x - 0.5 - 0.5;
+    r - x.ln()
 }
 
 /// Returns *x* − ln(1 + *x*). Sibling of `rlog` for shifted input.
