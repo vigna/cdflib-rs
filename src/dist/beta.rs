@@ -281,9 +281,17 @@ impl ContinuousCdf for Beta {
             f,
         )?)
     }
+}
 
+impl Beta {
+    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    ///
+    /// Mirrors CDFLIB's `cdfbet` with `which = 2`, using the same
+    /// `cum - p` / `ccum - q` pivot as the Fortran routine.
+    ///
+    /// [sf]: crate::traits::ContinuousCdf::sf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, BetaError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, BetaError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -293,12 +301,17 @@ impl ContinuousCdf for Beta {
         }
         let a = self.a;
         let b = self.b;
+        let p = 1.0 - q;
         let f = |x: f64| {
-            let (_, ccum) = beta_inc(a, b, x, 1.0 - x);
-            ccum - q
+            let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
+            BracketStrategy::Increasing {
                 small: 0.0,
                 big: 1.0,
                 start: a / (a + b),

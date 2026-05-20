@@ -293,9 +293,17 @@ impl ContinuousCdf for Gamma {
         let (xx, _iters) = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
         Ok(xx / self.rate)
     }
+}
 
+impl Gamma {
+    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    ///
+    /// Mirrors CDFLIB's `cdfgam` with `which = 2`, routed through the
+    /// upper-tail probability so a tiny *q* keeps its precision.
+    ///
+    /// [sf]: crate::traits::ContinuousCdf::sf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, GammaError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, GammaError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -303,8 +311,6 @@ impl ContinuousCdf for Gamma {
         if q == 0.0 {
             return Ok(f64::INFINITY);
         }
-        // Same closed-form inversion as inverse_cdf, expressed in the
-        // upper-tail direction so a tiny q keeps its precision.
         let p = 1.0 - q;
         let (xx, _iters) = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
         Ok(xx / self.rate)

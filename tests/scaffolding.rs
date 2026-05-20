@@ -79,8 +79,7 @@ fn solver_error_displays_useful_messages() {
     assert!(e.to_string().contains('1'), "got: {e}");
 }
 
-// A tiny stub distribution to prove the trait shape compiles and the
-// default `sf` / `inverse_sf` derive correctly.
+// A tiny stub distribution to prove the trait shape compiles.
 
 #[derive(Debug)]
 struct StubContinuous;
@@ -98,17 +97,13 @@ impl ContinuousCdf for StubContinuous {
     fn sf(&self, x: f64) -> f64 {
         1.0 - self.cdf(x)
     }
-
-    fn inverse_sf(&self, q: f64) -> Result<f64, Self::Error> {
-        Ok((1.0 - q).clamp(0.0, 1.0))
-    }
 }
 
 #[test]
-fn continuous_cdf_default_sf_and_inverse_sf_compose() {
+fn continuous_cdf_trait_shape_compiles() {
     let d = StubContinuous;
     assert_close(d.sf(0.3), 0.7);
-    assert_close(d.inverse_sf(0.7).unwrap(), 0.3);
+    assert_close(d.inverse_cdf(0.3).unwrap(), 0.3);
 }
 
 #[derive(Debug)]
@@ -133,19 +128,13 @@ impl DiscreteCdf for StubDiscrete {
     fn inverse_cdf(&self, p: f64) -> Result<u64, SolverError> {
         Ok(if p > 0.0 { 1 } else { 0 })
     }
-    fn inverse_sf(&self, q: f64) -> Result<f64, SolverError> {
-        // Trivial stub: the Bernoulli-like jump is at s=0; report q=1 ↦ 0,
-        // q=0 ↦ 1, with 0.5 for interior values.
-        Ok(if q >= 1.0 { 0.0 } else if q <= 0.0 { 1.0 } else { 0.5 })
-    }
 }
 
 #[test]
-fn discrete_cdf_inverse_sf_signature() {
+fn discrete_cdf_trait_shape_compiles() {
     let d = StubDiscrete;
     assert_close(d.sf(0), 1.0);
     assert_close(d.sf(1), 0.0);
-    assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
-    assert_eq!(d.inverse_sf(0.5).unwrap(), 0.5);
-    assert_eq!(d.inverse_sf(0.0).unwrap(), 1.0);
+    assert_eq!(d.inverse_cdf(1.0).unwrap(), 1);
+    assert_eq!(d.inverse_cdf(0.0).unwrap(), 0);
 }

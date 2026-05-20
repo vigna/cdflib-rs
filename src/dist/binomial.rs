@@ -269,20 +269,21 @@ impl DiscreteCdf for Binomial {
         }
         Ok(lo)
     }
+}
 
+impl Binomial {
+    /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
+    /// smooth continuous extension via *I*₁₋ₚᵣ(*n*−*s*, *s*+1).
+    ///
     /// Mirrors CDFLIB's `cdfbin` with `which = 2` (cdflib.f90:3144).
-    /// Solves for the real-valued *s* such that *cumbin*(*s*, *n*, *pr*) =
-    /// 1 − *q* on the smooth continuous extension via *I*₁₋ₚᵣ(*n*−*s*, *s*+1).
-    /// Routes through the *q*-dominant pivot `ccum - q` when *q* < 1/2.
+    ///
+    /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, BinomialError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, BinomialError> {
         check_q(q)?;
         let nf = self.n as f64;
         let pr = self.pr;
         let p = 1.0 - q;
-        // cumbin(s, n, pr) is increasing in s on the continuous extension;
-        // sf = 1 − cumbin is decreasing. Match cdfbin's cum-p (increasing)
-        // when p<=q, ccum-q (decreasing) when p>q.
         if p <= q {
             let f = |s: f64| {
                 if s >= nf {

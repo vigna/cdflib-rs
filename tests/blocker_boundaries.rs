@@ -45,8 +45,6 @@ fn chi_squared_noncentral_endpoints() {
     let c = ChiSquaredNoncentral::new(5.0, 2.0);
     assert_eq!(c.inverse_cdf(0.0).unwrap(), 0.0);
     assert_eq!(c.inverse_cdf(1.0).unwrap(), f64::INFINITY);
-    assert_eq!(c.inverse_sf(0.0).unwrap(), f64::INFINITY);
-    assert_eq!(c.inverse_sf(1.0).unwrap(), 0.0);
 }
 
 #[test]
@@ -72,8 +70,6 @@ fn fisher_snedecor_noncentral_endpoints() {
     let f = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0);
     assert_eq!(f.inverse_cdf(0.0).unwrap(), 0.0);
     assert_eq!(f.inverse_cdf(1.0).unwrap(), f64::INFINITY);
-    assert_eq!(f.inverse_sf(0.0).unwrap(), f64::INFINITY);
-    assert_eq!(f.inverse_sf(1.0).unwrap(), 0.0);
 }
 
 #[test]

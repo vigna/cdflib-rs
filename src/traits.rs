@@ -13,7 +13,7 @@
 //! [`Variance`]: crate::traits::Variance
 //! [`Entropy`]: crate::traits::Entropy
 
-/// Cumulative distribution function (and survival, and their inverses) for
+/// Cumulative distribution function, survival function, and inverse CDF for
 /// a continuous distribution.
 ///
 /// # Example
@@ -49,17 +49,9 @@ pub trait ContinuousCdf {
     ///
     /// [cdf]: ContinuousCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<f64, Self::Error>;
-
-    /// Returns the largest *x* such that [sf]\(*x*\) ≥ *q*, for *q* ∈ [0 . . 1].
-    ///
-    /// At *q* = 0 returns the supremum of support, at *q* = 1 the infimum
-    /// (either may be infinite).
-    ///
-    /// [sf]: ContinuousCdf::sf
-    fn inverse_sf(&self, q: f64) -> Result<f64, Self::Error>;
 }
 
-/// Cumulative distribution function (and survival, and their inverses) for
+/// Cumulative distribution function, survival function, and inverse CDF for
 /// a discrete distribution over the non-negative integers.
 ///
 /// # Example
@@ -96,22 +88,6 @@ pub trait DiscreteCdf {
     ///
     /// [cdf]: DiscreteCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;
-
-    /// Returns the real-valued *x* satisfying Pr[*X* ≤ *x*] = 1 − *q* on
-    /// the smooth continuous extension of the CDF.
-    ///
-    /// Mirrors CDFLIB's `cdf*` `which = 2` for the discrete families
-    /// (`cdfpoi`, `cdfbin`, `cdfnbn`), whose result is real-valued: the
-    /// routine solves the continuous extension of the discrete CDF and
-    /// returns the *x* (not necessarily integer) at which the cumulative
-    /// probability equals 1 − *q*. The return type is `f64` (not `u64`)
-    /// to expose this real-valued quantile faithfully; this is the only
-    /// `inverse_sf` Rust offers on `DiscreteCdf`, so distributions cover
-    /// CDFLIB's pair-input precision strategy by routing the small-tail
-    /// `q` here. The integer discrete quantile is on [`inverse_cdf`].
-    ///
-    /// [`inverse_cdf`]: DiscreteCdf::inverse_cdf
-    fn inverse_sf(&self, q: f64) -> Result<f64, Self::Error>;
 }
 
 /// Probability density function (and its log) for a continuous distribution.

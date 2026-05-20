@@ -288,15 +288,6 @@ fn check_p(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
     }
 }
 
-#[inline]
-fn check_q(q: f64) -> Result<(), FisherSnedecorNoncentralError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(FisherSnedecorNoncentralError::QNotInRange(q))
-    } else {
-        Ok(())
-    }
-}
-
 /// `cumfnc`: noncentral *F* CDF.
 fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     if f.is_nan() || dfn.is_nan() || dfd.is_nan() || pnonc.is_nan() {
@@ -438,29 +429,6 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
             func,
         )?)
     }
-    #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, FisherSnedecorNoncentralError> {
-        check_q(q)?;
-        if q == 1.0 {
-            return Ok(0.0);
-        }
-        if q == 0.0 {
-            return Ok(f64::INFINITY);
-        }
-        let dfn = self.dfn;
-        let dfd = self.dfd;
-        let ncp = self.ncp;
-        let func = |x: f64| cumfnc(x, dfn, dfd, ncp).1 - q;
-        // Same cdffnc which=2 setup as inverse_cdf: inf = 1.0D+30.
-        Ok(solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: 1.0e30,
-                start: 5.0,
-            },
-            func,
-        )?)
-    }
 }
 
 impl Mean for FisherSnedecorNoncentral {
@@ -517,8 +485,7 @@ mod tests {
     fn inverse_and_moment_edges() {
         let d = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
-        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
-        assert!(d.inverse_sf(0.25).unwrap().is_finite());
+        assert!(d.inverse_cdf(0.25).unwrap().is_finite());
         assert!(d.mean().is_finite());
         assert!(d.variance().is_finite());
         assert!(FisherSnedecorNoncentral::new(5.0, 2.0, 2.0).mean().is_nan());

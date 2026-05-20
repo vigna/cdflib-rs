@@ -301,9 +301,17 @@ impl ContinuousCdf for FisherSnedecor {
             func,
         )?)
     }
+}
 
+impl FisherSnedecor {
+    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    ///
+    /// Mirrors CDFLIB's `cdff` with `which = 2`, using the same
+    /// `cum - p` / `ccum - q` pivot as the Fortran routine.
+    ///
+    /// [sf]: crate::traits::ContinuousCdf::sf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, FisherSnedecorError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, FisherSnedecorError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -313,9 +321,17 @@ impl ContinuousCdf for FisherSnedecor {
         }
         let dfn = self.dfn;
         let dfd = self.dfd;
-        let func = |x: f64| cumf(x, dfn, dfd).1 - q;
+        let p = 1.0 - q;
+        let func = |x: f64| {
+            let (cum, ccum) = cumf(x, dfn, dfd);
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
+        };
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
+            BracketStrategy::Increasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
                 start: 5.0,

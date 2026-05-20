@@ -259,9 +259,17 @@ impl ContinuousCdf for ChiSquared {
         }
         Ok(result?)
     }
+}
 
+impl ChiSquared {
+    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    ///
+    /// Mirrors CDFLIB's `cdfchi` with `which = 2`, using the same
+    /// `cum - p` / `ccum - q` pivot as the Fortran routine.
+    ///
+    /// [sf]: crate::traits::ContinuousCdf::sf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, ChiSquaredError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, ChiSquaredError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -270,8 +278,7 @@ impl ContinuousCdf for ChiSquared {
             return Ok(f64::INFINITY);
         }
         let df = self.df;
-        // sf(x; df) = Q(df/2, x/2) is decreasing in x; solve directly.
-        // Propagate kernel indeterminate sentinel as F90 status 10.
+        let p = 1.0 - q;
         let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |x: f64| {
             if kernel_err.get().is_some() {
@@ -282,12 +289,17 @@ impl ContinuousCdf for ChiSquared {
                     kernel_err.set(Some(e));
                     0.0
                 }
-                Ok((_, ccum)) => ccum - q,
+                Ok((cum, ccum)) => {
+                    if p <= q {
+                        cum - p
+                    } else {
+                        ccum - q
+                    }
+                }
             }
         };
-        // Match cdfchi's which=2 setup (same as inverse_cdf); use start = 5.0.
         let result = solve_monotone(
-            BracketStrategy::Decreasing {
+            BracketStrategy::Increasing {
                 small: 0.0,
                 big: SOLVER_BOUND,
                 start: 5.0,

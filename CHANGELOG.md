@@ -24,6 +24,8 @@
 
 - Shortened names of error variants.
 
+- `inverse_sf` is no longer a trait method.
+
 ### Fixed
 
 - Fixed erratic behavior at endpoints 0 and 1.

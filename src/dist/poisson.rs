@@ -222,18 +222,19 @@ impl DiscreteCdf for Poisson {
         }
         Ok(lo)
     }
+}
 
+impl Poisson {
+    /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q*.
+    ///
     /// Mirrors CDFLIB's `cdfpoi` with `which = 2` (cdflib.f90:7765).
-    /// Solves for the real-valued *s* such that *cumpoi*(*s*, *λ*) = 1 − *q*.
-    /// Routes through the *q*-dominant pivot `ccum - q` when *q* < 1/2.
+    ///
+    /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, PoissonError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, PoissonError> {
         check_q(q)?;
         let lambda = self.lambda;
         let p = 1.0 - q;
-        // cumpoi(s, λ) = Q(s+1, λ) is increasing in s; sf = 1 − cumpoi is
-        // decreasing in s. Match cdfpoi's precision pivot by using cum-p
-        // (increasing in s) when p<=q, ccum-q (decreasing in s) otherwise.
         if p <= q {
             let f = |s: f64| {
                 let (_, cdf) = gamma_inc(s + 1.0, lambda);

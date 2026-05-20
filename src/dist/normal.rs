@@ -215,11 +215,11 @@ impl ContinuousCdf for Normal {
     /// Maximum precision is achieved when *p* ≤ 1/2. For *p* > 1/2, the
     /// internal *q* = 1 − *p* loses precision near *p* = 1; users with a
     /// known small right-tail probability *q* should call [`inverse_sf`]
-    /// directly. (The trait's single-argument API cannot carry both *p*
-    /// and *q* with full precision; CDFLIB's (*p*, *q*) pair convention
+    /// directly. (A single-argument API cannot carry both *p* and *q*
+    /// with full precision; CDFLIB's (*p*, *q*) pair convention
     /// exists for exactly this reason.)
     ///
-    /// [`inverse_sf`]: ContinuousCdf::inverse_sf
+    /// [`inverse_sf`]: Self::inverse_sf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
         check_p(p)?;
@@ -233,18 +233,18 @@ impl ContinuousCdf for Normal {
         let z = dinvnr(p, q);
         Ok(self.mean + self.sd * z)
     }
+}
 
-    /// Quantile from the upper tail: *x* such that Pr\[*X* > *x*\] = *q*.
+impl Normal {
+    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
     ///
-    /// Maximum precision when *q* ≤ 1/2 (the natural use case: the user
-    /// has a small *p*-value *q* and wants the corresponding cutoff). For
-    /// *q* > 1/2, 1 − *q* loses precision near *q* = 1 and the result
-    /// can drift to ~5 digits in the deep left tail; in that regime
-    /// [`inverse_cdf`] with the small *p* = 1 − *q* is the accurate call.
+    /// Mirrors CDFLIB's `cdfnor` with `which = 2`, routed through the
+    /// upper-tail input so a small right-tail probability *q* keeps its
+    /// precision.
     ///
-    /// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
+    /// [sf]: crate::traits::ContinuousCdf::sf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, NormalError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, NormalError> {
         check_q(q)?;
         if q == 0.0 {
             return Ok(f64::INFINITY);

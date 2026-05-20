@@ -208,15 +208,6 @@ fn check_p(p: f64) -> Result<(), ChiSquaredNoncentralError> {
     }
 }
 
-#[inline]
-fn check_q(q: f64) -> Result<(), ChiSquaredNoncentralError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(ChiSquaredNoncentralError::QNotInRange(q))
-    } else {
-        Ok(())
-    }
-}
-
 /// `cumchn`: noncentral χ² CDF and SF.
 fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     if x.is_nan() || df.is_nan() || pnonc.is_nan() {
@@ -334,29 +325,6 @@ impl ContinuousCdf for ChiSquaredNoncentral {
             f,
         )?)
     }
-    #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, ChiSquaredNoncentralError> {
-        check_q(q)?;
-        if q == 1.0 {
-            return Ok(0.0);
-        }
-        if q == 0.0 {
-            return Ok(f64::INFINITY);
-        }
-        let df = self.df;
-        let ncp = self.ncp;
-        let f = |x: f64| cumchn(x, df, ncp).1 - q;
-        // Same cdfchn which=2 setup for the upper-tail direction. atol = 1e-50.
-        Ok(solve_monotone_with_atol(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
-            1.0e-50,
-            f,
-        )?)
-    }
 }
 
 impl Mean for ChiSquaredNoncentral {
@@ -397,8 +365,7 @@ mod tests {
     fn inverse_and_moment_edges() {
         let d = ChiSquaredNoncentral::new(5.0, 2.0);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
-        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
-        assert!(d.inverse_sf(0.25).unwrap().is_finite());
+        assert!(d.inverse_cdf(0.25).unwrap().is_finite());
         assert!(d.mean().is_finite());
         assert!(d.variance().is_finite());
     }

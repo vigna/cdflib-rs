@@ -255,9 +255,18 @@ impl ContinuousCdf for StudentsT {
             f,
         )?)
     }
+}
 
+impl StudentsT {
+    /// Returns the quantile *t* such that [sf]\(*t*\) = *q*.
+    ///
+    /// Mirrors CDFLIB's `cdft` with `which = 2`, using the same
+    /// `cum - p` / `ccum - q` pivot and `dt1` start value as the
+    /// Fortran routine.
+    ///
+    /// [sf]: crate::traits::ContinuousCdf::sf
     #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<f64, StudentsTError> {
+    pub fn inverse_sf(&self, q: f64) -> Result<f64, StudentsTError> {
         check_q(q)?;
         if q == 0.0 {
             return Ok(f64::INFINITY);
@@ -269,13 +278,18 @@ impl ContinuousCdf for StudentsT {
             return Ok(0.0);
         }
         let df = self.df;
-        let f = |t: f64| StudentsT { df }.sf(t) - q;
-        // Same inf = 1e30 as inverse_cdf (cdft caps its inf at 1e30).
-        // Starting guess from dt1 with (1 − q, q) so the routine picks
-        // the appropriate tail.
-        let start = dt1(1.0 - q, q, df);
+        let p = 1.0 - q;
+        let f = |t: f64| {
+            let (cum, ccum) = cumt(t, df);
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
+        };
+        let start = dt1(p, q, df);
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
+            BracketStrategy::Increasing {
                 small: -1.0e30,
                 big: 1.0e30,
                 start,
