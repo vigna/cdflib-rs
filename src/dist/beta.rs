@@ -53,11 +53,14 @@ pub enum BetaError {
     XOutOfRange(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfbet` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -185,9 +188,18 @@ impl Beta {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), BetaError> {
+fn check_p(p: f64) -> Result<(), BetaError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(BetaError::ProbabilityOutOfRange(p))
+        Err(BetaError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), BetaError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(BetaError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -195,10 +207,10 @@ fn check_prob(p: f64) -> Result<(), BetaError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), BetaError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(BetaError::ProbabilityPairInconsistent { p, q });
+        return Err(BetaError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -232,7 +244,7 @@ impl ContinuousCdf for Beta {
 
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, BetaError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(0.0);
         }
@@ -257,7 +269,7 @@ impl ContinuousCdf for Beta {
 
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, BetaError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
         }
@@ -373,7 +385,7 @@ mod tests {
     fn solve_parameter_rejects_invalid_inputs() {
         assert!(matches!(
             Beta::solve_a(-0.1, 1.1, 0.5, 2.0),
-            Err(BetaError::ProbabilityOutOfRange(-0.1))
+            Err(BetaError::PNotInRange(-0.1))
         ));
         assert!(matches!(
             Beta::solve_a(0.5, 0.5, 0.5, 0.0),

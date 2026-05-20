@@ -52,11 +52,14 @@ pub enum BinomialError {
     SuccessesExceedTrials { s: u64, n: u64 },
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfbin` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -168,9 +171,18 @@ impl Binomial {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), BinomialError> {
+fn check_p(p: f64) -> Result<(), BinomialError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(BinomialError::ProbabilityOutOfRange(p))
+        Err(BinomialError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), BinomialError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(BinomialError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -178,10 +190,10 @@ fn check_prob(p: f64) -> Result<(), BinomialError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), BinomialError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(BinomialError::ProbabilityPairInconsistent { p, q });
+        return Err(BinomialError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -213,7 +225,7 @@ impl DiscreteCdf for Binomial {
 
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, BinomialError> {
-        check_prob(p)?;
+        check_p(p)?;
         // Smallest s with cdf(s) >= p.
         if p == 0.0 {
             return Ok(0);
@@ -293,7 +305,7 @@ mod tests {
         ));
         assert!(matches!(
             Binomial::solve_trials(-0.1, 1.1, 0.5, 3),
-            Err(BinomialError::ProbabilityOutOfRange(-0.1))
+            Err(BinomialError::PNotInRange(-0.1))
         ));
         assert!(matches!(
             Binomial::solve_trials(0.5, 0.5, f64::NAN, 3),

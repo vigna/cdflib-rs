@@ -48,11 +48,14 @@ pub enum NormalError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfnor` status 3 (cdflib.f90:5659).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The standard deviation is underdetermined by the inputs to
     /// [`Normal::solve_sd`]: *p* = 1/2 fixes *z* = 0 and *x* = *μ*
     /// makes the numerator zero, so every *σ* > 0 satisfies the equation.
@@ -120,10 +123,10 @@ impl Normal {
     ///
     /// CDFLIB's `cdfnor` with `which = 3` (cdflib.f90:5695). Caller passes
     /// both *p* and *q* = 1 − *p*; consistency is enforced within
-    /// 3 ε via [`ProbabilityPairInconsistent`]. Passing the pair preserves
+    /// 3 ε via [`PQSumNotOne`]. Passing the pair preserves
     /// tail precision when one tail is much smaller than the other.
     ///
-    /// [`ProbabilityPairInconsistent`]: NormalError::ProbabilityPairInconsistent
+    /// [`PQSumNotOne`]: NormalError::PQSumNotOne
     #[inline]
     pub fn solve_mean(p: f64, q: f64, x: f64, sd: f64) -> Result<f64, NormalError> {
         check_pq(p, q)?;
@@ -168,9 +171,18 @@ impl Normal {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), NormalError> {
+fn check_p(p: f64) -> Result<(), NormalError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(NormalError::ProbabilityOutOfRange(p))
+        Err(NormalError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), NormalError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(NormalError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -178,11 +190,11 @@ fn check_prob(p: f64) -> Result<(), NormalError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), NormalError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     // F90 cdflib.f90:5659 uses 3 * epsilon as the consistency tolerance.
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(NormalError::ProbabilityPairInconsistent { p, q });
+        return Err(NormalError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -217,7 +229,7 @@ impl ContinuousCdf for Normal {
     /// [`inverse_sf`]: ContinuousCdf::inverse_sf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(f64::NEG_INFINITY);
         }
@@ -240,7 +252,7 @@ impl ContinuousCdf for Normal {
     /// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, NormalError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 0.0 {
             return Ok(f64::INFINITY);
         }
@@ -386,16 +398,16 @@ mod tests {
         // p out of range
         assert!(matches!(
             Normal::solve_mean(-0.1, 1.1, 0.0, 1.0),
-            Err(NormalError::ProbabilityOutOfRange(_))
+            Err(NormalError::PNotInRange(_))
         ));
         assert!(matches!(
             Normal::solve_mean(1.1, -0.1, 0.0, 1.0),
-            Err(NormalError::ProbabilityOutOfRange(_))
+            Err(NormalError::PNotInRange(_))
         ));
         // p + q != 1
         assert!(matches!(
             Normal::solve_mean(0.3, 0.3, 0.0, 1.0),
-            Err(NormalError::ProbabilityPairInconsistent { .. })
+            Err(NormalError::PQSumNotOne { .. })
         ));
         // sd not finite
         assert!(matches!(
@@ -417,11 +429,11 @@ mod tests {
     fn solve_sd_rejects_bad_inputs() {
         assert!(matches!(
             Normal::solve_sd(-0.1, 1.1, 0.0, 0.0),
-            Err(NormalError::ProbabilityOutOfRange(_))
+            Err(NormalError::PNotInRange(_))
         ));
         assert!(matches!(
             Normal::solve_sd(1.5, -0.5, 0.0, 0.0),
-            Err(NormalError::ProbabilityOutOfRange(_))
+            Err(NormalError::PNotInRange(_))
         ));
         assert!(matches!(
             Normal::solve_sd(0.5, 0.5, 0.0, f64::NAN),

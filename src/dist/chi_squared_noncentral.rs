@@ -62,7 +62,10 @@ pub enum ChiSquaredNoncentralError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -133,7 +136,7 @@ impl ChiSquaredNoncentral {
     /// so it is dropped from the Rust surface.
     #[inline]
     pub fn solve_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
-        check_prob(p)?;
+        check_p(p)?;
         if !x.is_finite() {
             return Err(ChiSquaredNoncentralError::XNotFinite(x));
         }
@@ -166,7 +169,7 @@ impl ChiSquaredNoncentral {
     /// [`solve_df`](Self::solve_df), *q* is dropped from the Rust surface.
     #[inline]
     pub fn solve_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
-        check_prob(p)?;
+        check_p(p)?;
         if !x.is_finite() {
             return Err(ChiSquaredNoncentralError::XNotFinite(x));
         }
@@ -197,9 +200,18 @@ impl ChiSquaredNoncentral {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), ChiSquaredNoncentralError> {
+fn check_p(p: f64) -> Result<(), ChiSquaredNoncentralError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(ChiSquaredNoncentralError::ProbabilityOutOfRange(p))
+        Err(ChiSquaredNoncentralError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), ChiSquaredNoncentralError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(ChiSquaredNoncentralError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -301,7 +313,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     }
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, ChiSquaredNoncentralError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(0.0);
         }
@@ -324,7 +336,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     }
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, ChiSquaredNoncentralError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
         }
@@ -377,7 +389,7 @@ mod tests {
         ));
         assert!(matches!(
             ChiSquaredNoncentral::solve_df(-0.1, 1.0, 2.0),
-            Err(ChiSquaredNoncentralError::ProbabilityOutOfRange(-0.1))
+            Err(ChiSquaredNoncentralError::PNotInRange(-0.1))
         ));
     }
 

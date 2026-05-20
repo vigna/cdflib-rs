@@ -75,7 +75,10 @@ pub enum FisherSnedecorNoncentralError {
     FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -158,7 +161,7 @@ impl FisherSnedecorNoncentral {
         dfd: f64,
         ncp: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
-        check_prob(p)?;
+        check_p(p)?;
         if !f.is_finite() {
             return Err(FisherSnedecorNoncentralError::FNotFinite(f));
         }
@@ -203,7 +206,7 @@ impl FisherSnedecorNoncentral {
         dfn: f64,
         ncp: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
-        check_prob(p)?;
+        check_p(p)?;
         if !f.is_finite() {
             return Err(FisherSnedecorNoncentralError::FNotFinite(f));
         }
@@ -248,7 +251,7 @@ impl FisherSnedecorNoncentral {
         dfn: f64,
         dfd: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
-        check_prob(p)?;
+        check_p(p)?;
         if !f.is_finite() {
             return Err(FisherSnedecorNoncentralError::FNotFinite(f));
         }
@@ -282,9 +285,18 @@ impl FisherSnedecorNoncentral {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
+fn check_p(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(FisherSnedecorNoncentralError::ProbabilityOutOfRange(p))
+        Err(FisherSnedecorNoncentralError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(FisherSnedecorNoncentralError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -399,7 +411,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     }
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, FisherSnedecorNoncentralError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(0.0);
         }
@@ -424,7 +436,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     }
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, FisherSnedecorNoncentralError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
         }
@@ -493,7 +505,7 @@ mod tests {
         ));
         assert!(matches!(
             FisherSnedecorNoncentral::solve_ncp(-0.1, 1.0, 5.0, 10.0),
-            Err(FisherSnedecorNoncentralError::ProbabilityOutOfRange(-0.1))
+            Err(FisherSnedecorNoncentralError::PNotInRange(-0.1))
         ));
     }
 

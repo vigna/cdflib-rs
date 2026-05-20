@@ -50,11 +50,14 @@ pub enum ChiSquaredError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfchi` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -132,9 +135,18 @@ impl ChiSquared {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), ChiSquaredError> {
+fn check_p(p: f64) -> Result<(), ChiSquaredError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(ChiSquaredError::ProbabilityOutOfRange(p))
+        Err(ChiSquaredError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), ChiSquaredError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(ChiSquaredError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -142,10 +154,10 @@ fn check_prob(p: f64) -> Result<(), ChiSquaredError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), ChiSquaredError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(ChiSquaredError::ProbabilityPairInconsistent { p, q });
+        return Err(ChiSquaredError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -173,7 +185,7 @@ impl ContinuousCdf for ChiSquared {
 
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, ChiSquaredError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(0.0);
         }
@@ -199,7 +211,7 @@ impl ContinuousCdf for ChiSquared {
 
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, ChiSquaredError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
         }
@@ -333,15 +345,15 @@ mod tests {
     fn solve_df_rejects_bad_inputs() {
         assert!(matches!(
             ChiSquared::solve_df(-0.1, 1.1, 3.0),
-            Err(ChiSquaredError::ProbabilityOutOfRange(_))
+            Err(ChiSquaredError::PNotInRange(_))
         ));
         assert!(matches!(
             ChiSquared::solve_df(1.5, -0.5, 3.0),
-            Err(ChiSquaredError::ProbabilityOutOfRange(_))
+            Err(ChiSquaredError::PNotInRange(_))
         ));
         assert!(matches!(
             ChiSquared::solve_df(0.3, 0.3, 3.0),
-            Err(ChiSquaredError::ProbabilityPairInconsistent { .. })
+            Err(ChiSquaredError::PQSumNotOne { .. })
         ));
         assert!(matches!(
             ChiSquared::solve_df(0.5, 0.5, 0.0),
@@ -393,11 +405,11 @@ mod tests {
         let c = ChiSquared::new(5.0);
         assert!(matches!(
             c.inverse_cdf(-0.1),
-            Err(ChiSquaredError::ProbabilityOutOfRange(_))
+            Err(ChiSquaredError::PNotInRange(_))
         ));
         assert!(matches!(
             c.inverse_cdf(1.5),
-            Err(ChiSquaredError::ProbabilityOutOfRange(_))
+            Err(ChiSquaredError::PNotInRange(_))
         ));
     }
 
@@ -412,11 +424,11 @@ mod tests {
         let c = ChiSquared::new(5.0);
         assert!(matches!(
             c.inverse_sf(-0.1),
-            Err(ChiSquaredError::ProbabilityOutOfRange(_))
+            Err(ChiSquaredError::QNotInRange(_))
         ));
         assert!(matches!(
             c.inverse_sf(1.5),
-            Err(ChiSquaredError::ProbabilityOutOfRange(_))
+            Err(ChiSquaredError::QNotInRange(_))
         ));
     }
 

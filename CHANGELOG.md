@@ -22,6 +22,8 @@
 
 - Lowered MSRV to 1.71 and switched to Rust 2021 edition.
 
+- Shortened names of error variants.
+
 ### Fixed
 
 - Fixed erratic behavior at endpoints 0 and 1.

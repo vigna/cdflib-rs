@@ -55,11 +55,14 @@ pub enum PoissonError {
     LambdaNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfpoi` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -132,9 +135,18 @@ impl Poisson {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), PoissonError> {
+fn check_p(p: f64) -> Result<(), PoissonError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(PoissonError::ProbabilityOutOfRange(p))
+        Err(PoissonError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), PoissonError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(PoissonError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -142,10 +154,10 @@ fn check_prob(p: f64) -> Result<(), PoissonError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), PoissonError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(PoissonError::ProbabilityPairInconsistent { p, q });
+        return Err(PoissonError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -167,7 +179,7 @@ impl DiscreteCdf for Poisson {
 
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, PoissonError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(0);
         }
@@ -257,15 +269,15 @@ mod tests {
     fn solve_lambda_rejects_bad_p() {
         assert!(matches!(
             Poisson::solve_lambda(-0.1, 1.1, 3),
-            Err(PoissonError::ProbabilityOutOfRange(_))
+            Err(PoissonError::PNotInRange(_))
         ));
         assert!(matches!(
             Poisson::solve_lambda(1.5, -0.5, 3),
-            Err(PoissonError::ProbabilityOutOfRange(_))
+            Err(PoissonError::PNotInRange(_))
         ));
         assert!(matches!(
             Poisson::solve_lambda(f64::NAN, 0.5, 3),
-            Err(PoissonError::ProbabilityOutOfRange(_))
+            Err(PoissonError::PNotInRange(_))
         ));
     }
 
@@ -280,11 +292,11 @@ mod tests {
         let p = Poisson::new(5.0);
         assert!(matches!(
             p.inverse_cdf(-0.1),
-            Err(PoissonError::ProbabilityOutOfRange(_))
+            Err(PoissonError::PNotInRange(_))
         ));
         assert!(matches!(
             p.inverse_cdf(1.1),
-            Err(PoissonError::ProbabilityOutOfRange(_))
+            Err(PoissonError::PNotInRange(_))
         ));
     }
 

@@ -65,11 +65,14 @@ pub enum GammaError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfgam` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -79,7 +82,7 @@ pub enum GammaError {
     ///
     /// [`GammaIncInvError`]: crate::special::GammaIncInvError
     #[error(transparent)]
-    IncompleteGammaInverse(#[from] GammaIncInvError),
+    GammaIncInv(#[from] GammaIncInvError),
 }
 
 impl Gamma {
@@ -198,9 +201,18 @@ impl Gamma {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), GammaError> {
+fn check_p(p: f64) -> Result<(), GammaError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(GammaError::ProbabilityOutOfRange(p))
+        Err(GammaError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), GammaError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(GammaError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -208,10 +220,10 @@ fn check_prob(p: f64) -> Result<(), GammaError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), GammaError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(GammaError::ProbabilityPairInconsistent { p, q });
+        return Err(GammaError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -239,7 +251,7 @@ impl ContinuousCdf for Gamma {
 
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, GammaError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(0.0);
         }
@@ -255,7 +267,7 @@ impl ContinuousCdf for Gamma {
 
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, GammaError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
         }
@@ -364,7 +376,7 @@ mod tests {
         ));
         assert!(matches!(
             Gamma::solve_shape(-0.1, 1.1, 1.0, 1.0),
-            Err(GammaError::ProbabilityOutOfRange(-0.1))
+            Err(GammaError::PNotInRange(-0.1))
         ));
     }
 

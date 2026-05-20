@@ -58,11 +58,14 @@ pub enum FisherSnedecorError {
     FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdff` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -196,9 +199,18 @@ impl FisherSnedecor {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), FisherSnedecorError> {
+fn check_p(p: f64) -> Result<(), FisherSnedecorError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(FisherSnedecorError::ProbabilityOutOfRange(p))
+        Err(FisherSnedecorError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), FisherSnedecorError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(FisherSnedecorError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -206,10 +218,10 @@ fn check_prob(p: f64) -> Result<(), FisherSnedecorError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), FisherSnedecorError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(FisherSnedecorError::ProbabilityPairInconsistent { p, q });
+        return Err(FisherSnedecorError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -251,7 +263,7 @@ impl ContinuousCdf for FisherSnedecor {
 
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, FisherSnedecorError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(0.0);
         }
@@ -274,7 +286,7 @@ impl ContinuousCdf for FisherSnedecor {
 
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, FisherSnedecorError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
         }
@@ -396,7 +408,7 @@ mod tests {
         assert!(FisherSnedecor::new(5.0, 10.0).variance().is_finite());
         assert!(matches!(
             FisherSnedecor::solve_dfn(-0.1, 1.1, 1.0, 5.0),
-            Err(FisherSnedecorError::ProbabilityOutOfRange(-0.1))
+            Err(FisherSnedecorError::PNotInRange(-0.1))
         ));
         assert!(matches!(
             FisherSnedecor::solve_dfn(0.5, 0.5, 0.0, 5.0),

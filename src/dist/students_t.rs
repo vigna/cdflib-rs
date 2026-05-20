@@ -45,11 +45,14 @@ pub enum StudentsTError {
     TNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
-    ProbabilityOutOfRange(f64),
+    PNotInRange(f64),
+    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    #[error("probability {0} outside [0..1]")]
+    QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdft` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
-    ProbabilityPairInconsistent { p: f64, q: f64 },
+    PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -150,9 +153,18 @@ impl StudentsT {
 }
 
 #[inline]
-fn check_prob(p: f64) -> Result<(), StudentsTError> {
+fn check_p(p: f64) -> Result<(), StudentsTError> {
     if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(StudentsTError::ProbabilityOutOfRange(p))
+        Err(StudentsTError::PNotInRange(p))
+    } else {
+        Ok(())
+    }
+}
+
+#[inline]
+fn check_q(q: f64) -> Result<(), StudentsTError> {
+    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
+        Err(StudentsTError::QNotInRange(q))
     } else {
         Ok(())
     }
@@ -160,10 +172,10 @@ fn check_prob(p: f64) -> Result<(), StudentsTError> {
 
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), StudentsTError> {
-    check_prob(p)?;
-    check_prob(q)?;
+    check_p(p)?;
+    check_q(q)?;
     if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(StudentsTError::ProbabilityPairInconsistent { p, q });
+        return Err(StudentsTError::PQSumNotOne { p, q });
     }
     Ok(())
 }
@@ -202,7 +214,7 @@ impl ContinuousCdf for StudentsT {
 
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, StudentsTError> {
-        check_prob(p)?;
+        check_p(p)?;
         if p == 0.0 {
             return Ok(f64::NEG_INFINITY);
         }
@@ -232,7 +244,7 @@ impl ContinuousCdf for StudentsT {
 
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, StudentsTError> {
-        check_prob(q)?;
+        check_q(q)?;
         if q == 0.0 {
             return Ok(f64::INFINITY);
         }
@@ -356,11 +368,11 @@ mod tests {
         let d = StudentsT::new(10.0);
         assert!(matches!(
             d.inverse_cdf(-1.0),
-            Err(StudentsTError::ProbabilityOutOfRange(-1.0))
+            Err(StudentsTError::PNotInRange(-1.0))
         ));
         assert!(matches!(
             d.inverse_sf(2.0),
-            Err(StudentsTError::ProbabilityOutOfRange(2.0))
+            Err(StudentsTError::QNotInRange(2.0))
         ));
     }
 
