@@ -13,6 +13,12 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// (Abramowitz–Stegun 26.5.24):
 /// Pr[*S* ≤ *s*] = *I*₁ ₋ *ₚ*(*n* − *s*, *s* + 1).
 ///
+/// # Notes
+///
+/// [`Entropy`] is not implemented.
+///
+/// [`Entropy`]: crate::traits::Entropy
+///
 /// # Example
 ///
 /// ```

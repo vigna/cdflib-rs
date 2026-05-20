@@ -13,6 +13,12 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// The CDF reduces to the regularized upper incomplete Γ:
 /// Pr[*X* ≤ *s*] = *Q*(*s* + 1, *λ*).
 ///
+/// # Notes
+///
+/// [`Entropy`] is not implemented.
+///
+/// [`Entropy`]: crate::traits::Entropy
+///
 /// # Example
 ///
 /// ```

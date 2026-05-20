@@ -114,12 +114,7 @@ pub trait DiscreteCdf {
 
 /// Probability density function (and its log) for a continuous distribution.
 ///
-/// Implemented only when the density admits a closed-form expression. The
-/// noncentral χ² and noncentral *F* distributions are intentionally not
-/// `Continuous` because their densities require an infinite Poisson-weighted
-/// series of central densities; callers needing those should compute them
-/// directly from the moment-generating recurrence rather than expect a
-/// `pdf` method here.
+/// Implemented only when the density admits a closed-form expression.
 pub trait Continuous {
     /// Returns the density *f*(*x*) of the distribution at *x*.
     fn pdf(&self, x: f64) -> f64;
@@ -164,6 +159,8 @@ pub trait Variance {
 
 /// Differential entropy (for continuous distributions) or Shannon
 /// entropy (for discrete distributions), in nats.
+///
+/// Implemented only when the entropy admits a closed-form expression.
 pub trait Entropy {
     /// Returns the entropy of the distribution in nats.
     fn entropy(&self) -> f64;

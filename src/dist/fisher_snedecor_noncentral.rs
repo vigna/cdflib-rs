@@ -9,6 +9,13 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 /// Noncentral *F* distribution with numerator df *dfn*, denominator df *dfd*,
 /// and noncentrality *λ* ≥ 0.
 ///
+/// # Notes
+///
+/// Neither [`Continuous`] nor [`Entropy`] is implemented.
+///
+/// [`Continuous`]: crate::traits::Continuous
+/// [`Entropy`]: crate::traits::Entropy
+///
 /// # Admissible degrees of freedom
 ///
 /// The constructor requires *dfn* ≥ 1 and *dfd* ≥ 1. This is stricter than

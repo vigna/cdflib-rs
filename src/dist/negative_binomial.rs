@@ -13,6 +13,12 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// of independent Bernoulli trials. The CDF reduces to the incomplete Β:
 /// Pr[*F* ≤ *s*] = *Iₚ*(*r*, *s* + 1).
 ///
+/// # Notes
+///
+/// [`Entropy`] is not implemented.
+///
+/// [`Entropy`]: crate::traits::Entropy
+///
 /// # Example
 ///
 /// ```

@@ -9,6 +9,13 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 /// Noncentral χ² distribution with *df* > 0 degrees of freedom and
 /// noncentrality parameter *λ* ≥ 0.
 ///
+/// # Notes
+///
+/// Neither [`Continuous`] nor [`Entropy`] is implemented.
+///
+/// [`Continuous`]: crate::traits::Continuous
+/// [`Entropy`]: crate::traits::Entropy
+///
 /// # Example
 ///
 /// ```
