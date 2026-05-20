@@ -8,8 +8,10 @@
 //!
 //! Users porting C/Fortran code that calls these helpers by name (for
 //! example `algdiv(a, b)`, `bcorr(a, b)`, `gam1(a)`, `rlog(x)`) can find
-//! each routine here. Documentation, signatures, and numerical behavior
-//! mirror CDFLIB.
+//! each routine here. Documentation and numerical behavior mirror CDFLIB;
+//! Fortran `ierr` out-parameters and subroutine in/out arguments are
+//! surfaced through the matching Rust `Result` types (see for example
+//! [`BetaGratError`]).
 //!
 //! [`beta_inc`]: crate::special::beta_inc
 //! [`gamma_inc`]: crate::special::gamma_inc

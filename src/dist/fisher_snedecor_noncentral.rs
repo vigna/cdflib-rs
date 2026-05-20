@@ -13,20 +13,6 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 ///
 /// Neither [`Continuous`] nor [`Entropy`] is implemented.
 ///
-/// [`Continuous`]: crate::traits::Continuous
-/// [`Entropy`]: crate::traits::Entropy
-///
-/// # Admissible degrees of freedom
-///
-/// The constructor requires *dfn* ≥ 1 and *dfd* ≥ 1. This is stricter than
-/// the central [`FisherSnedecor`] because `cumfnc` series-sums calls
-/// `beta_inc(0.5·dfn + i, 0.5·dfd, …)` with *dfn* itself in the argument:
-/// CDFLIB's `cdffnc` (cdflib.f90:L4619) explicitly notes that *dfn* < 1
-/// makes the underlying `beta_inc` call diverge, so the constraint is on
-/// the CDF itself, not merely the solver.
-///
-/// [`FisherSnedecor`]: crate::FisherSnedecor
-///
 /// # Example
 ///
 /// ```
@@ -41,6 +27,9 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 /// // Solve for noncentrality *λ* given Pr[X ≤ 4.0] = 0.5, dfn = 5, dfd = 10
 /// let ncp = FisherSnedecorNoncentral::solve_ncp(0.5, 4.0, 5.0, 10.0).unwrap();
 /// ```
+///
+/// [`Continuous`]: crate::traits::Continuous
+/// [`Entropy`]: crate::traits::Entropy
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FisherSnedecorNoncentral {
     dfn: f64,

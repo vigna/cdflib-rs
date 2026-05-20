@@ -11,21 +11,6 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 ///
 /// The CDF reduces to the incomplete Β (Abramowitz–Stegun 26.5.28).
 ///
-/// # Admissible degrees of freedom
-///
-/// The constructor accepts any *dfn*, *dfd* > 0 because the central-F CDF
-/// `cumf` calls `beta_inc(0.5·dfd, 0.5·dfn, …)` and remains stable for
-/// fractional df. The parameter solvers ([`solve_dfn`], [`solve_dfd`])
-/// nonetheless bracket the search in [1 . . ∞): mirroring CDFLIB's `cdff`,
-/// which lifts the lower bound to 1 because `beta_inc` diverges when *dfn*
-/// itself is the search variable below 1. This is intentionally laxer than
-/// the noncentral counterpart [`FisherSnedecorNoncentral`], whose CDF
-/// itself requires *dfn*, *dfd* ≥ 1.
-///
-/// [`solve_dfn`]: Self::solve_dfn
-/// [`solve_dfd`]: Self::solve_dfd
-/// [`FisherSnedecorNoncentral`]: crate::FisherSnedecorNoncentral
-///
 /// # Example
 ///
 /// ```

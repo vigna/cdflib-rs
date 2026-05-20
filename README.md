@@ -252,8 +252,12 @@ The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing
 [`cdflib::special`] surface stays focused on the kernels a statistical
 user is likely to call. Both surfaces are public and documented; a port
-from C/Fortran can find every CDFLIB routine under its original name in
-one or the other.
+from C/Fortran can find each CDFLIB algorithmic routine under its original
+name in one or the other, modulo the renames and splits enumerated above.
+The machine-constant utilities (`ipmpar`, `dpmpar`, `exparg`) and the
+`ftnstop` fatal-error sink are not ported: the constants live as Rust
+module-level values, and error reporting goes through the `try_*`/`Result`
+pairs described above.
 
 ## Testing
 
