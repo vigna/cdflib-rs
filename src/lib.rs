@@ -3,13 +3,13 @@
 // The `γ` (Euler–Mascheroni) identifier in one psi test is intentional.
 #![allow(mixed_script_confusables, confusable_idents)]
 
-mod distribution;
+mod dist;
 pub mod error;
 pub(crate) mod solver;
 pub mod special;
 pub mod traits;
 
-pub use distribution::{
+pub use dist::{
     Beta, BetaError, Binomial, BinomialError, ChiSquared, ChiSquaredError, ChiSquaredNoncentral,
     ChiSquaredNoncentralError, FisherSnedecor, FisherSnedecorError, FisherSnedecorNoncentral,
     FisherSnedecorNoncentralError, Gamma, GammaError, NegativeBinomial, NegativeBinomialError,

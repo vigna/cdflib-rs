@@ -18,6 +18,8 @@
 - `cdflib::special::GammaError` -> `cdflib::special::GammaDomainError`
   to avoid clash with `cdflib::GammaError`.
 
+- `distribution` module was renamed `dist`.
+
 ## [0.3.1] - 2026-05-20
 
 ### Fixed
