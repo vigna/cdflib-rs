@@ -92,7 +92,7 @@ pub trait DiscreteCdf {
     /// semantics when 1 − *q* lands exactly on a CDF value.
     ///
     /// [sf]: DiscreteCdf::sf
-    /// [inverse_cdf]: DiscreteCdf::inverse_cdf
+    /// [`inverse_cdf`]: DiscreteCdf::inverse_cdf
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<u64, Self::Error> {
         if q == 1.0 {
@@ -101,10 +101,10 @@ pub trait DiscreteCdf {
         if q == 0.0 {
             return self.inverse_cdf(1.0);
         }
-        // TODO: once the MSRV is raised to 1.86, replace this with
-        // `(1.0 - q).next_up()`. The bit-incrementing form is equivalent
-        // because `1.0 - q` is a finite positive number in `(0, 1)`, but
-        // `f64::next_up` was stabilized only in 1.86.
+        // TODO: once the MSRV is raised to 1.86, replace this with (1.0 -
+        // q).next_up(). The bit-incrementing form is equivalent because 1.0 - q
+        // is a finite positive number in (0..1), but f64::next_up was
+        // stabilized only in 1.86.
         let p_next = f64::from_bits((1.0 - q).to_bits() + 1);
         Ok(self.inverse_cdf(p_next)?.saturating_sub(1))
     }
@@ -112,19 +112,19 @@ pub trait DiscreteCdf {
 
 /// Probability density function (and its log) for a continuous distribution.
 pub trait Continuous {
-    /// Density *f*(*x*) of the distribution at *x*.
+    /// Returns the density *f*(*x*) of the distribution at *x*.
     fn pdf(&self, x: f64) -> f64;
-    /// Logarithm of the density *f*(*x*). Computing in log-space avoids
-    /// underflow in the tails.
+    /// Returns the logarithm of the density *f*(*x*). Computing in log-space
+    /// avoids underflow in the tails.
     fn ln_pdf(&self, x: f64) -> f64;
 }
 
 /// Probability mass function (and its log) for a discrete distribution.
 pub trait Discrete {
-    /// Mass Pr[*X* = *x*] at the support point *x*.
+    /// Returns the mass Pr[*X* = *x*] at the support point *x*.
     fn pmf(&self, x: u64) -> f64;
-    /// Logarithm of the mass Pr[*X* = *x*]. Computing in log-space avoids
-    /// underflow in the tails.
+    /// Returns the logarithm of the mass Pr[*X* = *x*]. Computing in log-space
+    /// avoids underflow in the tails.
     fn ln_pmf(&self, x: u64) -> f64;
 }
 

@@ -80,27 +80,27 @@ impl FisherSnedecorNoncentral {
         Ok(Self { dfn, dfd, ncp })
     }
 
-    /// Numerator degrees of freedom *dfn*.
+    /// Returns the numerator degrees of freedom *dfn*.
     #[inline]
     pub fn dfn(&self) -> f64 {
         self.dfn
     }
 
-    /// Denominator degrees of freedom *dfd*.
+    /// Returns the denominator degrees of freedom *dfd*.
     #[inline]
     pub fn dfd(&self) -> f64 {
         self.dfd
     }
 
-    /// Noncentrality parameter *λ*.
+    /// Returns the noncentrality parameter *λ*.
     #[inline]
     pub fn ncp(&self) -> f64 {
         self.ncp
     }
 
-    /// Solve for the numerator degrees of freedom given Pr[*X* ≤ *f*] = *p*,
-    /// *dfd*, and *λ*. Mirrors CDFLIB's `cdffnc` with `which = 3`. The
-    /// search is bracketed in [1 . . 10³⁰].
+    /// Returns the numerator degrees of freedom *dfn* satisfying
+    /// Pr[*X* ≤ *f*] = *p* given *dfd* and *λ*. Mirrors CDFLIB's `cdffnc`
+    /// with `which = 3`. The search is bracketed in [1 . . 10³⁰].
     #[inline]
     pub fn solve_dfn(
         p: f64,
@@ -124,8 +124,9 @@ impl FisherSnedecorNoncentral {
         )?)
     }
 
-    /// Solve for the denominator degrees of freedom given Pr[*X* ≤ *f*] = *p*,
-    /// *dfn*, and *λ*. Mirrors CDFLIB's `cdffnc` with `which = 4`.
+    /// Returns the denominator degrees of freedom *dfd* satisfying
+    /// Pr[*X* ≤ *f*] = *p* given *dfn* and *λ*. Mirrors CDFLIB's `cdffnc`
+    /// with `which = 4`.
     #[inline]
     pub fn solve_dfd(
         p: f64,
@@ -148,9 +149,9 @@ impl FisherSnedecorNoncentral {
         )?)
     }
 
-    /// Solve for the noncentrality *λ* given Pr[*X* ≤ *f*] = *p*, *dfn*,
-    /// and *dfd*. Mirrors CDFLIB's `cdffnc` with `which = 5`. The search is
-    /// bracketed at 10⁴ above to avoid overflow inside `cumfnc`.
+    /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *f*] = *p* given
+    /// *dfn* and *dfd*. Mirrors CDFLIB's `cdffnc` with `which = 5`. The
+    /// search is bracketed at 10⁴ above to avoid overflow inside `cumfnc`.
     #[inline]
     pub fn solve_ncp(
         p: f64,

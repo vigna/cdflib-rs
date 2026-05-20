@@ -79,6 +79,10 @@ impl InvrState {
         }
     }
 
+    /// Returns the next action of the root-finder after driving one
+    /// iteration. On the first call, `fx` is ignored (no evaluation has
+    /// happened yet). On subsequent calls, `fx` must be the value of *f*
+    /// at the *x* from the previous `NeedEval`.
     #[inline]
     pub(crate) fn step(&mut self, fx: f64) -> InvrAction {
         match self.stage {

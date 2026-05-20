@@ -4,7 +4,7 @@
 
 use super::eval_pol;
 
-/// cumnor(*x*) = (Φ(*x*), 1 − Φ(*x*)), where Φ is the standard-normal CDF.
+/// Returns (Φ(*x*), 1 − Φ(*x*)), where Φ is the standard-normal CDF.
 ///
 /// Both tails are returned because the small one is computed directly, which
 /// preserves precision deep into either tail.
@@ -149,7 +149,7 @@ pub fn cumnor(x: f64) -> (f64, f64) {
     (result, ccum)
 }
 
-/// Inverse of [`cumnor`]: returns *x* such that Φ(*x*) = *p*.
+/// Returns *x* such that Φ(*x*) = *p*; the inverse of [`cumnor`].
 ///
 /// Takes both *p* and *q* = 1 − *p* so that the routine can root-find in
 /// the smaller of the two tails, preserving precision for *p* very close
@@ -219,7 +219,7 @@ fn stvaln(p: f64) -> f64 {
     sign * (y + num / den)
 }
 
-/// Logarithm of the asymptotic upper-tail standard normal CDF for
+/// Returns the logarithm of the asymptotic upper-tail standard normal CDF for
 /// |*x*| ≥ 5: returns ln Pr\[*X* > |*x*|\] for *X* ∼ *N*(0, 1) via
 /// Abramowitz & Stegun formula 26.2.12.
 ///

@@ -60,13 +60,13 @@ impl StudentsT {
         Ok(Self { df })
     }
 
-    /// Degrees of freedom *df*.
+    /// Returns the degrees of freedom *df*.
     #[inline]
     pub fn df(&self) -> f64 {
         self.df
     }
 
-    /// Solve for the degrees of freedom given Pr[*T* ≤ *t*] = *p*.
+    /// Returns the degrees of freedom *df* satisfying Pr[*T* ≤ *t*] = *p*.
     #[inline]
     pub fn solve_df(p: f64, t: f64) -> Result<f64, StudentsTError> {
         check_prob(p)?;

@@ -68,21 +68,21 @@ impl Binomial {
         Ok(Self { n, pr })
     }
 
-    /// Number of trials *n*.
+    /// Returns the number of trials *n*.
     #[inline]
     pub fn n(&self) -> u64 {
         self.n
     }
 
-    /// Success probability *pr*.
+    /// Returns the success probability *pr*.
     #[inline]
     pub fn pr(&self) -> f64 {
         self.pr
     }
 
-    /// Solve for the number of trials given Pr[*S* ≤ *s*] = *p* and the
-    /// success probability. Returns a continuous `f64` (the solver works
-    /// on the continuous extension of the CDF).
+    /// Returns the (continuous) number of trials *n* satisfying
+    /// Pr[*S* ≤ *s*] = *p* given the success probability. The solver
+    /// works on the continuous extension of the CDF.
     #[inline]
     pub fn solve_trials(p: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
         check_prob(p)?;
@@ -117,7 +117,7 @@ impl Binomial {
         )?)
     }
 
-    /// Solve for the success probability given Pr[*S* ≤ *s*] = *p* and *n*.
+    /// Returns the success probability *pr* satisfying Pr[*S* ≤ *s*] = *p* given *n*.
     #[inline]
     pub fn solve_pr(p: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
         check_prob(p)?;

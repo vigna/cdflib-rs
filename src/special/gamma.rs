@@ -28,7 +28,7 @@ use super::eval_pol;
 // Low-level helpers
 // =====================================================================
 
-/// ln(1 + *a*). Rational approximation for |*a*| ≤ 0.375, otherwise fall
+/// Returns ln(1 + *a*). Rational approximation for |*a*| ≤ 0.375, otherwise fall
 /// back to `(1 + a).ln()`.
 #[inline]
 pub fn alnrel(a: f64) -> f64 {
@@ -49,7 +49,7 @@ pub fn alnrel(a: f64) -> f64 {
     }
 }
 
-/// exp(*x*) − 1. Rational approximation for |*x*| ≤ 0.15 to preserve
+/// Returns exp(*x*) − 1. Rational approximation for |*x*| ≤ 0.15 to preserve
 /// precision near zero where naive `exp(x) - 1.0` cancels.
 #[inline]
 pub fn rexp(x: f64) -> f64 {
@@ -73,7 +73,7 @@ pub fn rexp(x: f64) -> f64 {
     }
 }
 
-/// exp(*x*) − 1. Double-precision sibling of [`rexp`] (same algorithm:
+/// Returns exp(*x*) − 1. Double-precision sibling of [`rexp`] (same algorithm:
 /// rational approximation for |*x*| ≤ 0.15, fall back to `exp(x)` outside).
 ///
 /// [`rexp`]: crate::special::internal::rexp
@@ -113,7 +113,7 @@ pub fn dexpm1(x: f64) -> f64 {
     }
 }
 
-/// *x* − 1 − ln(*x*). A precision-preserving form valid for *x* near 1.
+/// Returns *x* − 1 − ln(*x*). A precision-preserving form valid for *x* near 1.
 #[inline]
 pub fn rlog(x: f64) -> f64 {
     const A: f64 = 0.566749439387324e-1;
@@ -143,7 +143,7 @@ pub fn rlog(x: f64) -> f64 {
     2.0 * t * (1.0 / (1.0 - r) - r * w) + w1
 }
 
-/// *x* − ln(1 + *x*). Sibling of `rlog` for shifted input.
+/// Returns *x* − ln(1 + *x*). Sibling of `rlog` for shifted input.
 #[inline]
 pub fn rlog1(x: f64) -> f64 {
     const A: f64 = 0.566749439387324e-1;
@@ -173,7 +173,7 @@ pub fn rlog1(x: f64) -> f64 {
     2.0 * t * (1.0 / (1.0 - r) - r * w) + w1
 }
 
-/// 1/Γ(1 + *a*) − 1 for −0.5 ≤ *a* ≤ 1.5. Used to evaluate
+/// Returns 1/Γ(1 + *a*) − 1 for −0.5 ≤ *a* ≤ 1.5. Used to evaluate
 /// Γ(1 + *a*) accurately when *a* is small (without computing the
 /// near-1 value via subtraction).
 #[inline]
@@ -248,7 +248,7 @@ pub fn gam1(a: f64) -> f64 {
 // Γ(a): the Γ function itself
 // =====================================================================
 
-/// Γ(*a*), the Γ function. Returns 0 on overflow.
+/// Returns Γ(*a*), the Γ function. Yields 0 on overflow.
 ///
 /// # Example
 ///
@@ -379,7 +379,7 @@ pub fn gamma(a: f64) -> f64 {
     g.exp()
 }
 
-/// ln Γ(1 + *a*) for −0.2 ≤ *a* ≤ 1.25.
+/// Returns ln Γ(1 + *a*) for −0.2 ≤ *a* ≤ 1.25.
 #[inline]
 pub fn gamma_ln1(a: f64) -> f64 {
     const P0: f64 = 0.577215664901533;
@@ -419,7 +419,7 @@ pub fn gamma_ln1(a: f64) -> f64 {
     }
 }
 
-/// Digamma function *ψ*(*x*) = d/d*x* ln Γ(*x*).
+/// Returns the digamma function *ψ*(*x*) = d/d*x* ln Γ(*x*).
 ///
 /// Port of `psi` (FUNPACK / Cody–Strecok–Thacher, modified by Morris).
 /// Returns 0 for non-positive integer arguments (CDFLIB's "undefined"
@@ -551,7 +551,7 @@ pub fn psi(xx: f64) -> f64 {
     aug + x.ln()
 }
 
-/// ln Γ(*a*) for *a* > 0.
+/// Returns ln Γ(*a*) for *a* > 0.
 ///
 /// # Example
 ///
@@ -594,7 +594,7 @@ pub fn gamma_log(a: f64) -> f64 {
     D + w + (a - 0.5) * (a.ln() - 1.0)
 }
 
-/// ln Γ(*a* + *b*) for 1 ≤ *a* ≤ 2 and 1 ≤ *b* ≤ 2.
+/// Returns ln Γ(*a* + *b*) for 1 ≤ *a* ≤ 2 and 1 ≤ *b* ≤ 2.
 #[inline]
 pub fn gsumln(a: f64, b: f64) -> f64 {
     let x = a + b - 2.0;
@@ -607,7 +607,7 @@ pub fn gsumln(a: f64, b: f64) -> f64 {
     }
 }
 
-/// Stirling remainder ln Γ(*z*) − Stirling(*z*) for *z* > 0, where
+/// Returns the Stirling remainder ln Γ(*z*) − Stirling(*z*) for *z* > 0, where
 /// Stirling(*z*) = ln √(2π) + (*z* − ½) ln *z* − *z*.
 ///
 /// For *z* > 6 uses a 9-term series in Bernoulli numbers; otherwise
@@ -658,7 +658,7 @@ pub fn dstrem(z: f64) -> f64 {
     }
 }
 
-/// exp(−*x*) · *xᵃ* / Γ(*a*). Used inside [`gamma_inc`] to multiply the
+/// Returns exp(−*x*) · *xᵃ* / Γ(*a*). Used inside [`gamma_inc`] to multiply the
 /// regularized integral.
 ///
 /// [`gamma_inc`]: crate::special::gamma_inc
@@ -713,7 +713,7 @@ pub enum GammaIncError {
     Indeterminate { a: f64, x: f64 },
 }
 
-/// Regularized incomplete Γ function: returns (*P*(*a*, *x*), *Q*(*a*, *x*))
+/// Returns the regularized incomplete Γ function as (*P*(*a*, *x*), *Q*(*a*, *x*))
 /// with *P* + *Q* = 1 (computed independently, not via subtraction).
 ///
 /// The returned pair (*p*, *q*) is the (lower-tail, upper-tail)
@@ -1353,7 +1353,7 @@ pub enum GammaIncInvError {
     },
 }
 
-/// Inverse of the regularized incomplete Γ function.
+/// Returns the inverse of the regularized incomplete Γ function.
 ///
 /// Returns *x* such that *P*(*a*, *x*) = *p* and *Q*(*a*, *x*) = *q*.
 /// Uses Schröder iteration; an asymptotic-series approximation provides

@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.2.0] - 2026-05-20
+
+### Changed
+
+- `gamma_x` (the Γ function) has been renamed `gamma`.
+
 ## [0.1.1] - 2026-05-20
 
 ### Fixed

@@ -75,19 +75,20 @@ impl NegativeBinomial {
         Ok(Self { r, pr })
     }
 
-    /// Target number of successes *r*.
+    /// Returns the target number of successes *r*.
     #[inline]
     pub fn r(&self) -> u64 {
         self.r
     }
 
-    /// Success probability *pr*.
+    /// Returns the success probability *pr*.
     #[inline]
     pub fn pr(&self) -> f64 {
         self.pr
     }
 
-    /// Solve for *r* given Pr[*F* ≤ *s*] = *p* and the success probability.
+    /// Returns the target number of successes *r* satisfying
+    /// Pr[*F* ≤ *s*] = *p* given the success probability.
     #[inline]
     pub fn solve_trials(p: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_prob(p)?;
@@ -117,7 +118,7 @@ impl NegativeBinomial {
         )?)
     }
 
-    /// Solve for the success probability given Pr[*F* ≤ *s*] = *p* and *r*.
+    /// Returns the success probability *pr* satisfying Pr[*F* ≤ *s*] = *p* given *r*.
     #[inline]
     pub fn solve_pr(p: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_prob(p)?;

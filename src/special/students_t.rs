@@ -7,7 +7,7 @@
 use super::eval_pol;
 use super::normal::dinvnr;
 
-/// Asymptotic approximation to the Student's *t* quantile.
+/// Returns an asymptotic approximation to the Student's *t* quantile.
 ///
 /// Returns *t* such that Pr[*T* ≤ *t*] ≈ *p* for a *t*-distribution with
 /// *df* degrees of freedom. Accuracy is O(1/*df*⁴); CDFLIB uses this as

@@ -69,22 +69,22 @@ impl FisherSnedecor {
         Ok(Self { dfn, dfd })
     }
 
-    /// Numerator degrees of freedom *dfn*.
+    /// Returns the numerator degrees of freedom *dfn*.
     #[inline]
     pub fn dfn(&self) -> f64 {
         self.dfn
     }
 
-    /// Denominator degrees of freedom *dfd*.
+    /// Returns the denominator degrees of freedom *dfd*.
     #[inline]
     pub fn dfd(&self) -> f64 {
         self.dfd
     }
 
-    /// Solve for the numerator degrees of freedom given Pr[*X* ≤ *f*] = *p*
-    /// and *dfd*. Mirrors CDFLIB's `cdff` with `which = 3`. The search is
-    /// bracketed below by 1, since *dfn* < 1 makes `cumf`'s `beta_inc` call
-    /// diverge.
+    /// Returns the numerator degrees of freedom *dfn* satisfying
+    /// Pr[*X* ≤ *f*] = *p* given *dfd*. Mirrors CDFLIB's `cdff` with
+    /// `which = 3`. The search is bracketed below by 1, since *dfn* < 1
+    /// makes `cumf`'s `beta_inc` call diverge.
     #[inline]
     pub fn solve_dfn(p: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
         check_prob(p)?;
@@ -115,9 +115,10 @@ impl FisherSnedecor {
         )?)
     }
 
-    /// Solve for the denominator degrees of freedom given Pr[*X* ≤ *f*] = *p*
-    /// and *dfn*. Mirrors CDFLIB's `cdff` with `which = 4`. Bracketed below
-    /// by 1 for the same convergence reason as [`solve_dfn`](Self::solve_dfn).
+    /// Returns the denominator degrees of freedom *dfd* satisfying
+    /// Pr[*X* ≤ *f*] = *p* given *dfn*. Mirrors CDFLIB's `cdff` with
+    /// `which = 4`. Bracketed below by 1 for the same convergence reason
+    /// as [`solve_dfn`](Self::solve_dfn).
     #[inline]
     pub fn solve_dfd(p: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
         check_prob(p)?;

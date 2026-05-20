@@ -50,7 +50,7 @@ pub mod internal;
 pub(crate) mod normal;
 pub(crate) mod students_t;
 
-/// Horner evaluation of *c*₀ + *c*₁·*x* + *c*₂·*x*² + …. Mirrors
+/// Returns the Horner evaluation of *c*₀ + *c*₁·*x* + *c*₂·*x*² + …. Mirrors
 /// CDFLIB's `eval_pol` (coefficients ascending).
 #[inline]
 pub(crate) fn eval_pol(c: &[f64], x: f64) -> f64 {

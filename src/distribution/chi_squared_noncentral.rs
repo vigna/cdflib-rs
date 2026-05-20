@@ -69,20 +69,20 @@ impl ChiSquaredNoncentral {
         Ok(Self { df, ncp })
     }
 
-    /// Degrees of freedom *df*.
+    /// Returns the degrees of freedom *df*.
     #[inline]
     pub fn df(&self) -> f64 {
         self.df
     }
 
-    /// Noncentrality parameter *λ*.
+    /// Returns the noncentrality parameter *λ*.
     #[inline]
     pub fn ncp(&self) -> f64 {
         self.ncp
     }
 
-    /// Solve for the degrees of freedom given Pr[*X* ≤ *x*] = *p* and *λ*.
-    /// Mirrors CDFLIB's `cdfchn` with `which = 3`.
+    /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*
+    /// given *λ*. Mirrors CDFLIB's `cdfchn` with `which = 3`.
     #[inline]
     pub fn solve_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_prob(p)?;
@@ -99,7 +99,8 @@ impl ChiSquaredNoncentral {
         )?)
     }
 
-    /// Solve for the noncentrality *λ* given Pr[*X* ≤ *x*] = *p* and *df*.
+    /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *x*] = *p* given *df*.
+    ///
     /// Mirrors CDFLIB's `cdfchn` with `which = 4`. The search is bracketed
     /// on (0, 10⁴] because `cumchn`'s iteration cost grows with *λ*.
     #[inline]

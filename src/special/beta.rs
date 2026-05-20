@@ -14,7 +14,7 @@ const NEG_EXPARG: f64 = -708.389_334_568_083_540_9;
 /// 0.99999 · 1024 · 0.69314718055995.
 const POS_EXPARG: f64 = 709.775_615_066_259_888_4;
 
-/// exp(*μ* + *x*) where *μ* is a small integer scaling factor and *x* is a
+/// Returns exp(*μ* + *x*) where *μ* is a small integer scaling factor and *x* is a
 /// double. Splits into pieces to avoid intermediate overflow.
 #[inline]
 pub fn esum(mu: i32, x: f64) -> f64 {
@@ -36,7 +36,7 @@ pub fn esum(mu: i32, x: f64) -> f64 {
     (mu as f64).exp() * x.exp()
 }
 
-/// ln(Γ(*b*) / Γ(*a* + *b*)) for *b* ≥ 8.
+/// Returns ln(Γ(*b*) / Γ(*a* + *b*)) for *b* ≥ 8.
 #[inline]
 pub fn algdiv(a: f64, b: f64) -> f64 {
     const C0: f64 = 0.833333333333333e-1;
@@ -77,7 +77,7 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
     if v < u { w - v - u } else { w - u - v }
 }
 
-/// ln Β(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*).
+/// Returns ln Β(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*).
 ///
 /// # Example
 ///
@@ -168,7 +168,7 @@ fn reduce_b(a: f64, b0: f64, w: f64) -> f64 {
     w + z.ln() + (gamma_log(a) + (gamma_log(b) - gsumln(a, b)))
 }
 
-/// bcorr(*a*, *b*) = Δ(*a*) + Δ(*b*) − Δ(*a* + *b*), for *a* ≥ 8 and *b* ≥ 8.
+/// Returns Δ(*a*) + Δ(*b*) − Δ(*a* + *b*), for *a* ≥ 8 and *b* ≥ 8.
 #[inline]
 pub fn bcorr(a0: f64, b0: f64) -> f64 {
     const C0: f64 = 0.833333333333333e-1;
@@ -196,7 +196,7 @@ pub fn bcorr(a0: f64, b0: f64) -> f64 {
     (((((C5 * t + C4) * t + C3) * t + C2) * t + C1) * t + C0) / a + w
 }
 
-/// Β(*a*, *b*) = Γ(*a*) Γ(*b*) / Γ(*a* + *b*).
+/// Returns Β(*a*, *b*) = Γ(*a*) Γ(*b*) / Γ(*a* + *b*).
 ///
 /// # Example
 ///
@@ -211,7 +211,7 @@ pub fn beta(a: f64, b: f64) -> f64 {
     beta_log(a, b).exp()
 }
 
-/// Stirling remainder for the complete Β function:
+/// Returns the Stirling remainder for the complete Β function:
 /// ln Β(*a*, *b*) − [Stirling(*a*) + Stirling(*b*) − Stirling(*a* + *b*)],
 /// where Stirling(*z*) = ln √(2π) + (*z* − ½) ln *z* − *z*.
 ///
@@ -235,7 +235,7 @@ pub fn dbetrm(a: f64, b: f64) -> f64 {
     r
 }
 
-/// `fpser`: *Iₓ*(*a*, *b*) when *b* < min(*ε*, *ε*·*a*) and *x* ≤ 0.5.
+/// Returns *Iₓ*(*a*, *b*) when *b* < min(*ε*, *ε*·*a*) and *x* ≤ 0.5.
 #[inline]
 pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     let mut result = 1.0;
@@ -263,7 +263,7 @@ pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     result * (1.0 + a * s)
 }
 
-/// `apser`: *I*₁ ₋ *ₓ*(*b*, *a*) when *a* is very small. Note the swapped
+/// Returns *I*₁ ₋ *ₓ*(*b*, *a*) when *a* is very small. Note the swapped
 /// parameter convention: caller passes (*a*, *b*, *x*) where *a* is the
 /// small parameter.
 #[inline]
@@ -291,7 +291,7 @@ pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     -(a * (c + s))
 }
 
-/// `beta_pser`: power series for *Iₓ*(*a*, *b*) when *b* ≤ 1 or *b*·*x* ≤ 0.7.
+/// Returns *Iₓ*(*a*, *b*) by power series when *b* ≤ 1 or *b*·*x* ≤ 0.7.
 #[inline]
 pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     if x == 0.0 {
@@ -371,7 +371,7 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     result * (1.0 + a * sum)
 }
 
-/// `beta_rcomp`: *xᵃ* · *yᵇ* / Β(*a*, *b*).
+/// Returns *xᵃ* · *yᵇ* / Β(*a*, *b*).
 #[inline]
 pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
     const CONST_VAL: f64 = 0.398942280401433; // 1/√(2π)
@@ -466,7 +466,7 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
     result * (a0 * c) / (1.0 + a0 / b0)
 }
 
-/// `beta_rcomp1`: exp(*μ*) · *xᵃ* · *yᵇ* / Β(*a*, *b*).
+/// Returns exp(*μ*) · *xᵃ* · *yᵇ* / Β(*a*, *b*).
 #[inline]
 pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
     const CONST_VAL: f64 = 0.398942280401433;
@@ -554,7 +554,7 @@ pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
     result * (a0 * c) / (1.0 + a0 / b0)
 }
 
-/// `beta_up`: *Iₓ*(*a*, *b*) − *Iₓ*(*a* + *n*, *b*) for positive integer *n*.
+/// Returns *Iₓ*(*a*, *b*) − *Iₓ*(*a* + *n*, *b*) for positive integer *n*.
 #[inline]
 pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
     let apb = a + b;
@@ -614,7 +614,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
     bup * w
 }
 
-/// Incomplete gamma ratios *P*(*a*, *x*), *Q*(*a*, *x*) specialized to
+/// Returns the incomplete gamma ratios *P*(*a*, *x*), *Q*(*a*, *x*) specialized to
 /// *a* ≤ 1. Used by [`beta_grat`].
 ///
 /// [`beta_grat`]: crate::special::internal::beta_grat
@@ -716,7 +716,8 @@ pub enum BetaGratError {
     NonPositiveSum,
 }
 
-/// Asymptotic expansion for *Iₓ*(*a*, *b*) when 15 ≤ *a* and *b* ≤ 1.
+/// Returns *Iₓ*(*a*, *b*) by asymptotic expansion when 15 ≤ *a* and *b* ≤ 1.
+///
 /// Adds a correction to *w*; on success returns the updated value.
 ///
 /// Each `Err` variant is a *soft* failure: the routine cannot add a
@@ -788,7 +789,7 @@ pub fn beta_grat(
     Ok(w_in + u * sum)
 }
 
-/// Asymptotic expansion for *Iₓ*(*a*, *b*) when both *a* and *b* are ≥ 15.
+/// Returns *Iₓ*(*a*, *b*) by asymptotic expansion when both *a* and *b* are ≥ 15.
 #[inline]
 pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
     const E0: f64 = 1.12837916709551; // 2/√π
@@ -884,7 +885,7 @@ pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
     E0 * t * u * sum
 }
 
-/// `beta_frac`: continued fraction expansion for *Iₓ*(*a*, *b*) when both
+/// Returns *Iₓ*(*a*, *b*) by continued fraction expansion when both
 /// *a* and *b* are > 1.
 #[inline]
 pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
@@ -969,7 +970,7 @@ pub enum BetaIncError {
     YZeroAndBZero,
 }
 
-/// Regularized incomplete Β function *Iₓ*(*a*, *b*) and its complement
+/// Returns the regularized incomplete Β function *Iₓ*(*a*, *b*) and its complement
 /// 1 − *Iₓ*(*a*, *b*).
 ///
 /// The argument pair (*x*, *y*) is the (value, complement) of the

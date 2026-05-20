@@ -67,13 +67,13 @@ impl Poisson {
         Ok(Self { lambda })
     }
 
-    /// Rate parameter *λ*.
+    /// Returns the rate parameter *λ*.
     #[inline]
     pub fn lambda(&self) -> f64 {
         self.lambda
     }
 
-    /// Solve for *λ* given Pr[*X* ≤ *s*] = *p*.
+    /// Returns the rate parameter *λ* satisfying Pr[*X* ≤ *s*] = *p*.
     #[inline]
     pub fn solve_lambda(p: f64, s: u64) -> Result<f64, PoissonError> {
         check_prob(p)?;

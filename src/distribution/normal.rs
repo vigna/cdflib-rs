@@ -54,9 +54,11 @@ pub enum NormalError {
 }
 
 impl Normal {
-    /// Construct an *N*(*μ*, *σ*²) distribution with mean *μ* and standard
-    /// deviation *σ* > 0. Returns [`MeanNotFinite`], [`SdNotFinite`], or
-    /// [`SdNotPositive`] if either argument fails its respective test.
+    /// Construct a normal distribution with mean *μ* and standard deviation *σ*
+    /// > 0.
+    ///
+    /// Returns [`MeanNotFinite`], [`SdNotFinite`], or [`SdNotPositive`] if
+    /// either argument fails its respective test.
     ///
     /// [`MeanNotFinite`]: NormalError::MeanNotFinite
     /// [`SdNotFinite`]: NormalError::SdNotFinite
@@ -75,19 +77,19 @@ impl Normal {
         Ok(Self { mean, sd })
     }
 
-    /// Standard normal distribution *N*(0, 1).
+    /// Constructs a standard normal distribution *N*(0, 1).
     #[inline]
     pub fn standard() -> Self {
         Self { mean: 0.0, sd: 1.0 }
     }
 
-    /// Standard deviation *σ*.
+    /// Returns the standard deviation *σ*.
     #[inline]
     pub fn sd(&self) -> f64 {
         self.sd
     }
 
-    /// Solve for the mean given *p* = Pr[*X* ≤ *x*] and *σ*.
+    /// Returns the mean *μ* satisfying *p* = Pr[*X* ≤ *x*] given *σ*.
     ///
     /// CDFLIB's `cdfnor` with `which = 3`. Closed-form via the inverse
     /// standard-normal CDF.
@@ -105,7 +107,7 @@ impl Normal {
         Ok(x - sd * z)
     }
 
-    /// Solve for the standard deviation given *p* = Pr[*X* ≤ *x*] and *μ*.
+    /// Returns the standard deviation *σ* satisfying *p* = Pr[*X* ≤ *x*] given *μ*.
     ///
     /// CDFLIB's `cdfnor` with `which = 4`. Closed-form. Returns
     /// [`UnderdeterminedSd`] when *p* = 1/2 (which makes the standard

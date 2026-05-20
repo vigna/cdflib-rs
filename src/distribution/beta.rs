@@ -57,6 +57,7 @@ pub enum BetaError {
 
 impl Beta {
     /// Construct a Β(*a*, *b*) distribution with the given shape parameters.
+    ///
     /// Returns [`ANotPositive`] or [`BNotPositive`] if either parameter is
     /// not strictly positive and finite.
     ///
@@ -73,19 +74,19 @@ impl Beta {
         Ok(Self { a, b })
     }
 
-    /// Shape parameter *a*.
+    /// Returns the shape parameter *a*.
     #[inline]
     pub fn a(&self) -> f64 {
         self.a
     }
 
-    /// Shape parameter *b*.
+    /// Returns the shape parameter *b*.
     #[inline]
     pub fn b(&self) -> f64 {
         self.b
     }
 
-    /// Solve for *a* given Pr[*X* ≤ *x*] = *p*.
+    /// Returns the shape parameter *a* satisfying Pr[*X* ≤ *x*] = *p*.
     #[inline]
     pub fn solve_a(p: f64, x: f64, b: f64) -> Result<f64, BetaError> {
         check_prob(p)?;
@@ -117,7 +118,7 @@ impl Beta {
         )?)
     }
 
-    /// Solve for *b* given Pr[*X* ≤ *x*] = *p*.
+    /// Returns the shape parameter *b* satisfying Pr[*X* ≤ *x*] = *p*.
     #[inline]
     pub fn solve_b(p: f64, x: f64, a: f64) -> Result<f64, BetaError> {
         check_prob(p)?;

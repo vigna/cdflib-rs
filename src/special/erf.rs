@@ -63,7 +63,7 @@ const S: [f64; 4] = [
 
 const C: f64 = 0.564189583547756;
 
-/// Error function erf(*x*) = (2/√π) ∫₀ˣ e⁻*ᵗ*² d*t*.
+/// Returns the error function erf(*x*) = (2/√π) ∫₀ˣ e⁻*ᵗ*² d*t*.
 ///
 /// # Example
 ///
@@ -121,7 +121,7 @@ pub fn error_f(x: f64) -> f64 {
     x.signum()
 }
 
-/// Complementary error function erfc(*x*) = 1 − erf(*x*).
+/// Returns the complementary error function erfc(*x*) = 1 − erf(*x*).
 ///
 /// Computed directly (not as `1 - error_f(x)`) so the small right-tail
 /// values stay accurate to ~15 digits. CDFLIB exposes this and the scaled
@@ -143,7 +143,7 @@ pub fn error_fc(x: f64) -> f64 {
     error_fc_inner(x, false)
 }
 
-/// erfc(*x*) · exp(*x*²). Useful for very large |*x*| where erfc itself
+/// Returns erfc(*x*) · exp(*x*²). Useful for very large |*x*| where erfc itself
 /// underflows but its exponentially-scaled form does not.
 #[inline]
 pub fn error_fc_scaled(x: f64) -> f64 {

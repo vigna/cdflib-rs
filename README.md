@@ -166,6 +166,21 @@ let (phi, sphi) = cumnor(1.96);          // (0.9750, 0.0250) = (Φ(1.96), 1 - Φ
 # Ok::<(), cdflib::special::GammaIncError>(())
 ```
 
+### Beautiful names
+
+Rust allows you to rename the functions:
+
+```rust
+use cdflib::special::{beta as Β, cumnor as Φ, gamma as Γ, psi as ψ};
+
+let x = Γ(2.5);            // Γ(5/2) = (3/2)·√π / 2 ≈ 1.3293
+let y = Β(2.0, 3.0);       // Β(2, 3) = 1/12
+let (p, _) = Φ(1.96);      // Φ(1.96) ≈ 0.975
+let γ = -ψ(1.0);           // ψ(1) = −γ (Euler–Mascheroni)
+# let _ = (x, y, p, γ);
+# Ok::<(), cdflib::special::GammaIncError>(())
+```
+
 ## Fidelity to CDFLIB
 
 The port is semantically faithful: every algorithmic decision, polynomial

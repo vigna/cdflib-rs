@@ -67,8 +67,8 @@ pub(crate) const ABS_TOL: f64 = 1.0e-10;
 const REL_TOL: f64 = 1.0e-8;
 const MAX_EVAL: u32 = 1000;
 
-/// Find *x* such that *f*(*x*) = 0 on a monotone function, driving CDFLIB's
-/// `dinvr` state machine internally.
+/// Returns *x* such that *f*(*x*) = 0 on a monotone function, driving
+/// CDFLIB's `dinvr` state machine internally.
 ///
 /// `strategy` provides the search bounds, initial guess, and
 /// monotonicity direction. For [`Decreasing`], the function is negated
@@ -88,8 +88,9 @@ where
     solve_monotone_with_atol(strategy, ABS_TOL, f)
 }
 
-/// Like [`solve_monotone`] but with a caller-supplied `abs_tol`. Used by
-/// the noncentral-χ² dispatchers to match `cdfchn`'s `atol = 1e-50`.
+/// Returns *x* such that *f*(*x*) = 0, like [`solve_monotone`] but with a
+/// caller-supplied `abs_tol`. Used by the noncentral-χ² dispatchers to
+/// match `cdfchn`'s `atol = 1e-50`.
 #[inline]
 pub(crate) fn solve_monotone_with_atol<F>(
     strategy: BracketStrategy,

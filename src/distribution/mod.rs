@@ -20,22 +20,23 @@ pub(crate) mod normal;
 pub(crate) mod poisson;
 pub(crate) mod students_t;
 
-/// [`crate::special::beta_inc`] with its `Result` unwrapped: panics on the
-/// invalid-input variants the original FORTRAN would silently swallow with
-/// `status = 0`. Every distribution that reduces its CDF to a regularized
-/// incomplete-Β value calls this; the wrapped `beta_inc` cannot fail for
-/// inputs the distribution layer already validated.
+/// Returns the result of [`crate::special::beta_inc`] with its `Result`
+/// unwrapped: panics on the invalid-input variants the original FORTRAN
+/// would silently swallow with `status = 0`. Every distribution that
+/// reduces its CDF to a regularized incomplete-Β value calls this; the
+/// wrapped `beta_inc` cannot fail for inputs the distribution layer
+/// already validated.
 #[inline]
 pub(crate) fn must_beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
     crate::special::beta_inc(a, b, x, y)
         .expect("Unexpected error from beta_inc (would be swallowed by the original FORTRAN code)")
 }
 
-/// [`crate::special::gamma_inc`] with its `Result` unwrapped: panics on
-/// the invalid-input and indeterminate-result variants. Every
-/// distribution that reduces its CDF to a regularized incomplete-Γ value
-/// calls this; the wrapped `gamma_inc` cannot fail for inputs the
-/// distribution layer already validated.
+/// Returns the result of [`crate::special::gamma_inc`] with its `Result`
+/// unwrapped: panics on the invalid-input and indeterminate-result
+/// variants. Every distribution that reduces its CDF to a regularized
+/// incomplete-Γ value calls this; the wrapped `gamma_inc` cannot fail for
+/// inputs the distribution layer already validated.
 #[inline]
 pub(crate) fn must_gamma_inc(a: f64, x: f64) -> (f64, f64) {
     crate::special::gamma_inc(a, x).expect("Unexpected error from gamma_inc on validated inputs")

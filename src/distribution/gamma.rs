@@ -77,6 +77,7 @@ pub enum GammaError {
 
 impl Gamma {
     /// Construct a Γ(*α*, *β*) distribution with shape *α* > 0 and rate *β* > 0.
+    ///
     /// Returns [`ShapeNotFinite`], [`RateNotFinite`], [`ShapeNotPositive`],
     /// or [`RateNotPositive`] if either argument fails its respective test.
     ///
@@ -101,20 +102,21 @@ impl Gamma {
         Ok(Self { shape, rate })
     }
 
-    /// Shape parameter *α*.
+    /// Returns the shape parameter *α*.
     #[inline]
     pub fn shape(&self) -> f64 {
         self.shape
     }
 
-    /// Rate parameter *β*.
+    /// Returns the rate parameter *β*.
     #[inline]
     pub fn rate(&self) -> f64 {
         self.rate
     }
 
-    /// Solve for the shape parameter given Pr[*X* ≤ *x*] = *p*. Mirrors
-    /// CDFLIB's `cdfgam` with `which = 3`.
+    /// Returns the shape parameter *α* satisfying Pr[*X* ≤ *x*] = *p*.
+    ///
+    /// Mirrors CDFLIB's `cdfgam` with `which = 3`.
     #[inline]
     pub fn solve_shape(p: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
         check_prob(p)?;
@@ -147,8 +149,9 @@ impl Gamma {
         )?)
     }
 
-    /// Solve for the rate parameter given Pr[*X* ≤ *x*] = *p*. Mirrors
-    /// CDFLIB's `cdfgam` with `which = 4`: invert the incomplete-Γ
+    /// Returns the rate parameter *β* satisfying Pr[*X* ≤ *x*] = *p*.
+    ///
+    /// Mirrors CDFLIB's `cdfgam` with `which = 4`: invert the incomplete-Γ
     /// ratio for the shifted argument, then divide out *x*.
     #[inline]
     pub fn solve_rate(p: f64, x: f64, shape: f64) -> Result<f64, GammaError> {

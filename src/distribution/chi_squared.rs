@@ -57,6 +57,7 @@ pub enum ChiSquaredError {
 
 impl ChiSquared {
     /// Construct a *χ*²(*df*) distribution with *df* > 0 degrees of freedom.
+    ///
     /// Returns [`DfNotFinite`] or [`DfNotPositive`] otherwise.
     ///
     /// [`DfNotFinite`]: ChiSquaredError::DfNotFinite
@@ -72,13 +73,13 @@ impl ChiSquared {
         Ok(Self { df })
     }
 
-    /// Degrees of freedom *df*.
+    /// Returns the degrees of freedom *df*.
     #[inline]
     pub fn df(&self) -> f64 {
         self.df
     }
 
-    /// Solve for the degrees of freedom given Pr[*X* ≤ *x*] = *p*.
+    /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
     /// CDFLIB's `cdfchi` with `which = 3`.
     #[inline]
