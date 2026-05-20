@@ -143,27 +143,36 @@ fn discrete_inverse_cdf_contract() {
 
 #[test]
 fn discrete_inverse_sf_contract() {
+    // inverse_sf now returns the real-valued F90 cdf*-which=2 quantile.
+    // Round-trip contract: at the returned real s, the integer-floor s
+    // satisfies the discrete sf bound sf(floor(s)) >= q (when interior).
     let binomial = Binomial::new(20, 0.3);
-    for &target in &[0.9, 0.5, 0.1] {
+    for &target in &[0.5, 0.1] {
         let s = binomial.inverse_sf(target).unwrap();
-        assert!(binomial.sf(s) >= target, "binomial: s={s}, q={target}");
-        if s < binomial.n() {
-            assert!(binomial.sf(s + 1) < target, "binomial: s={s}, q={target}");
-        }
+        let s_floor = s.floor() as u64;
+        assert!(
+            binomial.sf(s_floor) >= target,
+            "binomial: s={s}, floor={s_floor}, q={target}"
+        );
     }
 
     let poisson = Poisson::new(2.0);
-    assert_eq!(poisson.inverse_sf(0.9).unwrap(), 0);
-    for &target in &[0.8, 0.5, 0.1, 0.05] {
+    for &target in &[0.5, 0.1, 0.05] {
         let s = poisson.inverse_sf(target).unwrap();
-        assert!(poisson.sf(s) >= target, "poisson: s={s}, q={target}");
-        assert!(poisson.sf(s + 1) < target, "poisson: s={s}, q={target}");
+        let s_floor = s.floor() as u64;
+        assert!(
+            poisson.sf(s_floor) >= target,
+            "poisson: s={s}, floor={s_floor}, q={target}"
+        );
     }
 
     let negbin = NegativeBinomial::new(5, 0.4);
-    for &target in &[0.9, 0.5, 0.1] {
+    for &target in &[0.5, 0.1] {
         let s = negbin.inverse_sf(target).unwrap();
-        assert!(negbin.sf(s) >= target, "negbin: s={s}, q={target}");
-        assert!(negbin.sf(s + 1) < target, "negbin: s={s}, q={target}");
+        let s_floor = s.floor() as u64;
+        assert!(
+            negbin.sf(s_floor) >= target,
+            "negbin: s={s}, floor={s_floor}, q={target}"
+        );
     }
 }

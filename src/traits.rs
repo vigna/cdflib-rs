@@ -33,9 +33,13 @@ pub trait ContinuousCdf {
     /// Returns Pr\[*X* ≤ *x*\].
     fn cdf(&self, x: f64) -> f64;
 
-    /// Returns Pr\[*X* > *x*\] = 1 − [cdf]\(*x*\).
+    /// Returns Pr\[*X* > *x*\], the survival function.
     ///
-    /// [cdf]: ContinuousCdf::cdf
+    /// Implementations compute this independently of [`cdf`] rather than as
+    /// `1 − cdf(x)`, so the small tail keeps its precision deep into the
+    /// tails where the subtraction would lose digits to cancellation.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     fn sf(&self, x: f64) -> f64;
 
     /// Returns the smallest *x* such that [cdf]\(*x*\) ≥ *p*, for *p* ∈ [0 . . 1].
@@ -93,32 +97,21 @@ pub trait DiscreteCdf {
     /// [cdf]: DiscreteCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;
 
-    /// Returns the largest integer *x* such that [sf]\(*x*\) ≥ *q*, saturating at 0 when
-    /// no support point satisfies the inequality.
+    /// Returns the real-valued *x* satisfying Pr[*X* ≤ *x*] = 1 − *q* on
+    /// the smooth continuous extension of the CDF.
     ///
-    /// The default implementation derives this from [`inverse_cdf`] by
-    /// asking for the first point whose CDF is strictly greater than
-    /// 1 − *q*, then stepping back by one. Stepping to the next
-    /// representable `f64` above 1 − *q* preserves the exact jump
-    /// semantics when 1 − *q* lands exactly on a CDF value.
+    /// Mirrors CDFLIB's `cdf*` `which = 2` for the discrete families
+    /// (`cdfpoi`, `cdfbin`, `cdfnbn`), whose result is real-valued: the
+    /// routine solves the continuous extension of the discrete CDF and
+    /// returns the *x* (not necessarily integer) at which the cumulative
+    /// probability equals 1 − *q*. The return type is `f64` (not `u64`)
+    /// to expose this real-valued quantile faithfully; this is the only
+    /// `inverse_sf` Rust offers on `DiscreteCdf`, so distributions cover
+    /// CDFLIB's pair-input precision strategy by routing the small-tail
+    /// `q` here. The integer discrete quantile is on [`inverse_cdf`].
     ///
-    /// [sf]: DiscreteCdf::sf
     /// [`inverse_cdf`]: DiscreteCdf::inverse_cdf
-    #[inline]
-    fn inverse_sf(&self, q: f64) -> Result<u64, Self::Error> {
-        if q == 1.0 {
-            return Ok(0);
-        }
-        if q == 0.0 {
-            return self.inverse_cdf(1.0);
-        }
-        // TODO: once the MSRV is raised to 1.86, replace this with (1.0 -
-        // q).next_up(). The bit-incrementing form is equivalent because 1.0 - q
-        // is a finite positive number in (0..1), but f64::next_up was
-        // stabilized only in 1.86.
-        let p_next = f64::from_bits((1.0 - q).to_bits() + 1);
-        Ok(self.inverse_cdf(p_next)?.saturating_sub(1))
-    }
+    fn inverse_sf(&self, q: f64) -> Result<f64, Self::Error>;
 }
 
 /// Probability density function (and its log) for a continuous distribution.

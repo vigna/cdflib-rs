@@ -113,39 +113,6 @@ impl Poisson {
         self.lambda
     }
 
-    /// Returns the real-valued *s* ≥ 0 satisfying *cumpoi*(*s*, *λ*) = *p*,
-    /// where *cumpoi* is the smooth continuous extension of the Poisson
-    /// CDF via *Q*(*s* + 1, *λ*).
-    ///
-    /// Mirrors CDFLIB's `cdfpoi` with `which = 2` (cdflib.f90:7765). The
-    /// `DiscreteCdf::inverse_cdf` trait method returns the integer quantile;
-    /// this method returns F90's real-valued solution. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
-    #[inline]
-    pub fn inverse_cdf_continuous(&self, p: f64, q: f64) -> Result<f64, PoissonError> {
-        check_pq(p, q)?;
-        let lambda = self.lambda;
-        // cumpoi(s, λ) = Q(s+1, λ) is strictly increasing in s for fixed λ.
-        // Mirror cdfpoi's cum-p if p<=q else ccum-q precision pivot.
-        let f = |s: f64| {
-            let (sf_upper, cdf) = gamma_inc(s + 1.0, lambda);
-            if p <= q {
-                cdf - p
-            } else {
-                sf_upper - q
-            }
-        };
-        // Match cdfpoi's which=2: bracket (0, inf), start = 5.0.
-        Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
-            f,
-        )?)
-    }
-
     /// Returns the rate parameter *λ* satisfying Pr[*X* ≤ *s*] = *p*.
     ///
     /// Mirrors CDFLIB's `cdfpoi` with `which = 3`. Caller passes both
@@ -255,6 +222,46 @@ impl DiscreteCdf for Poisson {
         }
         Ok(lo)
     }
+
+    /// Mirrors CDFLIB's `cdfpoi` with `which = 2` (cdflib.f90:7765).
+    /// Solves for the real-valued *s* such that *cumpoi*(*s*, *λ*) = 1 − *q*.
+    /// Routes through the *q*-dominant pivot `ccum - q` when *q* < 1/2.
+    #[inline]
+    fn inverse_sf(&self, q: f64) -> Result<f64, PoissonError> {
+        check_q(q)?;
+        let lambda = self.lambda;
+        let p = 1.0 - q;
+        // cumpoi(s, λ) = Q(s+1, λ) is increasing in s; sf = 1 − cumpoi is
+        // decreasing in s. Match cdfpoi's precision pivot by using cum-p
+        // (increasing in s) when p<=q, ccum-q (decreasing in s) otherwise.
+        if p <= q {
+            let f = |s: f64| {
+                let (_, cdf) = gamma_inc(s + 1.0, lambda);
+                cdf - p
+            };
+            Ok(solve_monotone(
+                BracketStrategy::Increasing {
+                    small: 0.0,
+                    big: SOLVER_BOUND,
+                    start: 5.0,
+                },
+                f,
+            )?)
+        } else {
+            let f = |s: f64| {
+                let (sf_upper, _) = gamma_inc(s + 1.0, lambda);
+                sf_upper - q
+            };
+            Ok(solve_monotone(
+                BracketStrategy::Decreasing {
+                    small: 0.0,
+                    big: SOLVER_BOUND,
+                    start: 5.0,
+                },
+                f,
+            )?)
+        }
+    }
 }
 
 impl Discrete for Poisson {
@@ -307,25 +314,25 @@ mod tests {
     }
 
     #[test]
-    fn inverse_cdf_continuous_matches_integer_quantile_at_integer_p() {
+    fn inverse_sf_matches_integer_quantile_at_integer_boundary() {
         // At the integer quantile boundary, the continuous solver should
         // return the exact integer (because cumpoi(s_int, λ) for integer s
         // is the discrete CDF value at s_int).
         let p = Poisson::new(3.0);
-        let p_target = p.cdf(2); // = Pr[X ≤ 2] for Poisson(3)
-        let s = p.inverse_cdf_continuous(p_target, 1.0 - p_target).unwrap();
+        let q_target = p.sf(2); // = Pr[X > 2] for Poisson(3)
+        let s = p.inverse_sf(q_target).unwrap();
         assert!((s - 2.0).abs() < 1e-6, "got s = {s}");
     }
 
     #[test]
-    fn inverse_cdf_continuous_between_integers() {
-        // For a target p strictly between two integer CDFs, the result
+    fn inverse_sf_between_integers() {
+        // For a target q strictly between two integer SF values, the result
         // should be a real value strictly between the two integers.
         let p = Poisson::new(3.0);
-        let lo_cdf = p.cdf(2); // CDF at 2
-        let hi_cdf = p.cdf(3); // CDF at 3
-        let target = 0.5 * (lo_cdf + hi_cdf);
-        let s = p.inverse_cdf_continuous(target, 1.0 - target).unwrap();
+        let hi_sf = p.sf(2);
+        let lo_sf = p.sf(3);
+        let q_target = 0.5 * (lo_sf + hi_sf);
+        let s = p.inverse_sf(q_target).unwrap();
         assert!(s > 2.0 && s < 3.0, "got s = {s}");
     }
 

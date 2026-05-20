@@ -266,6 +266,47 @@ impl DiscreteCdf for NegativeBinomial {
         }
         Ok(lo)
     }
+
+    /// Mirrors CDFLIB's `cdfnbn` with `which = 2` (cdflib.f90:5341).
+    /// Solves for the real-valued *s* such that *cumnbn*(*s*, *r*, *pr*) =
+    /// 1 − *q* on the smooth continuous extension via *I*ₚᵣ(*r*, *s*+1).
+    /// Routes through the *q*-dominant pivot `ccum - q` when *q* < 1/2.
+    #[inline]
+    fn inverse_sf(&self, q: f64) -> Result<f64, NegativeBinomialError> {
+        check_q(q)?;
+        let rf = self.r as f64;
+        let pr = self.pr;
+        let p = 1.0 - q;
+        // cumnbn(s, r, pr) = I_pr(r, s+1) is increasing in s; sf is decreasing.
+        // Match cdfnbn's cum-p (increasing) when p<=q, ccum-q (decreasing) otherwise.
+        if p <= q {
+            let f = |s: f64| {
+                let (cum, _) = beta_inc(rf, s + 1.0, pr, 1.0 - pr);
+                cum - p
+            };
+            Ok(solve_monotone(
+                BracketStrategy::Increasing {
+                    small: 0.0,
+                    big: SOLVER_BOUND,
+                    start: 5.0,
+                },
+                f,
+            )?)
+        } else {
+            let f = |s: f64| {
+                let (_, ccum) = beta_inc(rf, s + 1.0, pr, 1.0 - pr);
+                ccum - q
+            };
+            Ok(solve_monotone(
+                BracketStrategy::Decreasing {
+                    small: 0.0,
+                    big: SOLVER_BOUND,
+                    start: 5.0,
+                },
+                f,
+            )?)
+        }
+    }
 }
 
 impl Discrete for NegativeBinomial {

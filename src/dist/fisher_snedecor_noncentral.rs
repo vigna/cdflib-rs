@@ -84,9 +84,8 @@ pub enum FisherSnedecorNoncentralError {
 
 impl FisherSnedecorNoncentral {
     /// Construct a noncentral *F*(*dfn*, *dfd*, *λ*) distribution with
-    /// *dfn* ≥ 1, *dfd* ≥ 1, and *λ* ≥ 0. The lower bound of 1 on the
-    /// degrees of freedom is required by the underlying incomplete-Β
-    /// reduction.
+    /// *dfn* > 0, *dfd* > 0, and *λ* ≥ 0. Matches CDFLIB's `cdffnc`
+    /// validation (cdflib.f90:3818, :3823).
     ///
     /// # Panics
     ///

@@ -133,14 +133,19 @@ impl DiscreteCdf for StubDiscrete {
     fn inverse_cdf(&self, p: f64) -> Result<u64, SolverError> {
         Ok(if p > 0.0 { 1 } else { 0 })
     }
+    fn inverse_sf(&self, q: f64) -> Result<f64, SolverError> {
+        // Trivial stub: the Bernoulli-like jump is at s=0; report q=1 ↦ 0,
+        // q=0 ↦ 1, with 0.5 for interior values.
+        Ok(if q >= 1.0 { 0.0 } else if q <= 0.0 { 1.0 } else { 0.5 })
+    }
 }
 
 #[test]
-fn discrete_cdf_default_inverse_sf_composes() {
+fn discrete_cdf_inverse_sf_signature() {
     let d = StubDiscrete;
     assert_close(d.sf(0), 1.0);
     assert_close(d.sf(1), 0.0);
-    assert_eq!(d.inverse_sf(1.0).unwrap(), 0);
-    assert_eq!(d.inverse_sf(0.5).unwrap(), 0);
-    assert_eq!(d.inverse_sf(0.0).unwrap(), 1);
+    assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
+    assert_eq!(d.inverse_sf(0.5).unwrap(), 0.5);
+    assert_eq!(d.inverse_sf(0.0).unwrap(), 1.0);
 }
