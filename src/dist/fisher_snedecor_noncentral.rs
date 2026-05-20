@@ -370,13 +370,22 @@ fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     // Sum forwards.
     let mut i = icent + 1;
     let mut xmult = centwt;
-    let mut upterm = if aup - 1.0 + b == 0.0 {
-        (-gamma_log(aup) - gamma_log(b) + (aup - 1.0) * xx.ln() + b * yy.ln()).exp()
+    // F90 (cdflib.f90:7193-7214) computes expon first, then guards against
+    // underflow: if expon <= ln(ε), set upterm = 0 instead of exp(expon).
+    // The guard prevents subnormal-range exp() results from later being
+    // multiplied into the running sum (the F90 comment cites a 1960s-era
+    // workaround for compilers that choke on subnormal arithmetic).
+    let expon = if aup - 1.0 + b == 0.0 {
+        -gamma_log(aup) - gamma_log(b) + (aup - 1.0) * xx.ln() + b * yy.ln()
     } else {
-        (gamma_log(aup - 1.0 + b) - gamma_log(aup) - gamma_log(b)
+        gamma_log(aup - 1.0 + b) - gamma_log(aup) - gamma_log(b)
             + (aup - 1.0) * xx.ln()
-            + b * yy.ln())
-        .exp()
+            + b * yy.ln()
+    };
+    let mut upterm = if expon <= f64::EPSILON.ln() {
+        0.0
+    } else {
+        expon.exp()
     };
     loop {
         xmult *= xnonc / i as f64;

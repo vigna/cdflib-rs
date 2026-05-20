@@ -432,7 +432,16 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
     if g > 0.99999 * POS_EXPARG {
         return Err(GammaDomainError::Overflow(a));
     }
-    Ok(g.exp())
+    // F90 cdflib.f90:10201-10208 builds the result in three lines:
+    //   w = g
+    //   t = g - real(w, kind=rk)
+    //   gamma_user = exp(w) * (1.0 + t)
+    // Since g and w are both real(kind=rk), t is exactly 0.0 and the
+    // expression collapses to exp(g). The intermediate w/t pair below
+    // makes the F90 line-for-line correspondence explicit.
+    let w = g;
+    let t = g - w;
+    Ok(w.exp() * (1.0 + t))
 }
 
 /// Returns ln Γ(1 + *a*) for −0.2 ≤ *a* ≤ 1.25.
@@ -567,11 +576,15 @@ pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
         0.777788548522962e1,
     ];
 
-    // CDFLIB's xmax1 is the smaller of (largest int as f64) and 1/EPS.
-    // For IEEE 754 binary64, ipmpar(3) is the max representable integer
-    // exponent, but xmax1 here is treated as a "huge but finite" bound;
-    // 1/EPS is the controlling factor.
-    let xmax1 = 1.0 / f64::EPSILON;
+    // F90 cdflib.f90:13212-13213 builds xmax1 in two steps:
+    //   xmax1 = real(ipmpar(3), kind=rk)
+    //   xmax1 = min(xmax1, 1.0 / epsilon(xmax1))
+    // With the IEEE 754 binary64 configuration of ipmpar bundled in the
+    // F90 source, ipmpar(3) is the largest int32, 2_147_483_647 (about
+    // 2.15e9). The second line caps that at 1/EPSILON (about 4.5e15),
+    // but 2.15e9 < 4.5e15 so the cap never fires. The effective value
+    // is therefore the constant below.
+    let xmax1 = 2_147_483_647.0_f64;
     let xsmall = 1.0e-9;
 
     let mut x = xx;
@@ -1313,7 +1326,7 @@ fn temme_general(
     const D50: f64 = -0.336798553366358e-3;
     const D60: f64 = 0.531307936463992e-3;
     const D70: f64 = 0.344367606892378e-3;
-    const THIRD: f64 = 0.333333333333333;
+    const THIRD: f64 = 1.0 / 3.0;
     const RT2PIN: f64 = 0.398942280401433;
 
     let c = (-y).exp();
@@ -1529,7 +1542,7 @@ fn temme_for_l_eq_1(
     const D50: f64 = -0.336798553366358e-3;
     const D60: f64 = 0.531307936463992e-3;
     const D70: f64 = 0.344367606892378e-3;
-    const THIRD: f64 = 0.333333333333333;
+    const THIRD: f64 = 1.0 / 3.0;
     const RT2PIN: f64 = 0.398942280401433;
     const RTPI: f64 = 1.77245385090552;
 
@@ -1832,8 +1845,13 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), 
         }
 
         if p <= 0.5 {
-            // F90 L11340: label 130, a > 1, p ≤ 0.5.
-            let (refined_xn, early_return) = label_130(a, p, q, xn0, EMIN[iop]);
+            // F90 L11340: label 130, a > 1, p ≤ 0.5. The F90 output
+            // variable x starts at 0.0 (cdflib.f90:11141) and is only set
+            // to xn when the amin[iop] ≤ a branch above (cdflib.f90:11330)
+            // runs. label_130's exp-iteration sub-branch uses that x,
+            // so we pass the same conditional initial value.
+            let x_initial = if AMIN[iop] <= a { xn0 } else { 0.0 };
+            let (refined_xn, early_return) = label_130(a, p, q, xn0, x_initial, EMIN[iop]);
             if early_return {
                 return Ok((refined_xn, 0));
             }
@@ -1913,7 +1931,12 @@ fn initial_approx_small_b(a: f64, p: f64, q: f64, g: f64, b: f64, gamma_eu: f64)
 ///
 /// Returns the refined `xn` and a flag set to `true` if an early-return
 /// from the parent routine is warranted (sub-`emin` approximation).
-fn label_130(a: f64, p: f64, _q: f64, xn0: f64, emin_iop: f64) -> (f64, bool) {
+///
+/// `x_initial` matches the F90 output variable `x` at entry to label 130:
+/// it is `xn0` if the caller's `amin[iop] <= a` branch ran (F90 cdflib.f90:11330
+/// `x = xn`) and `0.0` otherwise (F90's `x = 0.0D+00` initialization at
+/// cdflib.f90:11141 is never overwritten).
+fn label_130(a: f64, p: f64, _q: f64, xn0: f64, x_initial: f64, emin_iop: f64) -> (f64, bool) {
     let ap1 = a + 1.0;
     if 0.70 * ap1 < xn0 {
         // F90 L11343: go to 170, no refinement needed.
@@ -1923,10 +1946,11 @@ fn label_130(a: f64, p: f64, _q: f64, xn0: f64, emin_iop: f64) -> (f64, bool) {
     let mut xn = xn0;
     if xn <= 0.15 * ap1 {
         // F90 L11348: closed-form refinement via three corrective x = exp(...)
-        // updates that match the F90 line by line.
+        // updates that match the F90 line by line. F90 starts from the
+        // output variable x (= x_initial, see fn-doc above).
         let ap2 = a + 2.0;
         let ap3 = a + 3.0;
-        let mut x = ((w + xn) / a).exp();
+        let mut x = ((w + x_initial) / a).exp();
         x = ((w + x - (1.0 + (x / ap1) * (1.0 + x / ap2)).ln()) / a).exp();
         x = ((w + x - (1.0 + (x / ap1) * (1.0 + x / ap2)).ln()) / a).exp();
         x = ((w + x - (1.0 + (x / ap1) * (1.0 + (x / ap2) * (1.0 + x / ap3))).ln()) / a).exp();

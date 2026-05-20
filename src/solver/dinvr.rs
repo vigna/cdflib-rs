@@ -206,11 +206,11 @@ impl InvrState {
                 match z.step(fx) {
                     ZrorAction::NeedEval(x) => InvrAction::NeedEval(x),
                     ZrorAction::Converged { xlo, .. } => InvrAction::Converged(xlo),
-                    ZrorAction::Failed { qleft, qhi } => InvrAction::Failed {
-                        qleft,
-                        qhi,
-                        x: self.xlb,
-                    },
+                    // F90 dinvr (cdflib.f90:8233-8237 label 250) treats a
+                    // dzror failure (status = -1) identically to convergence:
+                    // it executes "x = xlo; status = 0; return". Mirror that
+                    // silent-success behavior here.
+                    ZrorAction::Failed { xlo, .. } => InvrAction::Converged(xlo),
                 }
             }
         }
@@ -231,11 +231,9 @@ impl InvrState {
         match first {
             ZrorAction::NeedEval(x) => InvrAction::NeedEval(x),
             ZrorAction::Converged { xlo, .. } => InvrAction::Converged(xlo),
-            ZrorAction::Failed { qleft, qhi } => InvrAction::Failed {
-                qleft,
-                qhi,
-                x: self.xlb,
-            },
+            // Same F90 silent-success-at-xlo behavior as the InZror handler
+            // above (cdflib.f90:8233-8237).
+            ZrorAction::Failed { xlo, .. } => InvrAction::Converged(xlo),
         }
     }
 }

@@ -244,9 +244,13 @@ pub fn dbetrm(a: f64, b: f64) -> f64 {
 pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     let mut result = 1.0;
     if a > 1e-3 * eps {
+        // F90 cdflib.f90:9854-9863 has fpser = 0.0D+00 here before the
+        // t = a * log(x) line, used as a dead-store before the t.exp()
+        // overwrite or the return on underflow. Mirror it explicitly:
+        result = 0.0;
         let t = a * x.ln();
         if t < NEG_EXPARG {
-            return 0.0;
+            return result;
         }
         result = t.exp();
     }

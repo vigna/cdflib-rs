@@ -46,9 +46,11 @@ pub(crate) enum ZrorAction {
         xhi: f64,
     },
     /// *f*(`xlo`) and *f*(`xhi`) do not straddle zero. `qleft` / `qhi`
-    /// follow the CDFLIB sign-flag convention.
+    /// follow the CDFLIB sign-flag convention. `xlo` is the last lower
+    /// bound dzror maintained — F90 cdflib.f90:8233 returns it as the
+    /// approximate root on failure.
     #[allow(dead_code)]
-    Failed { qleft: bool, qhi: bool },
+    Failed { xlo: f64, qleft: bool, qhi: bool },
 }
 
 #[derive(Debug)]
@@ -122,12 +124,14 @@ impl ZrorState {
                     if self.fb < 0.0 {
                         if fx < 0.0 {
                             return ZrorAction::Failed {
+                                xlo: self.xlo,
                                 qleft: fx < self.fb,
                                 qhi: false,
                             };
                         }
                     } else if self.fb > 0.0 && fx > 0.0 {
                         return ZrorAction::Failed {
+                            xlo: self.xlo,
                             qleft: fx > self.fb,
                             qhi: true,
                         };
@@ -202,6 +206,7 @@ impl ZrorState {
                 });
             }
             return Some(ZrorAction::Failed {
+                xlo: self.xlo,
                 qleft: false,
                 qhi: false,
             });
@@ -364,7 +369,8 @@ mod tests {
             z.step(-1.0),
             ZrorAction::Failed {
                 qleft: false,
-                qhi: false
+                qhi: false,
+                ..
             }
         ));
     }
@@ -378,7 +384,8 @@ mod tests {
             z.step(2.0),
             ZrorAction::Failed {
                 qleft: true,
-                qhi: true
+                qhi: true,
+                ..
             }
         ));
     }
@@ -408,7 +415,8 @@ mod tests {
             z.refine_iteration(),
             Some(ZrorAction::Failed {
                 qleft: false,
-                qhi: false
+                qhi: false,
+                ..
             })
         ));
     }
