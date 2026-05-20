@@ -3,6 +3,8 @@
 A pure-Rust port of [CDFLIB], the cumulative distribution function library by
 Barry Brown, James Lovato, and Kathy Russell.
 
+The minimum supported Rust version is 1.71.
+
 ## What is CDFLIB?
 
 CDFLIB is a small, venerable numerical library dating to the early 1990s that
@@ -120,9 +122,9 @@ from _x_ (the CDF) or _x_ from _p_ (the inverse CDF, also called the quantile fu
 CDFLIB can additionally solve for any _θᵢ_ when you know _p_, _x_, and the
 other parameters. For example:
 
-- "What standard deviation places probability 0.975 below _x_ = 1.96, given a mean of 0?"
-- "What number of trials puts Pr[*X* ≤ 10] at 0.95 in a Binomial with success rate 0.3?"
-- "What degrees of freedom for a χ² distribution put 95% of the mass below _x_ = 3.84?"
+- “What standard deviation places probability 0.975 below _x_ = 1.96, given a mean of 0?”
+- “What number of trials puts Pr[*X* ≤ 10] at 0.95 in a Binomial with success rate 0.3?”
+- “What degrees of freedom for a χ² distribution put 95% of the mass below _x_ = 3.84?”
 
 ## Examples
 

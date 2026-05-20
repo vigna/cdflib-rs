@@ -1,10 +1,16 @@
 //! Errors shared across distributions.
 //!
 //! Each distribution module declares its own narrow error enum (so `match`
-//! arms stay meaningful), and every such enum carries a [`SolverError`]
-//! variant for the errors of the reverse-communication root-finder.
+//! arms stay meaningful). The enums for distributions whose inverse routines
+//! go through the reverse-communication root-finder carry a [`SolverError`]
+//! variant; distributions that are closed-form everywhere (e.g. [`Normal`])
+//! do not. A few distributions whose kernels bubble up their own structured
+//! errors carry additional pass-through variants — see [`GammaError`] for an
+//! example.
 //!
 //! [`SolverError`]: crate::error::SolverError
+//! [`Normal`]: crate::Normal
+//! [`GammaError`]: crate::GammaError
 
 use thiserror::Error;
 

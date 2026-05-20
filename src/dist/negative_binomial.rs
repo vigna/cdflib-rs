@@ -9,7 +9,7 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// Negative binomial distribution with target successes *r* and success
 /// probability *p*.
 ///
-/// Models the "number of failures before the *r*-th success" in a sequence
+/// Models the “number of failures before the *r*-th success” in a sequence
 /// of independent Bernoulli trials. The CDF reduces to the incomplete Β:
 /// Pr[*F* ≤ *s*] = *Iₚ*(*r*, *s* + 1).
 ///
@@ -203,6 +203,12 @@ impl DiscreteCdf for NegativeBinomial {
         let mut hi = (mean + 10.0 * sd + 10.0).ceil() as u64;
         while self.cdf(hi) < p && hi < u64::MAX / 2 {
             hi *= 2;
+        }
+        // Saturate at u64::MAX rather than silently return a wrong answer if
+        // expansion exits without bracketing. Unreachable for realistic
+        // parameters, but preserves the "smallest s with cdf(s) ≥ p" contract.
+        if self.cdf(hi) < p {
+            return Ok(u64::MAX);
         }
         let mut lo = 0u64;
         while lo < hi {

@@ -3,7 +3,7 @@
 //! Algorithm R of Bus & Dekker (ACM TOMS 1975): combined inverse
 //! quadratic interpolation and bisection. CDFLIB uses a
 //! reverse-communication idiom driven by a `static`-local switch on a
-//! "where to resume" integer `i99999`; this module uses an explicit
+//! “where to resume” integer `i99999`; this module uses an explicit
 //! `Stage` enum carried inside [`ZrorState`] instead.
 //!
 //! The exact iteration trace matches CDFLIB. Variable names follow the

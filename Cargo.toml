@@ -2,7 +2,7 @@
 name = "cdflib"
 authors = [ "Sebastiano Vigna <sebastiano.vigna@unimi.it>" ]
 version = "0.4.0"
-edition = "2024"
+edition = "2021"
 description = "Pure-Rust port of CDFLIB: cumulative distribution functions (CDF) associated with common probability distributions"
 license = "MIT"
 repository = "https://github.com/vigna/CDFLIB-rs"
@@ -10,7 +10,7 @@ keywords = ["statistics", "distribution", "cdf", "quantile", "numerics"]
 categories = ["mathematics", "science"]
 readme = "README.md"
 documentation = "https://docs.rs/cdflib"
-rust-version = "1.85"
+rust-version = "1.71"
 
 [dependencies]
 thiserror = "2"

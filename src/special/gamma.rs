@@ -469,8 +469,8 @@ pub fn gamma_ln1(a: f64) -> f64 {
 /// Errors of [`try_psi`].
 ///
 /// In CDFLIB these were signalled by returning the sentinel `0.0`; the
-/// F90 doc header says "PSI is assigned the value 0 when the psi function
-/// is undefined". Here each failure mode is lifted into a typed Rust error.
+/// F90 doc header says “PSI is assigned the value 0 when the psi function
+/// is undefined”. Here each failure mode is lifted into a typed Rust error.
 ///
 /// [`try_psi`]: crate::special::try_psi
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]

@@ -172,6 +172,13 @@ impl DiscreteCdf for Poisson {
         while self.cdf(hi) < p && hi < u64::MAX / 2 {
             hi *= 2;
         }
+        // Unreachable for any f64-representable λ (Poisson tails decay much
+        // faster than 2⁶²), but if the expansion exits without bracketing,
+        // saturate at u64::MAX so the contract "smallest x with cdf(x) ≥ p"
+        // is never silently violated.
+        if self.cdf(hi) < p {
+            return Ok(u64::MAX);
+        }
         let mut lo = 0u64;
         while lo < hi {
             let mid = lo + (hi - lo) / 2;

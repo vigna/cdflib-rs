@@ -37,8 +37,8 @@ use dinvr::{InvrAction, InvrConfig, InvrState};
 
 /// How to expand the bracket starting from an initial guess.
 ///
-/// [`solve_monotone`] interprets [`Increasing`] as "*f* is non-decreasing
-/// on [`small`, `big`]" and [`Decreasing`] as "*f* is non-increasing".
+/// [`solve_monotone`] interprets [`Increasing`] as “*f* is non-decreasing
+/// on [`small`, `big`]” and [`Decreasing`] as “*f* is non-increasing”.
 ///
 /// [`Increasing`]: BracketStrategy::Increasing
 /// [`Decreasing`]: BracketStrategy::Decreasing
