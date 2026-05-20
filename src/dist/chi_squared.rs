@@ -45,6 +45,9 @@ pub enum ChiSquaredError {
     /// The argument *x* was not strictly positive.
     #[error("argument x must be positive, got {0}")]
     XNotPositive(f64),
+    /// The argument *x* was not finite.
+    #[error("argument x must be finite, got {0}")]
+    XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -98,6 +101,9 @@ impl ChiSquared {
     #[inline]
     pub fn solve_df(p: f64, x: f64) -> Result<f64, ChiSquaredError> {
         check_prob(p)?;
+        if !x.is_finite() {
+            return Err(ChiSquaredError::XNotFinite(x));
+        }
         if x <= 0.0 {
             return Err(ChiSquaredError::XNotPositive(x));
         }
@@ -161,6 +167,9 @@ impl ContinuousCdf for ChiSquared {
         if p == 0.0 {
             return Ok(0.0);
         }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
         let df = self.df;
         // F(x; df) = P(df/2, x/2) is strictly increasing in x.
         let f = |x: f64| {
@@ -183,6 +192,9 @@ impl ContinuousCdf for ChiSquared {
         check_prob(q)?;
         if q == 1.0 {
             return Ok(0.0);
+        }
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
         }
         let df = self.df;
         // sf(x; df) = Q(df/2, x/2) is decreasing in x; solve directly.

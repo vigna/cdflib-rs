@@ -192,6 +192,9 @@ impl DiscreteCdf for NegativeBinomial {
         if p == 0.0 {
             return Ok(0);
         }
+        if p == 1.0 {
+            return Ok(u64::MAX);
+        }
         let pr = self.pr;
         let r = self.r as f64;
         // Smallest s with cdf(s) >= p; bracket then bisect.

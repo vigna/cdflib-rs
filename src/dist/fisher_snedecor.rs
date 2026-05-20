@@ -263,6 +263,9 @@ impl ContinuousCdf for FisherSnedecor {
         if p == 0.0 {
             return Ok(0.0);
         }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
         let dfn = self.dfn;
         let dfd = self.dfd;
         let func = |x: f64| cumf(x, dfn, dfd).0 - p;
@@ -282,6 +285,9 @@ impl ContinuousCdf for FisherSnedecor {
         check_prob(q)?;
         if q == 1.0 {
             return Ok(0.0);
+        }
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
         }
         let dfn = self.dfn;
         let dfd = self.dfd;

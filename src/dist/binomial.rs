@@ -210,6 +210,9 @@ impl DiscreteCdf for Binomial {
         if p == 0.0 {
             return Ok(0);
         }
+        if p == 1.0 {
+            return Ok(self.n);
+        }
         let mut lo = 0u64;
         let mut hi = self.n;
         while lo < hi {

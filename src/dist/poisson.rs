@@ -160,6 +160,9 @@ impl DiscreteCdf for Poisson {
         if p == 0.0 {
             return Ok(0);
         }
+        if p == 1.0 {
+            return Ok(u64::MAX);
+        }
         // Bracket then bisection on integers; the CDF is monotone increasing in s.
         // Start with mean ± 5σ.
         let mean = self.lambda;

@@ -285,6 +285,9 @@ pub enum GammaDomainError {
 /// [`try_gamma`]: crate::special::try_gamma
 #[inline]
 pub fn gamma(a: f64) -> f64 {
+    if a.is_nan() {
+        return f64::NAN;
+    }
     try_gamma(a).unwrap_or_else(|e| panic!("gamma({a}): {e}"))
 }
 
@@ -504,6 +507,9 @@ pub enum PsiError {
 /// [`try_psi`]: crate::special::try_psi
 #[inline]
 pub fn psi(xx: f64) -> f64 {
+    if xx.is_nan() {
+        return f64::NAN;
+    }
     try_psi(xx).unwrap_or_else(|e| panic!("psi({xx}): {e}"))
 }
 
@@ -828,6 +834,9 @@ pub enum GammaIncError {
 /// [`try_gamma_inc`]: crate::special::try_gamma_inc
 #[inline]
 pub fn gamma_inc(a: f64, x: f64) -> (f64, f64) {
+    if a.is_nan() || x.is_nan() {
+        return (f64::NAN, f64::NAN);
+    }
     try_gamma_inc(a, x).unwrap_or_else(|e| panic!("gamma_inc({a}, {x}): {e}"))
 }
 
@@ -1490,6 +1499,9 @@ pub enum GammaIncInvError {
 /// [`try_gamma_inc_inv`]: crate::special::try_gamma_inc_inv
 #[inline]
 pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> f64 {
+    if a.is_nan() || x0.is_nan() || p.is_nan() || q.is_nan() {
+        return f64::NAN;
+    }
     try_gamma_inc_inv(a, x0, p, q)
         .unwrap_or_else(|e| panic!("gamma_inc_inv(a={a}, x0={x0}, p={p}, q={q}): {e}"))
 }

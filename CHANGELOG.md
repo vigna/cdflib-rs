@@ -20,6 +20,10 @@
 
 - `distribution` module was renamed `dist`.
 
+## Fixed
+
+- Fixed erratic behavior at endpoints 0 and 1.
+
 ## [0.3.1] - 2026-05-20
 
 ### Fixed

@@ -40,10 +40,16 @@ pub trait ContinuousCdf {
 
     /// Returns the smallest *x* such that [cdf]\(*x*\) ≥ *p*, for *p* ∈ [0 . . 1].
     ///
+    /// At *p* = 0 returns the infimum of support, at *p* = 1 the supremum
+    /// (either may be infinite).
+    ///
     /// [cdf]: ContinuousCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<f64, Self::Error>;
 
     /// Returns the largest *x* such that [sf]\(*x*\) ≥ *q*, for *q* ∈ [0 . . 1].
+    ///
+    /// At *q* = 0 returns the supremum of support, at *q* = 1 the infimum
+    /// (either may be infinite).
     ///
     /// [sf]: ContinuousCdf::sf
     fn inverse_sf(&self, q: f64) -> Result<f64, Self::Error>;
@@ -80,6 +86,9 @@ pub trait DiscreteCdf {
     fn sf(&self, x: u64) -> f64;
 
     /// Returns the smallest integer *x* such that [cdf]\(*x*\) ≥ *p*.
+    /// At *p* = 0 returns 0; at *p* = 1 returns the supremum of support
+    /// (the upper bound for distributions with finite support, [`u64::MAX`]
+    /// for the unbounded ones).
     ///
     /// [cdf]: DiscreteCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;

@@ -60,6 +60,9 @@ pub enum GammaError {
     /// The argument *x* was not strictly positive.
     #[error("argument x must be positive, got {0}")]
     XNotPositive(f64),
+    /// The argument *x* was not finite.
+    #[error("argument x must be finite, got {0}")]
+    XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -135,8 +138,14 @@ impl Gamma {
     #[inline]
     pub fn solve_shape(p: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
         check_prob(p)?;
+        if !x.is_finite() {
+            return Err(GammaError::XNotFinite(x));
+        }
         if x <= 0.0 {
             return Err(GammaError::XNotPositive(x));
+        }
+        if !rate.is_finite() {
+            return Err(GammaError::RateNotFinite(rate));
         }
         if rate <= 0.0 {
             return Err(GammaError::RateNotPositive(rate));
@@ -171,8 +180,14 @@ impl Gamma {
     #[inline]
     pub fn solve_rate(p: f64, x: f64, shape: f64) -> Result<f64, GammaError> {
         check_prob(p)?;
+        if !x.is_finite() {
+            return Err(GammaError::XNotFinite(x));
+        }
         if x <= 0.0 {
             return Err(GammaError::XNotPositive(x));
+        }
+        if !shape.is_finite() {
+            return Err(GammaError::ShapeNotFinite(shape));
         }
         if shape <= 0.0 {
             return Err(GammaError::ShapeNotPositive(shape));
@@ -219,6 +234,9 @@ impl ContinuousCdf for Gamma {
         if p == 0.0 {
             return Ok(0.0);
         }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
         // cdfgam's which=2 calls gamma_inc_inv directly: solve
         // P(shape, xx) = p for xx, then divide out the rate.
         let q = 1.0 - p;
@@ -231,6 +249,9 @@ impl ContinuousCdf for Gamma {
         check_prob(q)?;
         if q == 1.0 {
             return Ok(0.0);
+        }
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
         }
         // Same closed-form inversion as inverse_cdf, expressed in the
         // upper-tail direction so a tiny q keeps its precision.

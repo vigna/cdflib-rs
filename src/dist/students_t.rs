@@ -40,6 +40,9 @@ pub enum StudentsTError {
     /// The degrees of freedom *df* was not finite.
     #[error("degrees of freedom must be finite, got {0}")]
     DfNotFinite(f64),
+    /// The argument *t* was not finite.
+    #[error("argument t must be finite, got {0}")]
+    TNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -93,6 +96,9 @@ impl StudentsT {
     #[inline]
     pub fn solve_df(p: f64, t: f64) -> Result<f64, StudentsTError> {
         check_prob(p)?;
+        if !t.is_finite() {
+            return Err(StudentsTError::TNotFinite(t));
+        }
         let q_target = 1.0 - p;
         // Mirror cdft's cum-p if p<=q else ccum-q precision pivot.
         let f = |df: f64| {
@@ -181,6 +187,12 @@ impl ContinuousCdf for StudentsT {
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, StudentsTError> {
         check_prob(p)?;
+        if p == 0.0 {
+            return Ok(f64::NEG_INFINITY);
+        }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
         if p == 0.5 {
             return Ok(0.0);
         }
@@ -205,6 +217,12 @@ impl ContinuousCdf for StudentsT {
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, StudentsTError> {
         check_prob(q)?;
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
+        }
+        if q == 1.0 {
+            return Ok(f64::NEG_INFINITY);
+        }
         if q == 0.5 {
             return Ok(0.0);
         }

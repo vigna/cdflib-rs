@@ -54,6 +54,12 @@ pub enum ChiSquaredNoncentralError {
     /// The noncentrality parameter *λ* was not finite.
     #[error("noncentrality parameter must be finite, got {0}")]
     NcpNotFinite(f64),
+    /// The argument *x* was not strictly positive.
+    #[error("argument x must be positive, got {0}")]
+    XNotPositive(f64),
+    /// The argument *x* was not finite.
+    #[error("argument x must be finite, got {0}")]
+    XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -123,6 +129,18 @@ impl ChiSquaredNoncentral {
     #[inline]
     pub fn solve_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_prob(p)?;
+        if !x.is_finite() {
+            return Err(ChiSquaredNoncentralError::XNotFinite(x));
+        }
+        if x <= 0.0 {
+            return Err(ChiSquaredNoncentralError::XNotPositive(x));
+        }
+        if !ncp.is_finite() {
+            return Err(ChiSquaredNoncentralError::NcpNotFinite(ncp));
+        }
+        if ncp < 0.0 {
+            return Err(ChiSquaredNoncentralError::NcpNegative(ncp));
+        }
         let f = |df: f64| cumchn(x, df, ncp).0 - p;
         // Match cdfchn's which=3: bracket (zero, inf), start = 5.0, atol = 1e-50.
         Ok(solve_monotone_with_atol(
@@ -143,6 +161,18 @@ impl ChiSquaredNoncentral {
     #[inline]
     pub fn solve_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_prob(p)?;
+        if !x.is_finite() {
+            return Err(ChiSquaredNoncentralError::XNotFinite(x));
+        }
+        if x <= 0.0 {
+            return Err(ChiSquaredNoncentralError::XNotPositive(x));
+        }
+        if !df.is_finite() {
+            return Err(ChiSquaredNoncentralError::DfNotFinite(df));
+        }
+        if df <= 0.0 {
+            return Err(ChiSquaredNoncentralError::DfNotPositive(df));
+        }
         let f = |ncp: f64| cumchn(x, df, ncp).0 - p;
         // CDF is decreasing in ncp (shift right). Upper bound 1e4
         // matches CDFLIB's hard cap; cumchn's iteration cost grows
@@ -171,6 +201,9 @@ fn check_prob(p: f64) -> Result<(), ChiSquaredNoncentralError> {
 
 /// `cumchn`: noncentral χ² CDF and SF.
 fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
+    if x.is_nan() || df.is_nan() || pnonc.is_nan() {
+        return (f64::NAN, f64::NAN);
+    }
     if x <= 0.0 {
         return (0.0, 1.0);
     }
@@ -266,6 +299,9 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         if p == 0.0 {
             return Ok(0.0);
         }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
         let df = self.df;
         let ncp = self.ncp;
         let f = |x: f64| cumchn(x, df, ncp).0 - p;
@@ -285,6 +321,9 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         check_prob(q)?;
         if q == 1.0 {
             return Ok(0.0);
+        }
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
         }
         let df = self.df;
         let ncp = self.ncp;

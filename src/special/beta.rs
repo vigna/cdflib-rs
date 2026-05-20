@@ -1002,6 +1002,9 @@ pub enum BetaIncError {
 /// [`try_beta_inc`]: crate::special::try_beta_inc
 #[inline]
 pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
+    if a.is_nan() || b.is_nan() || x.is_nan() || y.is_nan() {
+        return (f64::NAN, f64::NAN);
+    }
     try_beta_inc(a, b, x, y).unwrap_or_else(|e| panic!("beta_inc({a}, {b}, {x}, {y}): {e}"))
 }
 

@@ -78,6 +78,12 @@ pub enum FisherSnedecorNoncentralError {
     /// The noncentrality parameter *λ* was not finite.
     #[error("noncentrality parameter must be finite, got {0}")]
     NcpNotFinite(f64),
+    /// The argument *f* was not strictly positive.
+    #[error("f must be positive, got {0}")]
+    FNotPositive(f64),
+    /// The argument *f* was not finite.
+    #[error("f must be finite, got {0}")]
+    FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -159,6 +165,24 @@ impl FisherSnedecorNoncentral {
         ncp: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
+        if !f.is_finite() {
+            return Err(FisherSnedecorNoncentralError::FNotFinite(f));
+        }
+        if f <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::FNotPositive(f));
+        }
+        if !dfd.is_finite() {
+            return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
+        }
+        if dfd < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfdLessThanOne(dfd));
+        }
+        if !ncp.is_finite() {
+            return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
+        }
+        if ncp < 0.0 {
+            return Err(FisherSnedecorNoncentralError::NcpNegative(ncp));
+        }
         let func = |dfn: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // Match cdffnc's which=3: bracket (1.0, inf) with inf = 1.0D+30
         // (Fortran cdflib.f90 L4460 + L4619: cdffnc caps inf at 1e30 and
@@ -185,6 +209,24 @@ impl FisherSnedecorNoncentral {
         ncp: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
+        if !f.is_finite() {
+            return Err(FisherSnedecorNoncentralError::FNotFinite(f));
+        }
+        if f <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::FNotPositive(f));
+        }
+        if !dfn.is_finite() {
+            return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
+        }
+        if dfn < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfnLessThanOne(dfn));
+        }
+        if !ncp.is_finite() {
+            return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
+        }
+        if ncp < 0.0 {
+            return Err(FisherSnedecorNoncentralError::NcpNegative(ncp));
+        }
         let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // CDF is increasing in dfd for fixed f, dfn, ncp.
         // Match cdffnc's which=4: bracket (1.0, inf) with inf = 1.0D+30
@@ -210,6 +252,24 @@ impl FisherSnedecorNoncentral {
         dfd: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_prob(p)?;
+        if !f.is_finite() {
+            return Err(FisherSnedecorNoncentralError::FNotFinite(f));
+        }
+        if f <= 0.0 {
+            return Err(FisherSnedecorNoncentralError::FNotPositive(f));
+        }
+        if !dfn.is_finite() {
+            return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
+        }
+        if dfn < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfnLessThanOne(dfn));
+        }
+        if !dfd.is_finite() {
+            return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
+        }
+        if dfd < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfdLessThanOne(dfd));
+        }
         let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // Upper bound 1e4 matches CDFLIB's hard cap; larger bounds (e.g.
         // 1e300) overflow inside cumfnc's function evaluations.
@@ -235,6 +295,9 @@ fn check_prob(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
 
 /// `cumfnc`: noncentral *F* CDF.
 fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
+    if f.is_nan() || dfn.is_nan() || dfd.is_nan() || pnonc.is_nan() {
+        return (f64::NAN, f64::NAN);
+    }
     if f <= 0.0 {
         return (0.0, 1.0);
     }
@@ -343,6 +406,9 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         if p == 0.0 {
             return Ok(0.0);
         }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
         let dfn = self.dfn;
         let dfd = self.dfd;
         let ncp = self.ncp;
@@ -364,6 +430,9 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         check_prob(q)?;
         if q == 1.0 {
             return Ok(0.0);
+        }
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
         }
         let dfn = self.dfn;
         let dfd = self.dfd;

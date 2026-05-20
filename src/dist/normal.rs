@@ -43,6 +43,9 @@ pub enum NormalError {
     /// The standard deviation *σ* was not finite.
     #[error("standard deviation must be finite, got {0}")]
     SdNotFinite(f64),
+    /// The argument *x* was not finite.
+    #[error("argument x must be finite, got {0}")]
+    XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -116,6 +119,9 @@ impl Normal {
     #[inline]
     pub fn solve_mean(p: f64, x: f64, sd: f64) -> Result<f64, NormalError> {
         check_prob(p)?;
+        if !x.is_finite() {
+            return Err(NormalError::XNotFinite(x));
+        }
         if !sd.is_finite() {
             return Err(NormalError::SdNotFinite(sd));
         }
@@ -138,6 +144,9 @@ impl Normal {
     #[inline]
     pub fn solve_sd(p: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
         check_prob(p)?;
+        if !x.is_finite() {
+            return Err(NormalError::XNotFinite(x));
+        }
         if !mean.is_finite() {
             return Err(NormalError::MeanNotFinite(mean));
         }
@@ -190,6 +199,12 @@ impl ContinuousCdf for Normal {
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
         check_prob(p)?;
+        if p == 0.0 {
+            return Ok(f64::NEG_INFINITY);
+        }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
         let q = 1.0 - p;
         let z = dinvnr(p, q);
         Ok(self.mean + self.sd * z)
@@ -207,6 +222,12 @@ impl ContinuousCdf for Normal {
     #[inline]
     fn inverse_sf(&self, q: f64) -> Result<f64, NormalError> {
         check_prob(q)?;
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
+        }
+        if q == 1.0 {
+            return Ok(f64::NEG_INFINITY);
+        }
         let p = 1.0 - q;
         let z = dinvnr(p, q);
         Ok(self.mean + self.sd * z)
