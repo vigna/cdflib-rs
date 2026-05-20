@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 
 use thiserror::Error;
 
-use super::must_beta_inc;
+use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::{dt1, gamma_log, psi};
@@ -130,7 +130,7 @@ fn cumt(t: f64, df: f64) -> (f64, f64) {
     let xx = df / dfptt;
     let yy = tt / dfptt;
     // beta_inc returns (P, Q) where P = I_xx(df/2, 0.5).
-    let (a, oma) = must_beta_inc(df / 2.0, 0.5, xx, yy);
+    let (a, oma) = beta_inc(df / 2.0, 0.5, xx, yy);
     if t <= 0.0 {
         let cum = 0.5 * a;
         (cum, oma + cum)

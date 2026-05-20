@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_gamma_inc;
+use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone_with_atol};
 use crate::special::gamma_log;
@@ -138,7 +138,7 @@ fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
         return (0.0, 1.0);
     }
     if pnonc <= 1e-10 {
-        let (p, q) = must_gamma_inc(df / 2.0, x / 2.0);
+        let (p, q) = gamma_inc(df / 2.0, x / 2.0);
         return (p, q);
     }
 
@@ -156,7 +156,7 @@ fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     let centwt = lcntwt.exp();
 
     let dg = |i: i32| df + 2.0 * (i as f64);
-    let (pcent, _) = must_gamma_inc(dg(icent) / 2.0, chid2);
+    let (pcent, _) = gamma_inc(dg(icent) / 2.0, chid2);
 
     let dfd2 = dg(icent) / 2.0;
     let lfact = gamma_log(1.0 + dfd2);

@@ -160,10 +160,22 @@ The kernels are public for users who want the numerics without a distribution wr
 ```rust
 use cdflib::special::{cumnor, error_f, gamma_inc};
 
-let (p, q)      = gamma_inc(2.5, 1.7)?;  // (0.3614, 0.6386) = (P(2.5,1.7), Q(2.5,1.7))
+let (p, q)      = gamma_inc(2.5, 1.7);   // (0.3614, 0.6386) = (P(2.5,1.7), Q(2.5,1.7))
 let e           = error_f(0.8);          // 0.7421
 let (phi, sphi) = cumnor(1.96);          // (0.9750, 0.0250) = (Φ(1.96), 1 - Φ(1.96))
-# Ok::<(), cdflib::special::GammaIncError>(())
+# let _ = (p, q, e, phi, sphi);
+```
+
+Every special function with possible failure modes also has a `try_*` form
+that returns a typed error instead of panicking:
+
+```rust
+use cdflib::special::{try_gamma_inc, GammaIncError};
+
+let (p, q) = try_gamma_inc(2.5, 1.7)?;
+assert!(matches!(try_gamma_inc(-1.0, 1.0), Err(GammaIncError::ANegative(_))));
+# let _ = (p, q);
+# Ok::<(), GammaIncError>(())
 ```
 
 ### Beautiful names
@@ -187,26 +199,30 @@ The port is semantically faithful: every algorithmic decision, polynomial
 coefficient, branch threshold, and truncation depth matches `cdflib.f90` to the
 digit. The intentional structural divergences are:
 
-- The Fortran routine `gamma_user` is exposed under the Rust name [`gamma`].
-  The Fortran name encodes a Fortran-2008 workaround (the language added a
-  `gamma` intrinsic, so the bundled CDFLIB routine had to be renamed to
-  avoid the collision). Rust has no such conflict, so the routine takes the
-  bare family name, mirroring how [`beta`] is the bare-name principal
-  function of the Β family.
-- `error_fc(ind, x)` (which multiplexes plain and exponentially-scaled
-  output via an integer flag) is split into two Rust functions, [`error_fc`]
-  and [`error_fc_scaled`]. Same numerics, no flag argument.
+- There is no silent error returned as a special value, or errors returned as an
+  integer index. All functions returning errors have a `try_` prefix and return
+  a `Result` with a documented error type. The error types are designed to be as
+  specific as possible about the nature of the error.
+- All functions with a `try_` prefix have an infallible variant that panics on
+  errors, and is documented as such.
+- The Fortran routine `gamma_user` is exposed under the Rust name [`gamma`]. The
+  Fortran name encodes a Fortran-2008 workaround (the language added a `gamma`
+  intrinsic, so the bundled CDFLIB routine had to be renamed to avoid the
+  collision). Rust has no such conflict, so the routine takes the bare family
+  name, mirroring how [`beta`] is the bare-name principal function of the Β
+  family.
+- `error_fc(ind, x)` (which multiplexes plain and exponentially-scaled output
+  via an integer flag) is split into two Rust functions, [`error_fc`] and
+  [`error_fc_scaled`]. Same numerics, no flag argument.
 - The Fortran `cum*` and `cdf*` dispatcher families are folded into the
   corresponding distribution module's `cdf` / `sf` / `inverse_cdf` /
   `inverse_sf` / `solve_*` methods rather than exposed as bare functions.
-- `dinvr` and `dzror` (the reverse-communication root finders) live as
-  internal state machines in `crate::solver`. They are not part of the
-  public surface.
+- `dinvr` and `dzror` (the reverse-communication root finders) live as internal
+  state machines in `crate::solver`. They are not part of the public surface.
 - The solver setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
-  `rel_tol`) that the Fortran `cdf*` routines declare locally are
-  centralized in `src/solver/mod.rs`; the one routine that needs a
-  different absolute tolerance (`cdfchn`) uses an explicit
-  `solve_monotone_with_atol` call.
+  `rel_tol`) that the Fortran `cdf*` routines declare locally are centralized in
+  `src/solver/mod.rs`; the one routine that needs a different absolute tolerance
+  (`cdfchn`) uses an explicit `solve_monotone_with_atol` call.
 
 The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing

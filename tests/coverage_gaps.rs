@@ -13,7 +13,8 @@ use cdflib::special::internal::{
     apser, beta_grat, beta_rcomp, beta_rcomp1, beta_up, fpser, gam1, gamma_rat1, rcomp, rexp,
 };
 use cdflib::special::{
-    GammaIncError, GammaIncInvError, beta_inc, gamma_inc, gamma_inc_inv, gamma_log, gamma, psi,
+    GammaIncError, GammaIncInvError, beta_inc, gamma, gamma_inc, gamma_inc_inv, gamma_log, psi,
+    try_gamma_inc, try_gamma_inc_inv,
 };
 use cdflib::{ContinuousCdf, DiscreteCdf, FisherSnedecorNoncentral, NegativeBinomial, Poisson};
 
@@ -50,36 +51,35 @@ fn gam1_above_one_and_negative() {
 
 #[test]
 fn gamma_negative_argument_and_overflow_paths() {
+    use cdflib::special::{GammaError, try_gamma};
+
     // |a| ≥ 15 reflection branch with t > 0.9. Γ(-15.95) routes through
     // `t = 0.95` → `t = 1 - 0.95 = 0.05`.
     let g_307 = gamma(-15.95);
     assert!(g_307.is_finite() && g_307 != 0.0, "g_307 = {g_307}");
 
-    // Reflection at a negative integer with |a| ≥ 15: sin(πt) = 0 → return 0.
-    assert_eq!(gamma(-20.0), 0.0);
-    assert_eq!(gamma(-25.0), 0.0);
+    // Reflection at a negative integer with |a| ≥ 15: sin(πt) = 0 → pole.
+    assert_eq!(try_gamma(-20.0), Err(GammaError::Pole(-20.0)));
+    assert_eq!(try_gamma(-25.0), Err(GammaError::Pole(-25.0)));
 
-    // Same sentinel via |a| < 15.
-    let g_neg_int = gamma(-2.0);
-    assert_eq!(g_neg_int, 0.0);
-    let g_neg_int2 = gamma(-5.0);
-    assert_eq!(g_neg_int2, 0.0);
+    // Same pole via the |a| < 15 branch.
+    assert_eq!(try_gamma(-2.0), Err(GammaError::Pole(-2.0)));
+    assert_eq!(try_gamma(-5.0), Err(GammaError::Pole(-5.0)));
 
     // Reflection-branch overflow: g exceeds POS_EXPARG for a far enough
-    // negative non-integer, triggering the early-0 return.
-    let g_overflow = gamma(-200.7);
-    assert_eq!(g_overflow, 0.0);
+    // negative non-integer.
+    assert_eq!(try_gamma(-200.7), Err(GammaError::Overflow(-200.7)));
 
     // Large positive overflow: a ≥ 15 and g > 0.99999·POS_EXPARG.
-    // Γ(200) is astronomically large; CDFLIB returns 0 by design.
-    let g_pos_overflow = gamma(200.0);
-    assert_eq!(g_pos_overflow, 0.0);
+    assert_eq!(try_gamma(200.0), Err(GammaError::Overflow(200.0)));
 }
 
 #[test]
 fn psi_reflection_and_overflow_branches() {
-    // psi(0) returns 0.
-    assert_eq!(psi(0.0), 0.0);
+    use cdflib::special::{PsiError, try_psi};
+
+    // psi(0) is a pole.
+    assert_eq!(try_psi(0.0), Err(PsiError::Pole(0.0)));
 
     // psi's small-|x| reflection path: aug = -1/x. Use a tiny positive x
     // below xsmall = 1e-9. CDFLIB: psi(x) ≈ -1/x - γ + O(x).
@@ -96,18 +96,25 @@ fn psi_reflection_and_overflow_branches() {
     assert!(p462.is_finite());
 
     // Singularity at a negative integer: z = 0 inside the m+m == n
-    // branch. psi(-2.0) hits this exactly.
-    assert_eq!(psi(-2.0), 0.0);
-    assert_eq!(psi(-3.0), 0.0);
+    // branch. psi(-2.0) hits this exactly — Pole variant.
+    assert_eq!(try_psi(-2.0), Err(PsiError::Pole(-2.0)));
+    assert_eq!(try_psi(-3.0), Err(PsiError::Pole(-3.0)));
 
-    // w ≥ xmax1 branch in psi's reflection: huge negative argument.
-    assert_eq!(psi(-1e20), 0.0);
+    // w ≥ xmax1 branch in psi's reflection: huge negative argument →
+    // Overflow variant.
+    assert_eq!(try_psi(-1e20), Err(PsiError::Overflow(-1e20)));
 
     // x ≥ xmax1 in psi's asymptotic block: huge positive argument
     // bypasses the rational and returns aug + ln(x).
     let big = 1e20_f64;
     let p_big = psi(big);
     assert!((p_big - big.ln()).abs() < 1.0, "psi(1e20) = {p_big}");
+}
+
+#[test]
+#[should_panic(expected = "psi(0): ψ has a pole at 0")]
+fn psi_panics_on_pole() {
+    let _ = psi(0.0);
 }
 
 #[test]
@@ -141,32 +148,31 @@ fn gamma_inc_taylor_qans_negative_branch() {
     // `x < 1.1` along the use_main_form path when the truncation gives
     // a slightly negative Q; with a tiny x and a near 1 the truncated
     // series can dip below zero.
-    let (p, q) = gamma_inc(0.99, 1.0e-8).unwrap();
+    let (p, q) = gamma_inc(0.99, 1.0e-8);
     assert!(p.is_finite() && q.is_finite());
     assert!((p + q - 1.0).abs() < 1e-10);
 }
 
 #[test]
 fn gamma_inc_temme_indeterminate_sentinel() {
-    // Temme L=1 sentinel. Triggers when s ≈ 0 and a · ε² > 3.28e-3,
-    // i.e. when the asymptotic expansion can no longer resolve P vs Q.
-    // Need a > 3.28e-3 / EPS² ≈ 6.6e28.
+    // Tricomi–Temme L=1 sentinel. Triggers when s ≈ 0 and a · ε² > 3.28e-3,
+    // i.e. when the asymptotic expansion can no longer resolve P vs Q. Need a >
+    // 3.28e-3 / EPS² ≈ 6.6e28.
     //
     // For a = x = 1e30, the dispatcher routes to the a ≥ big branch
     // with l = x/a = 1 → s = 0 → enters temme_for_l_eq_1, which hits
     // the sentinel.
     assert!(matches!(
-        gamma_inc(1e30, 1e30),
+        try_gamma_inc(1e30, 1e30),
         Err(GammaIncError::Indeterminate { .. })
     ));
 }
 
 // Several defensive sentinels inside `gamma_inc`'s a ≥ big and
-// Temme-general branches fire only in narrow regimes (`s` in a band of
-// width ~ε·√a, or the truncated Taylor series dipping below zero by a
-// few ULPs). These match defensive code in cdflib.f90 and aren't
-// reached by any fixture row; the Temme L=1 sentinel is the only one
-// exercised above.
+// Tricomi–Temme-general branches fire only in narrow regimes (`s` in a band of
+// width ~ε·√a, or the truncated Taylor series dipping below zero by a few
+// ULPs). These match defensive code in cdflib.f90 and aren't reached by any
+// fixture row; the Tricomi–Temme L=1 sentinel is the only one exercised above.
 
 // ---------- beta.rs ----------
 
@@ -322,11 +328,11 @@ fn beta_inc_fpser_apser_dispatch() {
     // fpser branch in beta_inc's small_branch dispatch. Needs
     // `b0 < eps · min(1, a0)`, i.e. b strictly less than ~1e-15 with a
     // moderate.
-    let (w, w1) = beta_inc(5.0, 1e-17, 0.5, 0.5).unwrap();
+    let (w, w1) = beta_inc(5.0, 1e-17, 0.5, 0.5);
     assert!((w + w1 - 1.0).abs() < 1e-10);
 
     // apser branch. Needs `a0 < eps · min(1, b0)` AND `b0 · x0 ≤ 1`.
-    let (w, w1) = beta_inc(1e-17, 5.0, 0.05, 0.95).unwrap();
+    let (w, w1) = beta_inc(1e-17, 5.0, 0.05, 0.95);
     assert!((w + w1 - 1.0).abs() < 1e-10);
 }
 
@@ -422,7 +428,7 @@ fn gamma_inc_inv_small_a_label_30_early_return() {
     // b = q · gamma(1.5) / 0.5 ≈ 1.8e-29 < 1e-28.
     let q = 1.0e-29;
     let p = 1.0 - q;
-    let r = gamma_inc_inv(0.5, -1.0, p, q).unwrap();
+    let r = gamma_inc_inv(0.5, -1.0, p, q);
     assert!(r.is_finite() && r > 0.0);
 }
 
@@ -431,7 +437,7 @@ fn gamma_inc_inv_amin_early_return() {
     // a ≥ AMIN[iop] = 500 (iop = 0) with d = |1 - xn0/a| ≤ DMIN[iop] = 1e-6.
     // With p = 0.5 the rational s ≈ 0, so xn0 ≈ a + (s²−1)/3 ≈ a − 1/3.
     // d ≈ 1/(3a). a = 1e7 gives d ≈ 3.3e-8 < 1e-6 → early-return.
-    let r = gamma_inc_inv(1.0e7, -1.0, 0.5, 0.5).unwrap();
+    let r = gamma_inc_inv(1.0e7, -1.0, 0.5, 0.5);
     assert!(r.is_finite() && r > 0.0);
     assert!((r - 1.0e7).abs() < 1.0);
 }
@@ -442,7 +448,7 @@ fn gamma_inc_inv_initial_approx_small_b_bq_branch() {
     // small-b path (label 40) takes `qg > 0.6 a`, and on that path
     // `b·q = q·qg/a`. With a = q = 1e-9: qg ≈ 1e-9, 0.6a = 6e-10 < qg,
     // b = 1, b·q = 1e-9 ≤ 1e-8.
-    let r = gamma_inc_inv(1.0e-9, -1.0, 1.0 - 1.0e-9, 1.0e-9);
+    let r = try_gamma_inc_inv(1.0e-9, -1.0, 1.0 - 1.0e-9, 1.0e-9);
     // The routine may legitimately return Ok or a soft-failure error;
     // the only goal here is to drive the code path.
     match r {
@@ -464,7 +470,7 @@ fn gamma_inc_inv_schroder_p_subnormal_p() {
     // routes through schroder_p for p ≤ 0.5; we just need p subnormal.
     let p = 1.0e-300;
     let q = 1.0; // 1 - 1e-300 == 1.0 in f64
-    let r = gamma_inc_inv(2.0, 1.0, p, q);
+    let r = try_gamma_inc_inv(2.0, 1.0, p, q);
     assert!(matches!(r, Err(GammaIncInvError::UncertainAccuracy { .. })));
 }
 
@@ -474,7 +480,7 @@ fn gamma_inc_inv_schroder_q_subnormal_q() {
     // x0 > 0 with p > 0.5 routes through schroder_q.
     let q = 1.0e-300;
     let p = 1.0;
-    let r = gamma_inc_inv(2.0, 1.0, p, q);
+    let r = try_gamma_inc_inv(2.0, 1.0, p, q);
     assert!(matches!(r, Err(GammaIncInvError::UncertainAccuracy { .. })));
 }
 
@@ -484,7 +490,7 @@ fn gamma_inc_inv_schroder_p_amax_certify_fail() {
     // amax = 0.4e-10 / EPSILON² ≈ 8.1e21. Pick a = 1e25 and x0 = a.
     // Routes through schroder_p since p < 0.5.
     let a = 1.0e25;
-    let r = gamma_inc_inv(a, a, 0.5, 0.5);
+    let r = try_gamma_inc_inv(a, a, 0.5, 0.5);
     assert!(matches!(r, Err(GammaIncInvError::UncertainAccuracy { .. })));
 }
 
@@ -492,7 +498,7 @@ fn gamma_inc_inv_schroder_p_amax_certify_fail() {
 fn gamma_inc_inv_schroder_q_amax_certify_fail() {
     // Same as above on the q branch (p > 0.5 → schroder_q).
     let a = 1.0e25;
-    let r = gamma_inc_inv(a, a, 0.7, 0.3);
+    let r = try_gamma_inc_inv(a, a, 0.7, 0.3);
     assert!(matches!(r, Err(GammaIncInvError::UncertainAccuracy { .. })));
 }
 
@@ -501,14 +507,14 @@ fn gamma_inc_inv_schroder_p_saturates_to_zero() {
     // gamma_inc(a, x) returns (0, 1) for x deep below the mode when a is
     // moderate. Routes through schroder_p (p ≤ 0.5). pn = 0 trips the
     // soft-failure guard.
-    let r = gamma_inc_inv(10.0, 1.0e-100, 0.1, 0.9);
+    let r = try_gamma_inc_inv(10.0, 1.0e-100, 0.1, 0.9);
     assert!(matches!(r, Err(GammaIncInvError::UncertainAccuracy { .. })));
 }
 
 #[test]
 fn gamma_inc_inv_schroder_q_saturates_to_zero() {
     // Symmetric on the q branch: x deep above the mode → qn = 0.
-    let r = gamma_inc_inv(10.0, 1.0e10, 0.9, 0.1);
+    let r = try_gamma_inc_inv(10.0, 1.0e10, 0.9, 0.1);
     assert!(matches!(r, Err(GammaIncInvError::UncertainAccuracy { .. })));
 }
 
@@ -517,7 +523,7 @@ fn gamma_inc_inv_schroder_p_first_order_negative() {
     // First-order Schröder step with t = (pn − p)/r ≥ 1 ⇒ x = xn·(1−t) ≤ 0.
     // Choose x0 well above the true x: gamma_inc(2, 10) ≈ (0.9995, 5e-4),
     // r ≈ 4.5e-4. For p = 0.01: t ≈ 0.99/4.5e-4 ≈ 2200 ≫ 1.
-    let r = gamma_inc_inv(2.0, 10.0, 0.01, 0.99);
+    let r = try_gamma_inc_inv(2.0, 10.0, 0.01, 0.99);
     assert!(matches!(r, Err(GammaIncInvError::IterationFailed)));
 }
 
@@ -531,6 +537,6 @@ fn gamma_inc_inv_schroder_q_first_order_negative() {
     //
     // Easier route: use p > 0.5 close to 1 so x_true is large, with x0
     // tiny. Then qn ≈ 1 ≫ q, t large positive → x = xn·(1−t) < 0.
-    let r = gamma_inc_inv(2.0, 0.01, 0.99, 0.01);
+    let r = try_gamma_inc_inv(2.0, 0.01, 0.99, 0.01);
     assert!(matches!(r, Err(GammaIncInvError::IterationFailed)));
 }

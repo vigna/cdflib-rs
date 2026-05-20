@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_beta_inc;
+use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_log, psi};
@@ -98,7 +98,7 @@ impl Beta {
         }
         let q_target = 1.0 - p;
         let f = |a: f64| {
-            let (cum, ccum) = must_beta_inc(a, b, x, 1.0 - x);
+            let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
             if p <= q_target {
                 cum - p
             } else {
@@ -130,7 +130,7 @@ impl Beta {
         }
         let q_target = 1.0 - p;
         let f = |b: f64| {
-            let (cum, ccum) = must_beta_inc(a, b, x, 1.0 - x);
+            let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
             if p <= q_target {
                 cum - p
             } else {
@@ -170,7 +170,7 @@ impl ContinuousCdf for Beta {
         if x >= 1.0 {
             return 1.0;
         }
-        let (cum, _) = must_beta_inc(self.a, self.b, x, 1.0 - x);
+        let (cum, _) = beta_inc(self.a, self.b, x, 1.0 - x);
         cum
     }
 
@@ -182,7 +182,7 @@ impl ContinuousCdf for Beta {
         if x >= 1.0 {
             return 0.0;
         }
-        let (_, ccum) = must_beta_inc(self.a, self.b, x, 1.0 - x);
+        let (_, ccum) = beta_inc(self.a, self.b, x, 1.0 - x);
         ccum
     }
 
@@ -198,7 +198,7 @@ impl ContinuousCdf for Beta {
         let a = self.a;
         let b = self.b;
         let f = |x: f64| {
-            let (cum, _) = must_beta_inc(a, b, x, 1.0 - x);
+            let (cum, _) = beta_inc(a, b, x, 1.0 - x);
             cum - p
         };
         Ok(solve_monotone(
@@ -223,7 +223,7 @@ impl ContinuousCdf for Beta {
         let a = self.a;
         let b = self.b;
         let f = |x: f64| {
-            let (_, ccum) = must_beta_inc(a, b, x, 1.0 - x);
+            let (_, ccum) = beta_inc(a, b, x, 1.0 - x);
             ccum - q
         };
         Ok(solve_monotone(

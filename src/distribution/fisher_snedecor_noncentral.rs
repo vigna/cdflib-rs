@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_beta_inc;
+use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, solve_monotone};
 use crate::special::gamma_log;
@@ -200,7 +200,7 @@ fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
         } else {
             yy = 1.0 - xx;
         }
-        let (p, q) = must_beta_inc(0.5 * dfd, 0.5 * dfn, xx, yy);
+        let (p, q) = beta_inc(0.5 * dfd, 0.5 * dfn, xx, yy);
         return (q, p);
     }
 
@@ -223,7 +223,7 @@ fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     } else {
         xx = 1.0 - yy;
     }
-    let (mut betdn, _) = must_beta_inc(0.5 * dfn + icent as f64, 0.5 * dfd, xx, yy);
+    let (mut betdn, _) = beta_inc(0.5 * dfn + icent as f64, 0.5 * dfd, xx, yy);
     let mut adn = dfn / 2.0 + icent as f64;
     let mut aup = adn;
     let b = dfd / 2.0;

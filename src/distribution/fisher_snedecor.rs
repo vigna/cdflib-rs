@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_beta_inc;
+use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{beta_log, psi};
@@ -175,7 +175,7 @@ fn cumf(f: f64, dfn: f64, dfd: f64) -> (f64, f64) {
     }
     // beta_inc returns (P, Q, _). CDFLIB passes (ccum, cum) so the
     // P returned by beta_inc is the CCUM of cumf.
-    let (p, q) = must_beta_inc(0.5 * dfd, 0.5 * dfn, xx, yy);
+    let (p, q) = beta_inc(0.5 * dfd, 0.5 * dfn, xx, yy);
     // ccum = p, cum = q.
     (q, p)
 }

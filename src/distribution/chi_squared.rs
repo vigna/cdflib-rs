@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_gamma_inc;
+use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::{gamma_log, psi};
@@ -93,7 +93,7 @@ impl ChiSquared {
         // Mirror cdfchi's `cum-p if p<=q else ccum-q` precision pivot so
         // the residual stays small near both tails of p.
         let f = |df: f64| {
-            let (cum, ccum) = must_gamma_inc(df / 2.0, x / 2.0);
+            let (cum, ccum) = gamma_inc(df / 2.0, x / 2.0);
             if p <= q_target {
                 cum - p
             } else {
@@ -129,7 +129,7 @@ impl ContinuousCdf for ChiSquared {
         if x <= 0.0 {
             return 0.0;
         }
-        let (p, _q) = must_gamma_inc(self.df / 2.0, x / 2.0);
+        let (p, _q) = gamma_inc(self.df / 2.0, x / 2.0);
         p
     }
 
@@ -138,7 +138,7 @@ impl ContinuousCdf for ChiSquared {
         if x <= 0.0 {
             return 1.0;
         }
-        let (_p, q) = must_gamma_inc(self.df / 2.0, x / 2.0);
+        let (_p, q) = gamma_inc(self.df / 2.0, x / 2.0);
         q
     }
 
@@ -151,7 +151,7 @@ impl ContinuousCdf for ChiSquared {
         let df = self.df;
         // F(x; df) = P(df/2, x/2) is strictly increasing in x.
         let f = |x: f64| {
-            let (cum, _) = must_gamma_inc(df / 2.0, x / 2.0);
+            let (cum, _) = gamma_inc(df / 2.0, x / 2.0);
             cum - p
         };
         // Match cdfchi's which=2: bracket (0, inf), start = 5.0.
@@ -174,7 +174,7 @@ impl ContinuousCdf for ChiSquared {
         let df = self.df;
         // sf(x; df) = Q(df/2, x/2) is decreasing in x; solve directly.
         let f = |x: f64| {
-            let (_, ccum) = must_gamma_inc(df / 2.0, x / 2.0);
+            let (_, ccum) = gamma_inc(df / 2.0, x / 2.0);
             ccum - q
         };
         // Match cdfchi's which=2 setup (same as inverse_cdf); use start = 5.0.

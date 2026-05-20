@@ -38,7 +38,7 @@ pub const KERNEL_REL_TOL: f64 = 5e-13;
 
 /// Iterative or regime-aware kernels (`gamma_inc`, `beta_inc`). These
 /// dispatch across multiple computational regimes (power series,
-/// continued fraction, Temme-style asymptotic expansion); the last few
+/// continued fraction, Tricomi–Temme-style asymptotic expansion); the last few
 /// ULPs can shift between Rust and the committed Fortran fixtures in the
 /// deep tails.
 /// Measured max relative difference on non-tiny outputs stays below

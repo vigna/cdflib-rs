@@ -3,34 +3,31 @@
 //! This module is split into two surfaces.
 //!
 //! The top-level [`cdflib::special`](crate::special) namespace exposes the
-//! user-facing special functions a statistical user is likely to call
-//! directly: [`beta`], [`beta_log`], [`beta_inc`], [`gamma`],
-//! [`gamma_log`], [`gamma_inc`], [`gamma_inc_inv`], [`psi`], [`error_f`],
-//! [`error_fc`], [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`],
-//! and [`dt1`].
+//! user-facing special functions a statistical user is likely to call directly:
+//! [`beta`], [`beta_log`], [`beta_inc`], [`gamma`], [`gamma_log`],
+//! [`gamma_inc`], [`gamma_inc_inv`], [`psi`], [`error_f`], [`error_fc`],
+//! [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`], and [`dt1`].
 //!
-//! The companion [`internal`] submodule exposes
-//! the CDFLIB-style helper routines used inside the kernels above
-//! (`algdiv`, `bcorr`, `gam1`, `rlog`, etc.). They are public so users
-//! porting C/Fortran code that calls these directly can find each
-//! routine under its CDFLIB name, but they are not part of the
-//! user-facing statistical API.
+//! The companion [`internal`] submodule exposes the CDFLIB-style helper
+//! routines used inside the kernels above (`algdiv`, `bcorr`, `gam1`, `rlog`,
+//! etc.). They are public so users porting C/Fortran code that calls these
+//! directly can find each routine under its CDFLIB name, but they are not part
+//! of the user-facing statistical API.
 //!
 //! The two-output (cum, ccum) convention from CDFLIB is preserved on the
-//! routines that drive distribution tail accuracy: [`cumnor`],
-//! [`gamma_inc`], and [`beta_inc`]. Returning both tail probabilities
-//! directly is essential to the library's tail accuracy.
+//! routines that drive distribution tail accuracy: [`cumnor`], [`gamma_inc`],
+//! and [`beta_inc`]. Returning both tail probabilities directly is essential to
+//! the library's tail accuracy.
 //!
 //! CDFLIB's other `cum*` helpers (`cumbet`, `cumbin`, `cumchi`, `cumchn`,
-//! `cumf`, `cumfnc`, `cumgam`, `cumnbn`, `cumpoi`, `cumt`) are folded
-//! into the corresponding distribution modules and are not exposed here;
-//! if you want their behavior, use the distribution's `cdf` / `sf`
-//! methods.
+//! `cumf`, `cumfnc`, `cumgam`, `cumnbn`, `cumpoi`, `cumt`) are folded into the
+//! corresponding distribution modules and are not exposed here; if you want
+//! their behavior, use the distribution's [`cdf`] / [`sf`] methods.
 //!
 //! [`beta`]: crate::special::beta()
 //! [`beta_log`]: crate::special::beta_log
 //! [`beta_inc`]: crate::special::beta_inc
-//! [`gamma`]: crate::special::gamma
+//! [`gamma`]: crate::special::gamma()
 //! [`gamma_log`]: crate::special::gamma_log
 //! [`gamma_inc`]: crate::special::gamma_inc
 //! [`gamma_inc_inv`]: crate::special::gamma_inc_inv
@@ -42,6 +39,8 @@
 //! [`dinvnr`]: crate::special::dinvnr
 //! [`dlanor`]: crate::special::dlanor
 //! [`dt1`]: crate::special::dt1
+//! [`cdf`]: crate::traits::ContinuousCdf::cdf
+//! [`sf`]: crate::traits::ContinuousCdf::sf
 
 pub(crate) mod beta;
 pub(crate) mod erf;
@@ -61,10 +60,11 @@ pub(crate) fn eval_pol(c: &[f64], x: f64) -> f64 {
     acc
 }
 
-pub use beta::{BetaIncError, beta, beta_inc, beta_log};
+pub use beta::{BetaIncError, beta, beta_inc, beta_log, try_beta_inc};
 pub use erf::{error_f, error_fc, error_fc_scaled};
 pub use gamma::{
-    GammaIncError, GammaIncInvError, gamma_inc, gamma_inc_inv, gamma_log, gamma, psi,
+    GammaError, GammaIncError, GammaIncInvError, PsiError, gamma, gamma_inc, gamma_inc_inv,
+    gamma_log, psi, try_gamma, try_gamma_inc, try_gamma_inc_inv, try_psi,
 };
 pub use normal::{cumnor, dinvnr, dlanor};
 pub use students_t::dt1;

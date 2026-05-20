@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_beta_inc;
+use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::gamma_log;
@@ -99,7 +99,7 @@ impl Binomial {
                 // Degenerate left side: CDF == 1, SF == 0.
                 return if p <= q_target { 1.0 - p } else { -q_target };
             }
-            let (sf_bin, cdf_bin) = must_beta_inc(sf + 1.0, n - sf, pr, 1.0 - pr);
+            let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, n - sf, pr, 1.0 - pr);
             if p <= q_target {
                 cdf_bin - p
             } else {
@@ -129,7 +129,7 @@ impl Binomial {
         let q_target = 1.0 - p;
         // For n, s fixed, Pr[S ≤ s] is decreasing in pr.
         let f = |pr: f64| {
-            let (sf_bin, cdf_bin) = must_beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
+            let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
             if p <= q_target {
                 cdf_bin - p
             } else {
@@ -165,7 +165,7 @@ fn cumbin(s: u64, n: u64, pr: f64) -> (f64, f64) {
     let sf = s as f64;
     let nf = n as f64;
     // cumbet(pr, ompr, s+1, n-s) returns (P, Q); cumbin swaps them.
-    let (p, q) = must_beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
+    let (p, q) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
     (q, p)
 }
 

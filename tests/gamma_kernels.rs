@@ -4,7 +4,7 @@
 
 mod common;
 
-use cdflib::special::{gamma_inc, gamma_log, gamma};
+use cdflib::special::{gamma_log, gamma, gamma_inc};
 use common::{
     DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL, ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
     assert_close_eps, read_csv,
@@ -36,7 +36,7 @@ fn gamma_inc_matches_reference() {
         let [a, x, expected_p, expected_q] = row[..] else {
             panic!("width");
         };
-        let (p, q) = gamma_inc(a, x).unwrap();
+        let (p, q) = gamma_inc(a, x);
         assert_close_eps(
             p,
             expected_p,

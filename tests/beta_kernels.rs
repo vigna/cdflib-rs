@@ -26,7 +26,7 @@ fn beta_inc_matches_reference() {
         let [a, b, x, expected_p, expected_q] = row[..] else {
             panic!("width");
         };
-        let (p, q) = beta_inc(a, b, x, 1.0 - x).unwrap();
+        let (p, q) = beta_inc(a, b, x, 1.0 - x);
         assert_close_eps(
             p,
             expected_p,

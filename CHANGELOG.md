@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.3.0] - 2026-05-20
+
+### Changed
+
+- Major API surface change: fallible functions get `try_` prefix, and
+  infallible variants panic. There are no longer silent errors returned as
+  special values.
+
 ## [0.2.0] - 2026-05-20
 
 ### Changed

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_gamma_inc;
+use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::gamma_log;
@@ -83,7 +83,7 @@ impl Poisson {
         // Mirror cdfpoi's `if p <= q then cum-p else ccum-q` precision
         // pivot so the residual stays small near both tails of p.
         let f = |lambda: f64| {
-            let (sf_upper, cdf) = must_gamma_inc(sf + 1.0, lambda);
+            let (sf_upper, cdf) = gamma_inc(sf + 1.0, lambda);
             if p <= q_target {
                 cdf - p
             } else {
@@ -116,13 +116,13 @@ impl DiscreteCdf for Poisson {
 
     #[inline]
     fn cdf(&self, s: u64) -> f64 {
-        let (_, q) = must_gamma_inc(s as f64 + 1.0, self.lambda);
+        let (_, q) = gamma_inc(s as f64 + 1.0, self.lambda);
         q
     }
 
     #[inline]
     fn sf(&self, s: u64) -> f64 {
-        let (p, _) = must_gamma_inc(s as f64 + 1.0, self.lambda);
+        let (p, _) = gamma_inc(s as f64 + 1.0, self.lambda);
         p
     }
 

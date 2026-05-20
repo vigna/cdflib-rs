@@ -1,17 +1,16 @@
 //! Γ function family: ln Γ, Γ, regularized incomplete Γ ratios
 //! *P*(*a*, *x*) and *Q*(*a*, *x*).
 //!
-//! ## Why [`gamma_inc`] is regime-aware
-//!
-//! [`gamma_inc`] dispatches across five computational regimes selected by
-//! the location of (*a*, *x*) in parameter space:
+//! This implementations dispatches across five computational regimes:
 //!
 //! - **Power series** for small *a*, *x*.
+//!
 //! - **Continued fraction** in the body when *x* > *a* is moderate.
-//! - **Tricomi–Temmes's asymptotic expansion** for large *a* (the `D0..D6`
-//!   coefficient tables). This is the regime where textbook
-//!   continued-fraction implementations stall.
+//!
+//! - **Tricomi–Temmes asymptotic expansion** for large *a*.
+//!
 //! - **Finite sum** when *a* ≥ 1 and 2*a* is an integer.
+//!
 //! - **Special cases** for *a* = 1/2 (reduces to [`error_f`] / [`error_fc`])
 //!   and for *a*·*x* = 0.
 //!
@@ -248,7 +247,31 @@ pub fn gam1(a: f64) -> f64 {
 // Γ(a): the Γ function itself
 // =====================================================================
 
-/// Returns Γ(*a*), the Γ function. Yields 0 on overflow.
+/// Errors of [`try_gamma`].
+///
+/// In CDFLIB these were signalled by returning the sentinel `0.0` (the
+/// `gamma_user` body initializes the result to 0 and falls through on
+/// every overflow/pole path). Here each failure mode is lifted into a
+/// typed Rust error.
+///
+/// [`try_gamma`]: crate::special::try_gamma
+#[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
+pub enum GammaError {
+    /// Argument is zero or a negative integer; Γ has a pole there.
+    #[error("Γ has a pole at {0}")]
+    Pole(f64),
+    /// Result would overflow f64 (|*a*| ≥ 1000, or the asymptotic
+    /// `exp(g)` would overflow).
+    #[error("Γ({0}) overflows f64")]
+    Overflow(f64),
+}
+
+/// Returns Γ(*a*), the Γ function.
+///
+/// # Panics
+///
+/// Panics on a [`GammaError`] (pole at a non-positive integer, or
+/// overflow when |*a*| ≥ 1000). Use [`try_gamma`] for the fallible form.
 ///
 /// # Example
 ///
@@ -258,8 +281,27 @@ pub fn gam1(a: f64) -> f64 {
 /// let y = gamma(3.0);
 /// assert!((y - 2.0).abs() < 1e-14);
 /// ```
+///
+/// [`try_gamma`]: crate::special::try_gamma
 #[inline]
 pub fn gamma(a: f64) -> f64 {
+    try_gamma(a).unwrap_or_else(|e| panic!("gamma({a}): {e}"))
+}
+
+/// Fallible form of [`gamma`]: returns [`GammaError`] when the argument
+/// lands on a pole or the result would overflow f64.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::{try_gamma, GammaError};
+///
+/// assert!(matches!(try_gamma(-3.0), Err(GammaError::Pole(_))));
+/// assert!(matches!(try_gamma(2000.0), Err(GammaError::Overflow(_))));
+/// assert!((try_gamma(3.0).unwrap() - 2.0).abs() < 1e-14);
+/// ```
+#[inline]
+pub fn try_gamma(a: f64) -> Result<f64, GammaError> {
     const D: f64 = 0.41893853320467274178;
     const PI: f64 = 3.1415926535898;
     const P_COEF: [f64; 7] = [
@@ -318,15 +360,16 @@ pub fn gamma(a: f64) -> f64 {
                 x += 0.5 + 0.5;
                 t *= x;
                 if t == 0.0 {
-                    return 0.0;
+                    // a is a non-positive integer (0, -1, -2, …): pole.
+                    return Err(GammaError::Pole(a));
                 }
             }
             // For 1/t overflow check, CDFLIB compares fabs(t)*MAX <= 1.0001.
             if t.abs() < 1e-30 && t.abs() * f64::MAX <= 1.0001 {
-                return 0.0;
+                return Err(GammaError::Overflow(a));
             }
             if t.abs() < 1e-30 {
-                return 1.0 / t;
+                return Ok(1.0 / t);
             }
         }
         // Compute Γ(1 + x) for 0 <= x < 1 via the rational form.
@@ -337,12 +380,12 @@ pub fn gamma(a: f64) -> f64 {
             bot = Q_COEF[i] + x * bot;
         }
         let g = top / bot;
-        return if a < 1.0 { g / t } else { g * t };
+        return Ok(if a < 1.0 { g / t } else { g * t });
     }
 
     // |a| >= 15: asymptotic.
     if a.abs() >= 1e3 {
-        return 0.0;
+        return Err(GammaError::Overflow(a));
     }
     if a < 0.0 {
         let x = -a;
@@ -356,17 +399,18 @@ pub fn gamma(a: f64) -> f64 {
             s = -s;
         }
         if s == 0.0 {
-            return 0.0;
+            // a is a negative integer of magnitude ≥ 15: pole.
+            return Err(GammaError::Pole(a));
         }
         let t = 1.0 / (x * x);
         let g = ((((R1 * t + R2) * t + R3) * t + R4) * t + R5) / x;
         let lnx = x.ln();
         let g = D + g + (x - 0.5) * (lnx - 1.0);
         if g > 0.99999 * POS_EXPARG {
-            return 0.0;
+            return Err(GammaError::Overflow(a));
         }
         let result = g.exp();
-        return 1.0 / (result * s) / x;
+        return Ok(1.0 / (result * s) / x);
     }
     // a >= 15 positive branch
     let t = 1.0 / (a * a);
@@ -374,9 +418,9 @@ pub fn gamma(a: f64) -> f64 {
     let lnx = a.ln();
     let g = D + g + (a - 0.5) * (lnx - 1.0);
     if g > 0.99999 * POS_EXPARG {
-        return 0.0;
+        return Err(GammaError::Overflow(a));
     }
-    g.exp()
+    Ok(g.exp())
 }
 
 /// Returns ln Γ(1 + *a*) for −0.2 ≤ *a* ≤ 1.25.
@@ -419,11 +463,33 @@ pub fn gamma_ln1(a: f64) -> f64 {
     }
 }
 
+/// Errors of [`try_psi`].
+///
+/// In CDFLIB these were signalled by returning the sentinel `0.0`; the
+/// F90 doc header says "PSI is assigned the value 0 when the psi function
+/// is undefined". Here each failure mode is lifted into a typed Rust error.
+///
+/// [`try_psi`]: crate::special::try_psi
+#[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
+pub enum PsiError {
+    /// Argument is zero or a non-positive integer; *ψ* has a pole there.
+    #[error("ψ has a pole at {0}")]
+    Pole(f64),
+    /// Argument is too large in magnitude on the negative side for the
+    /// cotangent reflection to remain accurate; *ψ* effectively
+    /// overflows.
+    #[error("ψ argument {0} is too large in magnitude (overflow)")]
+    Overflow(f64),
+}
+
 /// Returns the digamma function *ψ*(*x*) = d/d*x* ln Γ(*x*).
 ///
 /// Port of `psi` (FUNPACK / Cody–Strecok–Thacher, modified by Morris).
-/// Returns 0 for non-positive integer arguments (CDFLIB's "undefined"
-/// sentinel).
+///
+/// # Panics
+///
+/// Panics on a [`PsiError`] (pole or overflow). Use [`try_psi`] for the
+/// fallible form.
 ///
 /// # Example
 ///
@@ -434,8 +500,26 @@ pub fn gamma_ln1(a: f64) -> f64 {
 /// let y = psi(1.0);
 /// assert!((y + 0.57721566).abs() < 1e-8);
 /// ```
+///
+/// [`try_psi`]: crate::special::try_psi
 #[inline]
 pub fn psi(xx: f64) -> f64 {
+    try_psi(xx).unwrap_or_else(|e| panic!("psi({xx}): {e}"))
+}
+
+/// Fallible form of [`psi`]: returns [`PsiError`] when the argument lands
+/// on a pole or overflows the cotangent reduction.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::{try_psi, PsiError};
+///
+/// assert!(matches!(try_psi(0.0), Err(PsiError::Pole(_))));
+/// assert!((try_psi(1.0).unwrap() + 0.57721566).abs() < 1e-8);
+/// ```
+#[inline]
+pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
     const DX0: f64 = 1.461632144968362341262659542325721325;
     const PIOV4: f64 = 0.785398163397448;
     const P1: [f64; 7] = [
@@ -481,7 +565,7 @@ pub fn psi(xx: f64) -> f64 {
         // Reflection: ψ(1-x) = ψ(x) + π cot(πx).
         if x.abs() <= xsmall {
             if x == 0.0 {
-                return 0.0; // undefined
+                return Err(PsiError::Pole(xx));
             }
             aug = -1.0 / x;
         } else {
@@ -493,7 +577,7 @@ pub fn psi(xx: f64) -> f64 {
                 sgn = -sgn;
             }
             if w >= xmax1 {
-                return 0.0; // undefined / overflow
+                return Err(PsiError::Overflow(xx));
             }
             let mut nq = w as i64;
             w -= nq as f64;
@@ -513,7 +597,7 @@ pub fn psi(xx: f64) -> f64 {
             let m2 = n / 2;
             if m2 + m2 == n {
                 if z == 0.0 {
-                    return 0.0; // singularity
+                    return Err(PsiError::Pole(xx));
                 }
                 aug = sgn * (z.cos() / z.sin() * 4.0);
             } else {
@@ -532,11 +616,11 @@ pub fn psi(xx: f64) -> f64 {
             upper = (upper + P1[i]) * x;
         }
         let den = (upper + P1[6]) / (den + Q1[5]);
-        return den * (x - DX0) + aug;
+        return Ok(den * (x - DX0) + aug);
     }
 
     if x >= xmax1 {
-        return aug + x.ln();
+        return Ok(aug + x.ln());
     }
 
     // 3 < x < xmax1: asymptotic.
@@ -548,7 +632,7 @@ pub fn psi(xx: f64) -> f64 {
         upper = (upper + P2[i]) * w;
     }
     let aug = upper / (den + Q2[3]) - 0.5 / x + aug;
-    aug + x.ln()
+    Ok(aug + x.ln())
 }
 
 /// Returns ln Γ(*a*) for *a* > 0.
@@ -706,15 +790,16 @@ pub enum GammaIncError {
     /// Both *a* and *x* were zero, leaving the result undefined.
     #[error("both a and x are zero")]
     BothZero,
-    /// The deep asymptotic regime where the Temme expansion cannot
+    /// The deep asymptotic regime where the Tricomi–Temme expansion cannot
     /// resolve *P* versus *Q* (triggered when *a* · ε² > 3.28·10⁻³ and
     /// *x* ≈ *a*).
     #[error("indeterminate at a = {a}, x = {x} (deep asymptotic regime)")]
     Indeterminate { a: f64, x: f64 },
 }
 
-/// Returns the regularized incomplete Γ function as (*P*(*a*, *x*), *Q*(*a*, *x*))
-/// with *P* + *Q* = 1 (computed independently, not via subtraction).
+/// Returns the regularized incomplete Γ function as (*P*(*a*, *x*),
+/// *Q*(*a*, *x*)) with *P* + *Q* = 1 (computed independently, not via
+/// subtraction).
 ///
 /// The returned pair (*p*, *q*) is the (lower-tail, upper-tail)
 /// probability, analogous to the (*w*, *w*₁) pair returned by
@@ -724,27 +809,49 @@ pub enum GammaIncError {
 /// Five computational regimes are selected based on the location of
 /// (*a*, *x*) in parameter space.
 ///
-/// [`beta_inc`]: crate::special::beta_inc
+/// # Panics
+///
+/// Panics on a [`GammaIncError`]. Use [`try_gamma_inc`] for the fallible
+/// form.
 ///
 /// # Example
 ///
 /// ```
 /// use cdflib::special::gamma_inc;
 ///
-/// let (p, q) = gamma_inc(2.5, 1.7).unwrap();
+/// let (p, q) = gamma_inc(2.5, 1.7);
 /// assert!((p - 0.36143008).abs() < 1e-8);
 /// assert!((q - 0.63856992).abs() < 1e-8);
 /// ```
 ///
-/// # Errors
-///
-/// Returns [`GammaIncError::ANegative`] or [`GammaIncError::XNegative`]
-/// when either argument is negative, [`GammaIncError::BothZero`] when
-/// both are zero, and [`GammaIncError::Indeterminate`] in the deep
-/// asymptotic regime where the Temme expansion cannot resolve *P* and
-/// *Q*.
+/// [`beta_inc`]: crate::special::beta_inc
+/// [`try_gamma_inc`]: crate::special::try_gamma_inc
 #[inline]
-pub fn gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
+pub fn gamma_inc(a: f64, x: f64) -> (f64, f64) {
+    try_gamma_inc(a, x).unwrap_or_else(|e| panic!("gamma_inc({a}, {x}): {e}"))
+}
+
+/// Fallible form of [`gamma_inc`]: returns [`GammaIncError`] on invalid
+/// input or in the deep asymptotic regime where the Tricomi–Temme expansion
+/// cannot resolve *P* and *Q*.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::{try_gamma_inc, GammaIncError};
+///
+/// let (p, q) = try_gamma_inc(2.5, 1.7).unwrap();
+/// assert!((p - 0.36143008).abs() < 1e-8);
+/// assert!((q - 0.63856992).abs() < 1e-8);
+/// assert!(matches!(
+///     try_gamma_inc(-1.0, 1.0),
+///     Err(GammaIncError::ANegative(_)),
+/// ));
+/// ```
+///
+/// [`GammaIncError`]: crate::special::GammaIncError
+#[inline]
+pub fn try_gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
     if a < 0.0 {
         return Err(GammaIncError::ANegative(a));
     }
@@ -767,9 +874,9 @@ pub fn gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
 /// the indeterminate-result sentinel that the public wrapper lifts into
 /// [`GammaIncError::Indeterminate`].
 fn gamma_inc_core(a: f64, x: f64) -> (f64, f64) {
-    // The Temme coefficient tables D0..D6 live inside the dedicated
-    // helpers (`temme_general`, `temme_for_l_eq_1`); the dispatcher only
-    // needs ALOG10 (the log(10) cutoff between series and continued
+    // The Tricomi–Temme coefficient tables D0..D6 live inside the dedicated
+    // helpers (`temme_general`, `temme_for_l_eq_1`); the dispatcher only needs
+    // ALOG10 (the log(10) cutoff between series and continued
     // fraction) and the regime-selection constants below.
     const ALOG10: f64 = 2.30258509299405;
     const RT2PIN: f64 = 0.398942280401433;
@@ -1036,10 +1143,10 @@ fn finite_q_half_integer(_a: f64, x: f64, i: i64, a_eq_i: bool) -> (f64, f64) {
 }
 
 fn temme_general(a: f64, l: f64, z_in: f64, y: f64, rta: f64, e: f64) -> (f64, f64) {
-    // S270: general Temme expansion (|s| <= 0.4, s = 1 - l).
-    // Indeterminate-sentinel check (cdflib.f90 L10744, cdflib.f L840):
-    // when s ≈ 0 and a is so large that a*ε² > 3.28e-3, the Temme
-    // expansion cannot resolve P/Q reliably. Returns the sentinel 2.0.
+    // S270: general Tricomi–Temme expansion (|s| <= 0.4, s = 1 - l).
+    // Indeterminate-sentinel check (cdflib.f90 L10744, cdflib.f L840): when s ≈
+    // 0 and a is so large that a*ε² > 3.28e-3, the Tricomi–Temme expansion
+    // cannot resolve P/Q reliably. Returns the sentinel 2.0.
     let s = 0.5 + (0.5 - l);
     if s.abs() <= 2.0 * e && 3.28e-3 < a * e * e {
         return (2.0, 0.0);
@@ -1184,7 +1291,7 @@ fn temme_general(a: f64, l: f64, z_in: f64, y: f64, rta: f64, e: f64) -> (f64, f
     let c6 = (D6[1] * z + D6[0]) * z + D60;
     let t = ((((((D70 * u + c6) * u + c5) * u + c4) * u + c3) * u + c2) * u + c1) * u + c0;
 
-    // Temme normalization with the scaled erfc factor.
+    // Tricomi–Temme normalization with the scaled erfc factor.
     if l < 1.0 {
         let ans = c * (w - RT2PIN * t / rta);
         let qans = 0.5 + (0.5 - ans);
@@ -1199,8 +1306,8 @@ fn temme_for_l_eq_1(a: f64, l: f64, z_in: f64, y: f64, e: f64) -> (f64, f64) {
     // S330 / S340 (max-accuracy branch, iop = 1). We use the full
     // c0..c6 + d70 expansion exactly as CDFLIB does for ind = 0; lower
     // accuracy levels (S350, S360) would truncate further.
-    // Indeterminate-sentinel check (cdflib.f90 L10910, cdflib.f L915):
-    // when a*ε² > 3.28e-3, the Temme L=1 expansion cannot resolve P/Q.
+    // Indeterminate-sentinel check (cdflib.f90 L10910, cdflib.f L915): when
+    // a*ε² > 3.28e-3, the Tricomi–Temme L=1 expansion cannot resolve P/Q.
     if 3.28e-3 < a * e * e {
         return (2.0, 0.0);
     }
@@ -1351,17 +1458,61 @@ pub enum GammaIncInvError {
         /// not guaranteed but the value is often usable for warm-starting.
         value: f64,
     },
+    /// The mathematical answer is +∞ (this happens when `q == 0`, i.e.
+    /// `p == 1` exactly: the incomplete-Γ ratio reaches 1 only in the
+    /// limit *x* → +∞).
+    #[error("inverse is +∞ (q = 0 means P(a, x) = 1 only as x → +∞)")]
+    AtInfinity,
 }
 
-/// Returns the inverse of the regularized incomplete Γ function.
+/// Returns the inverse of the regularized incomplete Γ function: *x* such
+/// that *P*(*a*, *x*) = *p* and *Q*(*a*, *x*) = *q*.
 ///
-/// Returns *x* such that *P*(*a*, *x*) = *p* and *Q*(*a*, *x*) = *q*.
 /// Uses Schröder iteration; an asymptotic-series approximation provides
-/// the initial guess (or the caller supplies `x0 > 0`).
+/// the initial guess (or the caller supplies `x0 > 0`). Algorithm by
+/// Alfred Morris.
 ///
-/// Algorithm by Alfred Morris.
+/// # Panics
+///
+/// Panics on a [`GammaIncInvError`]. Use [`try_gamma_inc_inv`] for the
+/// fallible form.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::gamma_inc_inv;
+///
+/// // For a = 2.0, p = 0.5, q = 0.5: the median of Γ(2, 1) is ≈ 1.6783.
+/// let x = gamma_inc_inv(2.0, -1.0, 0.5, 0.5);
+/// assert!((x - 1.6783).abs() < 1e-3);
+/// ```
+///
+/// [`try_gamma_inc_inv`]: crate::special::try_gamma_inc_inv
 #[inline]
-pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIncInvError> {
+pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> f64 {
+    try_gamma_inc_inv(a, x0, p, q)
+        .unwrap_or_else(|e| panic!("gamma_inc_inv(a={a}, x0={x0}, p={p}, q={q}): {e}"))
+}
+
+/// Fallible form of [`gamma_inc_inv`]: returns [`GammaIncInvError`] on
+/// invalid input, iteration failure, or when the answer is +∞.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::{try_gamma_inc_inv, GammaIncInvError};
+///
+/// let x = try_gamma_inc_inv(2.0, -1.0, 0.5, 0.5).unwrap();
+/// assert!((x - 1.6783).abs() < 1e-3);
+/// assert_eq!(
+///     try_gamma_inc_inv(2.0, -1.0, 1.0, 0.0),
+///     Err(GammaIncInvError::AtInfinity),
+/// );
+/// ```
+///
+/// [`GammaIncInvError`]: crate::special::GammaIncInvError
+#[inline]
+pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIncInvError> {
     // Constants from cdflib.f90 L11070+.
     const A0: f64 = 3.31125922108741;
     const A1: f64 = 11.6616720288968;
@@ -1397,7 +1548,7 @@ pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIncInv
         return Ok(0.0);
     }
     if q == 0.0 {
-        return Ok(f64::MAX);
+        return Err(GammaIncInvError::AtInfinity);
     }
     if a == 1.0 {
         return Ok(if q >= 0.9 { -alnrel(-p) } else { -q.ln() });
@@ -1669,7 +1820,7 @@ fn schroder_p(
         }
         iter += 1;
         let (pn, qn) =
-            gamma_inc(a, xn).map_err(|_| GammaIncInvError::UncertainAccuracy { value: xn })?;
+            try_gamma_inc(a, xn).map_err(|_| GammaIncInvError::UncertainAccuracy { value: xn })?;
         if pn == 0.0 || qn == 0.0 {
             return Err(GammaIncInvError::UncertainAccuracy { value: xn });
         }
@@ -1741,7 +1892,7 @@ fn schroder_q(
         }
         iter += 1;
         let (pn, qn) =
-            gamma_inc(a, xn).map_err(|_| GammaIncInvError::UncertainAccuracy { value: xn })?;
+            try_gamma_inc(a, xn).map_err(|_| GammaIncInvError::UncertainAccuracy { value: xn })?;
         if pn == 0.0 || qn == 0.0 {
             return Err(GammaIncInvError::UncertainAccuracy { value: xn });
         }
@@ -1874,20 +2025,19 @@ mod tests {
 
     /// Helper: round-trip residual at the returned x.
     fn round_trip_residual(a: f64, p: f64, q: f64) -> (f64, f64) {
-        let x = gamma_inc_inv(a, -1.0, p, q)
-            .unwrap_or_else(|e| panic!("gamma_inc_inv(a={a}, p={p}, q={q}) returned {e:?}"));
-        let (pn, qn) = gamma_inc(a, x).unwrap();
+        let x = gamma_inc_inv(a, -1.0, p, q);
+        let (pn, qn) = gamma_inc(a, x);
         (pn - p, qn - q)
     }
 
     #[test]
     fn gamma_inc_inv_rejects_invalid_a() {
         assert_eq!(
-            gamma_inc_inv(0.0, -1.0, 0.5, 0.5),
+            try_gamma_inc_inv(0.0, -1.0, 0.5, 0.5),
             Err(GammaIncInvError::ANotPositive(0.0))
         );
         assert_eq!(
-            gamma_inc_inv(-1.0, -1.0, 0.5, 0.5),
+            try_gamma_inc_inv(-1.0, -1.0, 0.5, 0.5),
             Err(GammaIncInvError::ANotPositive(-1.0))
         );
     }
@@ -1895,15 +2045,27 @@ mod tests {
     #[test]
     fn gamma_inc_inv_rejects_p_plus_q_not_one() {
         assert_eq!(
-            gamma_inc_inv(2.0, -1.0, 0.5, 0.6),
+            try_gamma_inc_inv(2.0, -1.0, 0.5, 0.6),
             Err(GammaIncInvError::InconsistentPq)
         );
     }
 
     #[test]
     fn gamma_inc_inv_trivial_endpoints() {
-        assert_eq!(gamma_inc_inv(2.0, -1.0, 0.0, 1.0), Ok(0.0));
-        assert_eq!(gamma_inc_inv(2.0, -1.0, 1.0, 0.0), Ok(f64::MAX));
+        // p = 0 ⇒ x = 0 (P(a, 0) = 0 for all a > 0).
+        assert_eq!(try_gamma_inc_inv(2.0, -1.0, 0.0, 1.0), Ok(0.0));
+        // q = 0 means P(a, x) = 1, which only happens as x → +∞:
+        // reported as the AtInfinity variant.
+        assert_eq!(
+            try_gamma_inc_inv(2.0, -1.0, 1.0, 0.0),
+            Err(GammaIncInvError::AtInfinity)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "inverse is +∞")]
+    fn gamma_inc_inv_at_infinity_panics() {
+        let _ = gamma_inc_inv(2.0, -1.0, 1.0, 0.0);
     }
 
     #[test]
@@ -1912,7 +2074,7 @@ mod tests {
         // Q(1, x) = exp(-x) ⇒ x = -ln(q). The F90 also uses
         // -alnrel(-p) when q ≥ 0.9 (== p ≤ 0.1) for tail accuracy.
         for &(p, q) in &[(0.5, 0.5), (0.9, 0.1), (0.05, 0.95), (0.001, 0.999)] {
-            let x = gamma_inc_inv(1.0, -1.0, p, q).unwrap();
+            let x = gamma_inc_inv(1.0, -1.0, p, q);
             assert!(
                 (-q.ln() - x).abs() / x.abs().max(1.0) < 1e-13,
                 "p={p}: x={x}"
@@ -1957,12 +2119,12 @@ mod tests {
     #[test]
     fn gamma_inc_inv_deep_tails() {
         // Verify tail behavior: p near 0 (small x) and p near 1 (large x).
-        let x = gamma_inc_inv(3.0, -1.0, 1.0e-6, 1.0 - 1.0e-6).unwrap();
-        let (pn, _) = gamma_inc(3.0, x).unwrap();
+        let x = gamma_inc_inv(3.0, -1.0, 1.0e-6, 1.0 - 1.0e-6);
+        let (pn, _) = gamma_inc(3.0, x);
         assert!((pn - 1.0e-6).abs() / 1.0e-6 < 1e-4);
 
-        let x = gamma_inc_inv(3.0, -1.0, 1.0 - 1.0e-6, 1.0e-6).unwrap();
-        let (_, qn) = gamma_inc(3.0, x).unwrap();
+        let x = gamma_inc_inv(3.0, -1.0, 1.0 - 1.0e-6, 1.0e-6);
+        let (_, qn) = gamma_inc(3.0, x);
         assert!((qn - 1.0e-6).abs() / 1.0e-6 < 1e-4);
     }
 
@@ -1971,8 +2133,8 @@ mod tests {
         // x0 > 0 mode: caller supplies an initial approximation. The
         // routine should still converge to the same answer (within
         // tolerance) as the x0 ≤ 0 mode.
-        let x_auto = gamma_inc_inv(5.0, -1.0, 0.7, 0.3).unwrap();
-        let x_seeded = gamma_inc_inv(5.0, x_auto * 1.1, 0.7, 0.3).unwrap();
+        let x_auto = gamma_inc_inv(5.0, -1.0, 0.7, 0.3);
+        let x_seeded = gamma_inc_inv(5.0, x_auto * 1.1, 0.7, 0.3);
         assert!((x_seeded - x_auto).abs() / x_auto < 1e-7);
     }
 
@@ -2008,7 +2170,7 @@ mod tests {
         for &a in &grid_a {
             for &p in &grid_p {
                 let q = 1.0 - p;
-                let result = gamma_inc_inv(a, -1.0, p, q);
+                let result = try_gamma_inc_inv(a, -1.0, p, q);
                 // The F90 documents three "give-up" outcomes that are
                 // part of its contract, not port regressions: no
                 // solution (NoSolution), iterate went non-positive
@@ -2022,7 +2184,7 @@ mod tests {
                     Err(e) => panic!("a={a}, p={p}: unexpected error {e:?}"),
                 };
                 assert!(x.is_finite() && x > 0.0, "a={a}, p={p}: x = {x}");
-                let (pn, qn) = gamma_inc(a, x).unwrap();
+                let (pn, qn) = gamma_inc(a, x);
                 let dp = (pn - p).abs() / p.max(1e-300);
                 let dq = (qn - q).abs() / q.max(1e-300);
                 // Either tail should match to ~1e-5; CDFLIB's stated goal
@@ -2038,16 +2200,16 @@ mod tests {
     fn gamma_inc_inv_caller_supplied_x0_p_le_half() {
         // x0 > 0 mode with p ≤ 0.5 routes through schroder_p; the auto
         // mode with p ≤ 0.5 also routes through it for small a.
-        let x = gamma_inc_inv(3.0, 1.5, 0.3, 0.7).unwrap();
-        let (pn, _) = gamma_inc(3.0, x).unwrap();
+        let x = gamma_inc_inv(3.0, 1.5, 0.3, 0.7);
+        let (pn, _) = gamma_inc(3.0, x);
         assert!((pn - 0.3).abs() < 1e-7);
     }
 
     #[test]
     fn gamma_inc_inv_caller_supplied_x0_p_gt_half() {
         // x0 > 0 with p > 0.5 routes through schroder_q.
-        let x = gamma_inc_inv(3.0, 5.0, 0.8, 0.2).unwrap();
-        let (_, qn) = gamma_inc(3.0, x).unwrap();
+        let x = gamma_inc_inv(3.0, 5.0, 0.8, 0.2);
+        let (_, qn) = gamma_inc(3.0, x);
         assert!((qn - 0.2).abs() < 1e-7);
     }
 
@@ -2075,14 +2237,14 @@ mod tests {
     #[test]
     fn gamma_inc_basic_identities() {
         // P(a, 0) = 0, Q(a, 0) = 1 for a > 0.
-        let (p, q) = gamma_inc(2.5, 0.0).unwrap();
+        let (p, q) = gamma_inc(2.5, 0.0);
         assert_eq!(p, 0.0);
         assert_eq!(q, 1.0);
 
         // P(a, x) + Q(a, x) = 1.
         for &a in &[0.5, 1.0, 2.5, 7.0, 25.0] {
             for &x in &[0.1, 1.0, 5.0, 20.0] {
-                let (p, q) = gamma_inc(a, x).unwrap();
+                let (p, q) = gamma_inc(a, x);
                 if p == 2.0 {
                     continue; // error sentinel
                 }
@@ -2111,7 +2273,7 @@ mod tests {
     fn gamma_inc_at_a_half_uses_erf() {
         // P(1/2, x) = erf(sqrt(x)).
         for &x in &[0.1, 0.5, 1.0, 4.0, 9.0] {
-            let (p, _q) = gamma_inc(0.5, x).unwrap();
+            let (p, _q) = gamma_inc(0.5, x);
             let expected = error_f(x.sqrt());
             assert!(
                 (p - expected).abs() < 1e-13,
@@ -2125,7 +2287,7 @@ mod tests {
     #[test]
     fn gamma_inc_rejects_negative_a() {
         assert!(matches!(
-            gamma_inc(-1.0, 1.0),
+            try_gamma_inc(-1.0, 1.0),
             Err(GammaIncError::ANegative(_))
         ));
     }
@@ -2133,20 +2295,23 @@ mod tests {
     #[test]
     fn gamma_inc_rejects_negative_x() {
         assert!(matches!(
-            gamma_inc(1.0, -1.0),
+            try_gamma_inc(1.0, -1.0),
             Err(GammaIncError::XNegative(_))
         ));
     }
 
     #[test]
     fn gamma_inc_rejects_both_zero() {
-        assert!(matches!(gamma_inc(0.0, 0.0), Err(GammaIncError::BothZero)));
+        assert!(matches!(
+            try_gamma_inc(0.0, 0.0),
+            Err(GammaIncError::BothZero)
+        ));
     }
 
     #[test]
     fn gamma_inc_a_zero_x_positive() {
         // a = 0, x > 0: P(0, x) = 1 (the limit).
-        let (p, q) = gamma_inc(0.0, 1.0).unwrap();
+        let (p, q) = gamma_inc(0.0, 1.0);
         assert_eq!(p, 1.0);
         assert_eq!(q, 0.0);
     }
@@ -2156,7 +2321,7 @@ mod tests {
     #[test]
     fn gamma_inc_regime_a_lt_1_x_lt_1() {
         // Power-series small-a small-x regime.
-        let (p, q) = gamma_inc(0.3, 0.2).unwrap();
+        let (p, q) = gamma_inc(0.3, 0.2);
         assert!((p + q - 1.0).abs() < 1e-14);
         assert!(p > 0.0 && p < 1.0);
     }
@@ -2164,7 +2329,7 @@ mod tests {
     #[test]
     fn gamma_inc_regime_a_lt_1_x_ge_1() {
         // Different branch: small a, larger x.
-        let (p, q) = gamma_inc(0.3, 5.0).unwrap();
+        let (p, q) = gamma_inc(0.3, 5.0);
         assert!((p + q - 1.0).abs() < 1e-14);
         assert!(p > 0.99); // upper-tail saturation
     }
@@ -2172,7 +2337,7 @@ mod tests {
     #[test]
     fn gamma_inc_regime_a_eq_1() {
         // Boundary a == 1: exponential CDF.
-        let (p, q) = gamma_inc(1.0, 2.0).unwrap();
+        let (p, q) = gamma_inc(1.0, 2.0);
         let expected_p = 1.0 - (-2.0_f64).exp();
         assert!((p - expected_p).abs() < 1e-14);
         assert!((q - (-2.0_f64).exp()).abs() < 1e-14);
@@ -2181,7 +2346,7 @@ mod tests {
     #[test]
     fn gamma_inc_regime_a_large_x_near_a() {
         // Tricomi–Temme asymptotic regime: a ≥ ~20.
-        let (p, q) = gamma_inc(100.0, 100.0).unwrap();
+        let (p, q) = gamma_inc(100.0, 100.0);
         assert!((p + q - 1.0).abs() < 1e-12);
         // Gamma(a, 1) at x=a: just above the median (which is at
         // ≈ a-1/3 for large a), so cdf is slightly above 0.5.
@@ -2191,7 +2356,7 @@ mod tests {
     #[test]
     fn gamma_inc_regime_a_very_large() {
         // Pure asymptotic regime, a beyond rmathlib's NaN cliff.
-        let (p, q) = gamma_inc(1e6, 1e6).unwrap();
+        let (p, q) = gamma_inc(1e6, 1e6);
         assert!((p + q - 1.0).abs() < 1e-12);
         assert!(p.is_finite() && q.is_finite());
         assert!(p > 0.499 && p < 0.501);
@@ -2201,7 +2366,7 @@ mod tests {
     fn gamma_inc_half_integer_a_uses_finite_sum() {
         // a half-integer ≥ 1: finite-sum regime.
         for &a in &[1.5_f64, 2.5, 3.5, 10.5] {
-            let (p, q) = gamma_inc(a, a).unwrap();
+            let (p, q) = gamma_inc(a, a);
             assert!((p + q - 1.0).abs() < 1e-12, "a={a}");
         }
     }
@@ -2209,11 +2374,11 @@ mod tests {
     #[test]
     fn gamma_inc_a_x_very_unbalanced() {
         // x >> a: deep right tail.
-        let (p, q) = gamma_inc(2.0, 50.0).unwrap();
+        let (p, q) = gamma_inc(2.0, 50.0);
         assert!(p > 0.9999);
         assert!(q > 0.0 && q < 1e-15);
         // x << a: deep left tail.
-        let (p, q) = gamma_inc(50.0, 2.0).unwrap();
+        let (p, q) = gamma_inc(50.0, 2.0);
         assert!(q > 0.9999);
         assert!(p > 0.0 && p < 1e-15);
     }
@@ -2227,10 +2392,16 @@ mod tests {
     }
 
     #[test]
-    fn gamma_overflow_returns_zero() {
-        // Per CDFLIB convention: Γ(a > 1e3) returns 0 (overflow sentinel).
-        assert_eq!(gamma(1001.0), 0.0);
-        assert_eq!(gamma(1e10), 0.0);
+    fn try_gamma_overflow_is_err() {
+        // Γ(a) overflows f64 for |a| ≥ 1000; reported as GammaError::Overflow.
+        assert_eq!(try_gamma(1001.0), Err(GammaError::Overflow(1001.0)));
+        assert_eq!(try_gamma(1e10), Err(GammaError::Overflow(1e10)));
+    }
+
+    #[test]
+    #[should_panic(expected = "gamma(1001): Γ(1001) overflows f64")]
+    fn gamma_overflow_panics() {
+        let _ = gamma(1001.0);
     }
 
     #[test]
@@ -2275,16 +2446,22 @@ mod tests {
     }
 
     #[test]
-    fn gamma_at_negative_integer_returns_zero() {
-        // CDFLIB sentinel: Γ at negative integer returns 0 (would diverge).
-        assert_eq!(gamma(-3.0), 0.0);
-        assert_eq!(gamma(-10.0), 0.0);
+    fn try_gamma_at_negative_integer_is_pole() {
+        // Γ has a pole at every non-positive integer.
+        assert_eq!(try_gamma(-3.0), Err(GammaError::Pole(-3.0)));
+        assert_eq!(try_gamma(-10.0), Err(GammaError::Pole(-10.0)));
     }
 
     #[test]
-    fn gamma_at_zero_returns_zero() {
-        // Γ at 0 is +inf in math but CDFLIB returns 0 sentinel.
-        assert_eq!(gamma(0.0), 0.0);
+    fn try_gamma_at_zero_is_pole() {
+        // Γ has a pole at 0 (the mathematical limit is +∞).
+        assert_eq!(try_gamma(0.0), Err(GammaError::Pole(0.0)));
+    }
+
+    #[test]
+    #[should_panic(expected = "gamma(0): Γ has a pole at 0")]
+    fn gamma_at_zero_panics() {
+        let _ = gamma(0.0);
     }
 
     #[test]

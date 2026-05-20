@@ -970,33 +970,58 @@ pub enum BetaIncError {
     YZeroAndBZero,
 }
 
-/// Returns the regularized incomplete Β function *Iₓ*(*a*, *b*) and its complement
-/// 1 − *Iₓ*(*a*, *b*).
+/// Returns the regularized incomplete Β function *Iₓ*(*a*, *b*) and its
+/// complement 1 − *Iₓ*(*a*, *b*).
 ///
 /// The argument pair (*x*, *y*) is the (value, complement) of the
 /// integration upper limit: the caller must supply *y* = 1 − *x* directly
 /// rather than letting the routine subtract, because in the deep tail
 /// the cancellation in `1.0 - x` would lose digits. The returned pair
 /// (*w*, *w*₁) is the (lower-tail, upper-tail) probability with
-/// *w* + *w*₁ = 1, analogous to the (*p*, *q*) pair returned by
-/// [`gamma_inc`]; both are computed independently rather than one from
-/// the other, for the same precision reason. On invalid input returns a
-/// [`BetaIncError`].
+/// *w* + *w*₁ = 1, analogous to the (*p*, *q*) pair returned by [`gamma_inc`];
+/// both are computed independently rather than one from the other, for
+/// the same precision reason.
 ///
-/// [`gamma_inc`]: crate::special::gamma_inc
+/// # Panics
+///
+/// Panics on a [`BetaIncError`]. Use [`try_beta_inc`] for the fallible
+/// form.
 ///
 /// # Example
 ///
 /// ```
 /// use cdflib::special::beta_inc;
 ///
-/// let (w, _w1) = beta_inc(2.0, 5.0, 0.3, 0.7).unwrap();
+/// let (w, _w1) = beta_inc(2.0, 5.0, 0.3, 0.7);
 /// assert!((w - 0.579825).abs() < 1e-6);
+/// ```
+///
+/// [`gamma_inc`]: crate::special::gamma_inc
+/// [`BetaIncError`]: crate::special::BetaIncError
+/// [`try_beta_inc`]: crate::special::try_beta_inc
+#[inline]
+pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
+    try_beta_inc(a, b, x, y).unwrap_or_else(|e| panic!("beta_inc({a}, {b}, {x}, {y}): {e}"))
+}
+
+/// Fallible form of [`beta_inc`]: returns [`BetaIncError`] on invalid input.
+///
+/// # Example
+///
+/// ```
+/// use cdflib::special::{try_beta_inc, BetaIncError};
+///
+/// let (w, _w1) = try_beta_inc(2.0, 5.0, 0.3, 0.7).unwrap();
+/// assert!((w - 0.579825).abs() < 1e-6);
+/// assert!(matches!(
+///     try_beta_inc(-1.0, 1.0, 0.5, 0.5),
+///     Err(BetaIncError::NegativeParameter { .. }),
+/// ));
 /// ```
 ///
 /// [`BetaIncError`]: crate::special::BetaIncError
 #[inline]
-pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIncError> {
+pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIncError> {
     let eps = f64::EPSILON;
     if a < 0.0 || b < 0.0 {
         return Err(BetaIncError::NegativeParameter { a, b });
@@ -1241,7 +1266,7 @@ mod tests {
     fn beta_inc_at_x_half_with_a_b_equal() {
         // I_{0.5}(a, a) = 0.5 by symmetry.
         for &a in &[0.5, 1.0, 2.0, 5.0, 30.0] {
-            let (w, w1) = beta_inc(a, a, 0.5, 0.5).unwrap();
+            let (w, w1) = beta_inc(a, a, 0.5, 0.5);
             assert!((w - 0.5).abs() < 1e-10, "a={a}: w={w}");
             assert!((w1 - 0.5).abs() < 1e-10);
         }
@@ -1249,15 +1274,15 @@ mod tests {
 
     #[test]
     fn beta_inc_at_boundaries() {
-        assert_eq!(beta_inc(2.0, 3.0, 0.0, 1.0), Ok((0.0, 1.0)));
-        assert_eq!(beta_inc(2.0, 3.0, 1.0, 0.0), Ok((1.0, 0.0)));
+        assert_eq!(try_beta_inc(2.0, 3.0, 0.0, 1.0), Ok((0.0, 1.0)));
+        assert_eq!(try_beta_inc(2.0, 3.0, 1.0, 0.0), Ok((1.0, 0.0)));
     }
 
     #[test]
     fn beta_inc_p_plus_q_equals_one() {
         for &(a, b) in &[(1.0, 1.0), (2.0, 5.0), (10.0, 20.0), (0.5, 3.0)] {
             for x in [0.1, 0.3, 0.5, 0.7, 0.9] {
-                let (w, w1) = beta_inc(a, b, x, 1.0 - x).unwrap();
+                let (w, w1) = beta_inc(a, b, x, 1.0 - x);
                 assert!((w + w1 - 1.0).abs() < 1e-12, "a={a}, b={b}, x={x}");
             }
         }
@@ -1268,28 +1293,28 @@ mod tests {
     #[test]
     fn beta_inc_negative_parameter() {
         assert!(matches!(
-            beta_inc(-1.0, 2.0, 0.5, 0.5),
+            try_beta_inc(-1.0, 2.0, 0.5, 0.5),
             Err(BetaIncError::NegativeParameter { .. })
         ));
         assert!(matches!(
-            beta_inc(2.0, -1.0, 0.5, 0.5),
+            try_beta_inc(2.0, -1.0, 0.5, 0.5),
             Err(BetaIncError::NegativeParameter { .. })
         ));
     }
 
     #[test]
     fn beta_inc_both_zero() {
-        assert_eq!(beta_inc(0.0, 0.0, 0.5, 0.5), Err(BetaIncError::BothZero));
+        assert_eq!(try_beta_inc(0.0, 0.0, 0.5, 0.5), Err(BetaIncError::BothZero));
     }
 
     #[test]
     fn beta_inc_x_out_of_range() {
         assert!(matches!(
-            beta_inc(2.0, 3.0, -0.1, 1.1),
+            try_beta_inc(2.0, 3.0, -0.1, 1.1),
             Err(BetaIncError::XOutOfRange(-0.1))
         ));
         assert!(matches!(
-            beta_inc(2.0, 3.0, 1.1, -0.1),
+            try_beta_inc(2.0, 3.0, 1.1, -0.1),
             Err(BetaIncError::XOutOfRange(_))
         ));
     }
@@ -1298,11 +1323,11 @@ mod tests {
     fn beta_inc_y_out_of_range() {
         // x in [0..1] but y not.
         assert!(matches!(
-            beta_inc(2.0, 3.0, 0.5, -0.1),
+            try_beta_inc(2.0, 3.0, 0.5, -0.1),
             Err(BetaIncError::YOutOfRange(_))
         ));
         assert!(matches!(
-            beta_inc(2.0, 3.0, 0.5, 1.1),
+            try_beta_inc(2.0, 3.0, 0.5, 1.1),
             Err(BetaIncError::YOutOfRange(_))
         ));
     }
@@ -1310,7 +1335,7 @@ mod tests {
     #[test]
     fn beta_inc_x_plus_y_not_one() {
         assert!(matches!(
-            beta_inc(2.0, 3.0, 0.3, 0.5),
+            try_beta_inc(2.0, 3.0, 0.3, 0.5),
             Err(BetaIncError::InconsistentSum { .. })
         ));
     }
@@ -1318,7 +1343,7 @@ mod tests {
     #[test]
     fn beta_inc_x_zero_and_a_zero() {
         assert_eq!(
-            beta_inc(0.0, 3.0, 0.0, 1.0),
+            try_beta_inc(0.0, 3.0, 0.0, 1.0),
             Err(BetaIncError::XZeroAndAZero)
         );
     }
@@ -1326,26 +1351,26 @@ mod tests {
     #[test]
     fn beta_inc_y_zero_and_b_zero() {
         assert_eq!(
-            beta_inc(3.0, 0.0, 1.0, 0.0),
+            try_beta_inc(3.0, 0.0, 1.0, 0.0),
             Err(BetaIncError::YZeroAndBZero)
         );
     }
 
     #[test]
     fn beta_inc_a_zero_with_b_positive() {
-        assert_eq!(beta_inc(0.0, 3.0, 0.5, 0.5), Ok((1.0, 0.0)));
+        assert_eq!(try_beta_inc(0.0, 3.0, 0.5, 0.5), Ok((1.0, 0.0)));
     }
 
     #[test]
     fn beta_inc_b_zero_with_a_positive() {
-        assert_eq!(beta_inc(3.0, 0.0, 0.5, 0.5), Ok((0.0, 1.0)));
+        assert_eq!(try_beta_inc(3.0, 0.0, 0.5, 0.5), Ok((0.0, 1.0)));
     }
 
     #[test]
     fn beta_inc_both_tiny_a_b() {
         // a.max(b) < 1e-3 * eps path → return (b/(a+b), a/(a+b)).
         let tiny = 1e-20;
-        let (w, w1) = beta_inc(tiny, tiny, 0.5, 0.5).unwrap();
+        let (w, w1) = beta_inc(tiny, tiny, 0.5, 0.5);
         // Both ratios equal 0.5 by symmetry.
         assert!((w - 0.5).abs() < 1e-10);
         assert!((w1 - 0.5).abs() < 1e-10);
@@ -1356,7 +1381,7 @@ mod tests {
     #[test]
     fn beta_inc_small_a_large_b_uses_grat_path() {
         // a0 ≤ 1, b0 > 15: small_branch's beta_grat composition.
-        let (w, w1) = beta_inc(0.5, 30.0, 0.05, 0.95).unwrap();
+        let (w, w1) = beta_inc(0.5, 30.0, 0.05, 0.95);
         // Sanity: numerically plausible.
         assert!(w > 0.0 && w < 1.0 && (w + w1 - 1.0).abs() < 1e-10);
     }
@@ -1364,7 +1389,7 @@ mod tests {
     #[test]
     fn beta_inc_both_moderate_uses_frac_path() {
         // a, b both ≥ 8, b ≥ 40: large_branch → beta_frac → beta_rcomp's a0≥8 path.
-        let (w, w1) = beta_inc(10.0, 60.0, 0.15, 0.85).unwrap();
+        let (w, w1) = beta_inc(10.0, 60.0, 0.15, 0.85);
         assert!((w + w1 - 1.0).abs() < 1e-10);
     }
 
@@ -1373,7 +1398,7 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn beta_inc_extreme_skew_matches_high_precision_reference() {
-        let (w, w1) = beta_inc(0.5, 100.0, 0.15, 0.85).unwrap();
+        let (w, w1) = beta_inc(0.5, 100.0, 0.15, 0.85);
         assert!((w - 0.999_999_987_603_646_8).abs() < 1e-15);
         assert!((w1 - 1.239_635_319_310_601_4e-8).abs() < 1e-22);
     }
@@ -1381,10 +1406,10 @@ mod tests {
     #[test]
     fn beta_inc_a_large_b_moderate() {
         // Swap territory: a > b, swap so b becomes the larger.
-        let (w, w1) = beta_inc(60.0, 10.0, 0.85, 0.15).unwrap();
+        let (w, w1) = beta_inc(60.0, 10.0, 0.85, 0.15);
         assert!((w + w1 - 1.0).abs() < 1e-10);
         // Symmetric to the previous: I_x(a,b) = 1 - I_{1-x}(b,a).
-        let (w2, _) = beta_inc(10.0, 60.0, 0.15, 0.85).unwrap();
+        let (w2, _) = beta_inc(10.0, 60.0, 0.15, 0.85);
         assert!((w - (1.0 - w2)).abs() < 1e-10);
     }
 
@@ -1393,11 +1418,11 @@ mod tests {
         // a, b ≥ 100 with lambda ≤ 0.03*a: triggers beta_asym.
         // Two parameter orderings to cover both branches of beta_asym.
         // a > b case (b0 > 100 after swap → uses else branch).
-        let (w, w1) = beta_inc(150.0, 200.0, 150.0 / 350.0 + 0.001, 200.0 / 350.0 - 0.001).unwrap();
+        let (w, w1) = beta_inc(150.0, 200.0, 150.0 / 350.0 + 0.001, 200.0 / 350.0 - 0.001);
         assert!((w + w1 - 1.0).abs() < 1e-8);
         // a < b case (a0 > 100, lambda < 0.03*a0).
         // mean = 150/550 ≈ 0.2727; x just below mean → lambda small positive.
-        let (w, w1) = beta_inc(150.0, 400.0, 0.272, 0.728).unwrap();
+        let (w, w1) = beta_inc(150.0, 400.0, 0.272, 0.728);
         assert!((w + w1 - 1.0).abs() < 1e-8);
     }
 
@@ -1406,7 +1431,7 @@ mod tests {
         // a < eps · max(a, b) AND b*x ≤ 1: triggers apser branch.
         let a = 1e-15;
         let b = 5.0;
-        let (w, w1) = beta_inc(a, b, 0.05, 0.95).unwrap();
+        let (w, w1) = beta_inc(a, b, 0.05, 0.95);
         // For very small a, I_x(a, b) → 1.
         assert!(w > 0.99 && (w + w1 - 1.0).abs() < 1e-10);
     }
@@ -1416,7 +1441,7 @@ mod tests {
         // b < eps · max(a, b): triggers fpser branch.
         let a = 5.0;
         let b = 1e-15;
-        let (w, w1) = beta_inc(a, b, 0.5, 0.5).unwrap();
+        let (w, w1) = beta_inc(a, b, 0.5, 0.5);
         // For very small b, I_x(a, b) → 0.
         assert!(w < 0.01 && (w + w1 - 1.0).abs() < 1e-10);
     }
@@ -1484,7 +1509,7 @@ mod tests {
             (0.1, 0.5, 0.5),  // x^a ≈ 0.933 > 0.9, x ≥ 0.3 → line 1026
             (0.01, 0.5, 0.1), // x^a ≈ 0.977 > 0.9, x < 0.3 → line 1030
         ] {
-            let (w, w1) = beta_inc(a, b, x, 1.0 - x).unwrap();
+            let (w, w1) = beta_inc(a, b, x, 1.0 - x);
             assert!((w + w1 - 1.0).abs() < 1e-10, "a={a}, b={b}, x={x}");
         }
     }
@@ -1493,7 +1518,7 @@ mod tests {
     fn beta_inc_large_branch_b_moderate_x_above_0_7() {
         // large_branch with b < 40 AND x > 0.7: triggers the a0 ≤ 15
         // beta_up + beta_grat path (lines 1052-1064).
-        let (w, w1) = beta_inc(5.0, 10.0, 0.85, 0.15).unwrap();
+        let (w, w1) = beta_inc(5.0, 10.0, 0.85, 0.15);
         assert!((w + w1 - 1.0).abs() < 1e-10);
     }
 

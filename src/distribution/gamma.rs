@@ -1,9 +1,9 @@
 use thiserror::Error;
 
-use super::must_gamma_inc;
+use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
-use crate::special::{GammaIncInvError, gamma_inc_inv, gamma_log, psi};
+use crate::special::{GammaIncInvError, gamma_log, psi, try_gamma_inc_inv};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
 /// Gamma distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
@@ -131,7 +131,7 @@ impl Gamma {
         let xr = x * rate;
         let q_target = 1.0 - p;
         let f = |shape: f64| {
-            let (cum, ccum) = must_gamma_inc(shape, xr);
+            let (cum, ccum) = gamma_inc(shape, xr);
             if p <= q_target {
                 cum - p
             } else {
@@ -163,7 +163,7 @@ impl Gamma {
             return Err(GammaError::ShapeNotPositive(shape));
         }
         let q = 1.0 - p;
-        let xx = gamma_inc_inv(shape, -1.0, p, q)?;
+        let xx = try_gamma_inc_inv(shape, -1.0, p, q)?;
         Ok(xx / x)
     }
 }
@@ -185,7 +185,7 @@ impl ContinuousCdf for Gamma {
         if x <= 0.0 {
             return 0.0;
         }
-        let (p, _q) = must_gamma_inc(self.shape, x * self.rate);
+        let (p, _q) = gamma_inc(self.shape, x * self.rate);
         p
     }
 
@@ -194,7 +194,7 @@ impl ContinuousCdf for Gamma {
         if x <= 0.0 {
             return 1.0;
         }
-        let (_p, q) = must_gamma_inc(self.shape, x * self.rate);
+        let (_p, q) = gamma_inc(self.shape, x * self.rate);
         q
     }
 
@@ -207,7 +207,7 @@ impl ContinuousCdf for Gamma {
         // cdfgam's which=2 calls gamma_inc_inv directly: solve
         // P(shape, xx) = p for xx, then divide out the rate.
         let q = 1.0 - p;
-        let xx = gamma_inc_inv(self.shape, -1.0, p, q)?;
+        let xx = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
         Ok(xx / self.rate)
     }
 
@@ -220,7 +220,7 @@ impl ContinuousCdf for Gamma {
         // Same closed-form inversion as `inverse_cdf`, expressed in the
         // upper-tail direction so a tiny `q` keeps its precision.
         let p = 1.0 - q;
-        let xx = gamma_inc_inv(self.shape, -1.0, p, q)?;
+        let xx = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
         Ok(xx / self.rate)
     }
 }

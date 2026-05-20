@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::must_beta_inc;
+use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
 use crate::special::gamma_log;
@@ -100,7 +100,7 @@ impl NegativeBinomial {
         // I_pr(r, s+1) is the negative-binomial CDF (A-S 26.5.26), so
         // beta_inc's cum here is the CDF and ccum is the SF.
         let f = |r: f64| {
-            let (cum, ccum) = must_beta_inc(r, sf + 1.0, pr, 1.0 - pr);
+            let (cum, ccum) = beta_inc(r, sf + 1.0, pr, 1.0 - pr);
             if p <= q_target {
                 cum - p
             } else {
@@ -126,7 +126,7 @@ impl NegativeBinomial {
         let sf = s as f64;
         let q_target = 1.0 - p;
         let f = |pr: f64| {
-            let (cum, ccum) = must_beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
+            let (cum, ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
             if p <= q_target {
                 cum - p
             } else {
@@ -160,13 +160,13 @@ impl DiscreteCdf for NegativeBinomial {
 
     #[inline]
     fn cdf(&self, s: u64) -> f64 {
-        let (cum, _) = must_beta_inc(self.r as f64, s as f64 + 1.0, self.pr, 1.0 - self.pr);
+        let (cum, _) = beta_inc(self.r as f64, s as f64 + 1.0, self.pr, 1.0 - self.pr);
         cum
     }
 
     #[inline]
     fn sf(&self, s: u64) -> f64 {
-        let (_, ccum) = must_beta_inc(self.r as f64, s as f64 + 1.0, self.pr, 1.0 - self.pr);
+        let (_, ccum) = beta_inc(self.r as f64, s as f64 + 1.0, self.pr, 1.0 - self.pr);
         ccum
     }
 
