@@ -1304,7 +1304,10 @@ mod tests {
 
     #[test]
     fn beta_inc_both_zero() {
-        assert_eq!(try_beta_inc(0.0, 0.0, 0.5, 0.5), Err(BetaIncError::BothZero));
+        assert_eq!(
+            try_beta_inc(0.0, 0.0, 0.5, 0.5),
+            Err(BetaIncError::BothZero)
+        );
     }
 
     #[test]

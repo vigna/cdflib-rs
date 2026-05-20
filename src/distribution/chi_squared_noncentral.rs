@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone_with_atol};
+use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
 
@@ -15,7 +15,7 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 /// use cdflib::ChiSquaredNoncentral;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let d = ChiSquaredNoncentral::new(5.0, 10.0).unwrap();
+/// let d = ChiSquaredNoncentral::new(5.0, 10.0);
 ///
 /// // Probability of observing a value ≤ 15.0
 /// let p = d.cdf(15.0);
@@ -35,12 +35,18 @@ pub struct ChiSquaredNoncentral {
 /// [`ChiSquaredNoncentral`]: crate::ChiSquaredNoncentral
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum ChiSquaredNoncentralError {
-    /// The degrees of freedom *df* was not strictly positive (or not finite).
-    #[error("df must be positive, got {0}")]
+    /// The degrees of freedom *df* was not strictly positive.
+    #[error("degrees of freedom must be positive, got {0}")]
     DfNotPositive(f64),
-    /// The noncentrality parameter *λ* was negative (or not finite).
+    /// The degrees of freedom *df* was not finite.
+    #[error("degrees of freedom must be finite, got {0}")]
+    DfNotFinite(f64),
+    /// The noncentrality parameter *λ* was negative.
     #[error("noncentrality parameter must be ≥ 0, got {0}")]
     NcpNegative(f64),
+    /// The noncentrality parameter *λ* was not finite.
+    #[error("noncentrality parameter must be finite, got {0}")]
+    NcpNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -53,17 +59,37 @@ pub enum ChiSquaredNoncentralError {
 
 impl ChiSquaredNoncentral {
     /// Construct a noncentral *χ*²(*df*, *λ*) distribution with *df* > 0
-    /// degrees of freedom and noncentrality *λ* ≥ 0. Returns
-    /// [`DfNotPositive`] or [`NcpNegative`] otherwise.
+    /// degrees of freedom and noncentrality *λ* ≥ 0. Panics if either
+    /// argument is invalid; use [`try_new`] for a fallible variant.
+    ///
+    /// [`try_new`]: Self::try_new
+    #[inline]
+    pub fn new(df: f64, ncp: f64) -> Self {
+        Self::try_new(df, ncp).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`ChiSquaredNoncentralError`] instead of panicking.
+    ///
+    /// Returns [`DfNotPositive`], [`DfNotFinite`], [`NcpNegative`], or
+    /// [`NcpNotFinite`] if either argument fails its validity check.
     ///
     /// [`DfNotPositive`]: ChiSquaredNoncentralError::DfNotPositive
+    /// [`DfNotFinite`]: ChiSquaredNoncentralError::DfNotFinite
     /// [`NcpNegative`]: ChiSquaredNoncentralError::NcpNegative
+    /// [`NcpNotFinite`]: ChiSquaredNoncentralError::NcpNotFinite
     #[inline]
-    pub fn new(df: f64, ncp: f64) -> Result<Self, ChiSquaredNoncentralError> {
-        if !(df > 0.0 && df.is_finite()) {
+    pub fn try_new(df: f64, ncp: f64) -> Result<Self, ChiSquaredNoncentralError> {
+        if !df.is_finite() {
+            return Err(ChiSquaredNoncentralError::DfNotFinite(df));
+        }
+        if df <= 0.0 {
             return Err(ChiSquaredNoncentralError::DfNotPositive(df));
         }
-        if !(ncp >= 0.0 && ncp.is_finite()) {
+        if !ncp.is_finite() {
+            return Err(ChiSquaredNoncentralError::NcpNotFinite(ncp));
+        }
+        if ncp < 0.0 {
             return Err(ChiSquaredNoncentralError::NcpNegative(ncp));
         }
         Ok(Self { df, ncp })
@@ -71,13 +97,13 @@ impl ChiSquaredNoncentral {
 
     /// Returns the degrees of freedom *df*.
     #[inline]
-    pub fn df(&self) -> f64 {
+    pub const fn df(&self) -> f64 {
         self.df
     }
 
     /// Returns the noncentrality parameter *λ*.
     #[inline]
-    pub fn ncp(&self) -> f64 {
+    pub const fn ncp(&self) -> f64 {
         self.ncp
     }
 
@@ -286,11 +312,11 @@ mod tests {
     #[test]
     fn rejects_invalid_inputs() {
         assert!(matches!(
-            ChiSquaredNoncentral::new(0.0, 1.0),
+            ChiSquaredNoncentral::try_new(0.0, 1.0),
             Err(ChiSquaredNoncentralError::DfNotPositive(0.0))
         ));
         assert!(matches!(
-            ChiSquaredNoncentral::new(1.0, -1.0),
+            ChiSquaredNoncentral::try_new(1.0, -1.0),
             Err(ChiSquaredNoncentralError::NcpNegative(-1.0))
         ));
         assert!(matches!(
@@ -301,7 +327,7 @@ mod tests {
 
     #[test]
     fn inverse_and_moment_edges() {
-        let d = ChiSquaredNoncentral::new(5.0, 2.0).unwrap();
+        let d = ChiSquaredNoncentral::new(5.0, 2.0);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
         assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
         assert!(d.inverse_sf(0.25).unwrap().is_finite());
@@ -311,7 +337,7 @@ mod tests {
 
     #[test]
     fn central_limit_path_is_consistent() {
-        let d = ChiSquaredNoncentral::new(4.0, 0.0).unwrap();
+        let d = ChiSquaredNoncentral::new(4.0, 0.0);
         let x = 3.0;
         let cdf = d.cdf(x);
         let sf = d.sf(x);

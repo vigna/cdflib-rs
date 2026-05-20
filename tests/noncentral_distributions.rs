@@ -21,7 +21,7 @@ fn chi_squared_noncentral_matches_cumchn_reference() {
         let [df, ncp, x, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = ChiSquaredNoncentral::new(df, ncp).unwrap();
+        let d = ChiSquaredNoncentral::new(df, ncp);
         assert_close_eps(
             d.cdf(x),
             expected_cdf,
@@ -43,7 +43,7 @@ fn f_noncentral_matches_cumfnc_reference() {
         let [dfn, dfd, ncp, fx, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = FisherSnedecorNoncentral::new(dfn, dfd, ncp).unwrap();
+        let d = FisherSnedecorNoncentral::new(dfn, dfd, ncp);
         assert_close_eps(
             d.cdf(fx),
             expected_cdf,

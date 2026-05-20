@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::special::gamma_inc;
 use crate::special::{GammaIncInvError, gamma_log, psi, try_gamma_inc_inv};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
@@ -26,7 +26,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// use cdflib::Gamma;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let g = Gamma::new(2.0, 1.0).unwrap();
+/// let g = Gamma::new(2.0, 1.0);
 ///
 /// // Pr[X ≤ 2.0]
 /// let p = g.cdf(2.0);
@@ -76,7 +76,18 @@ pub enum GammaError {
 }
 
 impl Gamma {
-    /// Construct a Γ(*α*, *β*) distribution with shape *α* > 0 and rate *β* > 0.
+    /// Construct a Γ(*α*, *β*) distribution with shape *α* > 0 and rate
+    /// *β* > 0. Panics if either argument is invalid; use [`try_new`] for
+    /// a fallible variant.
+    ///
+    /// [`try_new`]: Self::try_new
+    #[inline]
+    pub fn new(shape: f64, rate: f64) -> Self {
+        Self::try_new(shape, rate).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a [`GammaError`]
+    /// instead of panicking.
     ///
     /// Returns [`ShapeNotFinite`], [`RateNotFinite`], [`ShapeNotPositive`],
     /// or [`RateNotPositive`] if either argument fails its respective test.
@@ -86,7 +97,7 @@ impl Gamma {
     /// [`ShapeNotPositive`]: GammaError::ShapeNotPositive
     /// [`RateNotPositive`]: GammaError::RateNotPositive
     #[inline]
-    pub fn new(shape: f64, rate: f64) -> Result<Self, GammaError> {
+    pub fn try_new(shape: f64, rate: f64) -> Result<Self, GammaError> {
         if !shape.is_finite() {
             return Err(GammaError::ShapeNotFinite(shape));
         }
@@ -104,13 +115,13 @@ impl Gamma {
 
     /// Returns the shape parameter *α*.
     #[inline]
-    pub fn shape(&self) -> f64 {
+    pub const fn shape(&self) -> f64 {
         self.shape
     }
 
     /// Returns the rate parameter *β*.
     #[inline]
-    pub fn rate(&self) -> f64 {
+    pub const fn rate(&self) -> f64 {
         self.rate
     }
 
@@ -274,7 +285,7 @@ mod tests {
     #[test]
     fn cdf_reduces_to_exponential_for_shape_1() {
         // Gamma(1, β) ≡ Exp(β): CDF = 1 - exp(-β·x).
-        let g = Gamma::new(1.0, 2.0).unwrap();
+        let g = Gamma::new(1.0, 2.0);
         for &x in &[0.5_f64, 1.0, 4.0, 10.0] {
             let expected = 1.0 - (-x * 2.0).exp();
             assert!((g.cdf(x) - expected).abs() < 1e-13, "x={x}");
@@ -284,7 +295,7 @@ mod tests {
     #[test]
     fn moments() {
         // Gamma(shape=3, rate=2): mean = 3/2, variance = 3/4.
-        let g = Gamma::new(3.0, 2.0).unwrap();
+        let g = Gamma::new(3.0, 2.0);
         assert_eq!(g.mean(), 1.5);
         assert_eq!(g.variance(), 0.75);
     }
@@ -292,7 +303,7 @@ mod tests {
     #[test]
     fn pdf_at_mode() {
         // For shape > 1, the mode of Gamma(α, β) is at (α-1)/β.
-        let g = Gamma::new(3.0, 2.0).unwrap();
+        let g = Gamma::new(3.0, 2.0);
         let mode = (3.0 - 1.0) / 2.0;
         let pm = g.pdf(mode);
         assert!(pm > g.pdf(mode * 0.5));
@@ -302,19 +313,19 @@ mod tests {
     #[test]
     fn rejects_invalid_parameters_and_probabilities() {
         assert!(matches!(
-            Gamma::new(0.0, 1.0),
+            Gamma::try_new(0.0, 1.0),
             Err(GammaError::ShapeNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::new(1.0, 0.0),
+            Gamma::try_new(1.0, 0.0),
             Err(GammaError::RateNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::new(f64::INFINITY, 1.0),
+            Gamma::try_new(f64::INFINITY, 1.0),
             Err(GammaError::ShapeNotFinite(x)) if x.is_infinite()
         ));
         assert!(matches!(
-            Gamma::new(1.0, f64::INFINITY),
+            Gamma::try_new(1.0, f64::INFINITY),
             Err(GammaError::RateNotFinite(x)) if x.is_infinite()
         ));
         assert!(matches!(
@@ -325,7 +336,7 @@ mod tests {
 
     #[test]
     fn inverse_and_density_edges() {
-        let g = Gamma::new(2.0, 3.0).unwrap();
+        let g = Gamma::new(2.0, 3.0);
         assert_eq!(g.inverse_cdf(0.0).unwrap(), 0.0);
         assert_eq!(g.inverse_sf(1.0).unwrap(), 0.0);
         assert_eq!(g.pdf(0.0), 0.0);

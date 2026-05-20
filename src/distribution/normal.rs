@@ -14,7 +14,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// use cdflib::Normal;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let n = Normal::new(0.0, 1.0).unwrap();
+/// let n = Normal::new(0.0, 1.0);
 ///
 /// // Pr[X ≤ 1.96] ≈ 0.975
 /// let p = n.cdf(1.96);
@@ -54,8 +54,18 @@ pub enum NormalError {
 }
 
 impl Normal {
-    /// Construct a normal distribution with mean *μ* and standard deviation *σ*
-    /// > 0.
+    /// Construct a normal distribution with mean *μ* and standard deviation
+    /// *σ* > 0. Panics if either argument is invalid; use [`try_new`] for a
+    /// fallible variant.
+    ///
+    /// [`try_new`]: Self::try_new
+    #[inline]
+    pub fn new(mean: f64, sd: f64) -> Self {
+        Self::try_new(mean, sd).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a [`NormalError`]
+    /// instead of panicking.
     ///
     /// Returns [`MeanNotFinite`], [`SdNotFinite`], or [`SdNotPositive`] if
     /// either argument fails its respective test.
@@ -64,7 +74,7 @@ impl Normal {
     /// [`SdNotFinite`]: NormalError::SdNotFinite
     /// [`SdNotPositive`]: NormalError::SdNotPositive
     #[inline]
-    pub fn new(mean: f64, sd: f64) -> Result<Self, NormalError> {
+    pub fn try_new(mean: f64, sd: f64) -> Result<Self, NormalError> {
         if !mean.is_finite() {
             return Err(NormalError::MeanNotFinite(mean));
         }
@@ -79,13 +89,19 @@ impl Normal {
 
     /// Constructs a standard normal distribution *N*(0, 1).
     #[inline]
-    pub fn standard() -> Self {
+    pub const fn standard() -> Self {
         Self { mean: 0.0, sd: 1.0 }
+    }
+
+    /// Returns the mean *μ*.
+    #[inline]
+    pub const fn mean(&self) -> f64 {
+        self.mean
     }
 
     /// Returns the standard deviation *σ*.
     #[inline]
-    pub fn sd(&self) -> f64 {
+    pub const fn sd(&self) -> f64 {
         self.sd
     }
 
@@ -235,19 +251,19 @@ mod tests {
     #[test]
     fn new_rejects_bad_sd() {
         assert!(matches!(
-            Normal::new(0.0, -1.0),
+            Normal::try_new(0.0, -1.0),
             Err(NormalError::SdNotPositive(_))
         ));
         assert!(matches!(
-            Normal::new(0.0, 0.0),
+            Normal::try_new(0.0, 0.0),
             Err(NormalError::SdNotPositive(_))
         ));
         assert!(matches!(
-            Normal::new(0.0, f64::NAN),
+            Normal::try_new(0.0, f64::NAN),
             Err(NormalError::SdNotFinite(_))
         ));
         assert!(matches!(
-            Normal::new(f64::INFINITY, 1.0),
+            Normal::try_new(f64::INFINITY, 1.0),
             Err(NormalError::MeanNotFinite(_))
         ));
     }
@@ -261,7 +277,7 @@ mod tests {
 
     #[test]
     fn sf_matches_1_minus_cdf_at_moderate_x() {
-        let n = Normal::new(2.0, 3.0).unwrap();
+        let n = Normal::new(2.0, 3.0);
         for &x in &[-1.0, 0.0, 2.0, 4.0] {
             let s = (n.sf(x) + n.cdf(x) - 1.0).abs();
             assert!(s < 1e-14, "x = {x}: sum - 1 = {s}");
@@ -272,14 +288,14 @@ mod tests {
     fn sf_stays_accurate_in_deep_right_tail() {
         // For x = mean + 10*sd the CDF saturates to 1.0; the SF should
         // not be 0. CDFLIB-grade tail accuracy is the whole point.
-        let n = Normal::new(0.0, 1.0).unwrap();
+        let n = Normal::new(0.0, 1.0);
         let s = n.sf(10.0);
         assert!(s > 0.0 && s < 1e-22, "sf(10) = {s}");
     }
 
     #[test]
     fn inverse_cdf_round_trip() {
-        let n = Normal::new(-1.0, 2.5).unwrap();
+        let n = Normal::new(-1.0, 2.5);
         for &x in &[-5.0, -1.0, 0.0, 3.0] {
             let p = n.cdf(x);
             let back = n.inverse_cdf(p).unwrap();
@@ -371,7 +387,7 @@ mod tests {
     #[test]
     fn pdf_at_mean_is_1_over_sd_sqrt_2pi() {
         for sd in [0.5, 1.0, 3.7] {
-            let n = Normal::new(0.0, sd).unwrap();
+            let n = Normal::new(0.0, sd);
             let expected = 1.0 / (sd * (2.0 * PI).sqrt());
             let got = n.pdf(0.0);
             assert!((got - expected).abs() < 1e-15, "sd = {sd}");
@@ -383,7 +399,7 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn moments() {
-        let n = Normal::new(-2.0, 3.0).unwrap();
+        let n = Normal::new(-2.0, 3.0);
         assert_eq!(n.mean(), -2.0);
         assert_eq!(n.variance(), 9.0);
         assert_eq!(n.std_dev(), 3.0);

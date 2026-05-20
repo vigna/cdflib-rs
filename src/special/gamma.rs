@@ -256,7 +256,7 @@ pub fn gam1(a: f64) -> f64 {
 ///
 /// [`try_gamma`]: crate::special::try_gamma
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
-pub enum GammaError {
+pub enum GammaDomainError {
     /// Argument is zero or a negative integer; Γ has a pole there.
     #[error("Γ has a pole at {0}")]
     Pole(f64),
@@ -270,7 +270,7 @@ pub enum GammaError {
 ///
 /// # Panics
 ///
-/// Panics on a [`GammaError`] (pole at a non-positive integer, or
+/// Panics on a [`GammaDomainError`] (pole at a non-positive integer, or
 /// overflow when |*a*| ≥ 1000). Use [`try_gamma`] for the fallible form.
 ///
 /// # Example
@@ -288,20 +288,20 @@ pub fn gamma(a: f64) -> f64 {
     try_gamma(a).unwrap_or_else(|e| panic!("gamma({a}): {e}"))
 }
 
-/// Fallible form of [`gamma`]: returns [`GammaError`] when the argument
+/// Fallible form of [`gamma`]: returns [`GammaDomainError`] when the argument
 /// lands on a pole or the result would overflow f64.
 ///
 /// # Example
 ///
 /// ```
-/// use cdflib::special::{try_gamma, GammaError};
+/// use cdflib::special::{try_gamma, GammaDomainError};
 ///
-/// assert!(matches!(try_gamma(-3.0), Err(GammaError::Pole(_))));
-/// assert!(matches!(try_gamma(2000.0), Err(GammaError::Overflow(_))));
+/// assert!(matches!(try_gamma(-3.0), Err(GammaDomainError::Pole(_))));
+/// assert!(matches!(try_gamma(2000.0), Err(GammaDomainError::Overflow(_))));
 /// assert!((try_gamma(3.0).unwrap() - 2.0).abs() < 1e-14);
 /// ```
 #[inline]
-pub fn try_gamma(a: f64) -> Result<f64, GammaError> {
+pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
     const D: f64 = 0.41893853320467274178;
     const PI: f64 = 3.1415926535898;
     const P_COEF: [f64; 7] = [
@@ -361,12 +361,12 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaError> {
                 t *= x;
                 if t == 0.0 {
                     // a is a non-positive integer (0, -1, -2, …): pole.
-                    return Err(GammaError::Pole(a));
+                    return Err(GammaDomainError::Pole(a));
                 }
             }
             // For 1/t overflow check, CDFLIB compares fabs(t)*MAX <= 1.0001.
             if t.abs() < 1e-30 && t.abs() * f64::MAX <= 1.0001 {
-                return Err(GammaError::Overflow(a));
+                return Err(GammaDomainError::Overflow(a));
             }
             if t.abs() < 1e-30 {
                 return Ok(1.0 / t);
@@ -385,7 +385,7 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaError> {
 
     // |a| >= 15: asymptotic.
     if a.abs() >= 1e3 {
-        return Err(GammaError::Overflow(a));
+        return Err(GammaDomainError::Overflow(a));
     }
     if a < 0.0 {
         let x = -a;
@@ -400,14 +400,14 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaError> {
         }
         if s == 0.0 {
             // a is a negative integer of magnitude ≥ 15: pole.
-            return Err(GammaError::Pole(a));
+            return Err(GammaDomainError::Pole(a));
         }
         let t = 1.0 / (x * x);
         let g = ((((R1 * t + R2) * t + R3) * t + R4) * t + R5) / x;
         let lnx = x.ln();
         let g = D + g + (x - 0.5) * (lnx - 1.0);
         if g > 0.99999 * POS_EXPARG {
-            return Err(GammaError::Overflow(a));
+            return Err(GammaDomainError::Overflow(a));
         }
         let result = g.exp();
         return Ok(1.0 / (result * s) / x);
@@ -418,7 +418,7 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaError> {
     let lnx = a.ln();
     let g = D + g + (a - 0.5) * (lnx - 1.0);
     if g > 0.99999 * POS_EXPARG {
-        return Err(GammaError::Overflow(a));
+        return Err(GammaDomainError::Overflow(a));
     }
     Ok(g.exp())
 }
@@ -2393,9 +2393,9 @@ mod tests {
 
     #[test]
     fn try_gamma_overflow_is_err() {
-        // Γ(a) overflows f64 for |a| ≥ 1000; reported as GammaError::Overflow.
-        assert_eq!(try_gamma(1001.0), Err(GammaError::Overflow(1001.0)));
-        assert_eq!(try_gamma(1e10), Err(GammaError::Overflow(1e10)));
+        // Γ(a) overflows f64 for |a| ≥ 1000; reported as GammaDomainError::Overflow.
+        assert_eq!(try_gamma(1001.0), Err(GammaDomainError::Overflow(1001.0)));
+        assert_eq!(try_gamma(1e10), Err(GammaDomainError::Overflow(1e10)));
     }
 
     #[test]
@@ -2448,14 +2448,14 @@ mod tests {
     #[test]
     fn try_gamma_at_negative_integer_is_pole() {
         // Γ has a pole at every non-positive integer.
-        assert_eq!(try_gamma(-3.0), Err(GammaError::Pole(-3.0)));
-        assert_eq!(try_gamma(-10.0), Err(GammaError::Pole(-10.0)));
+        assert_eq!(try_gamma(-3.0), Err(GammaDomainError::Pole(-3.0)));
+        assert_eq!(try_gamma(-10.0), Err(GammaDomainError::Pole(-10.0)));
     }
 
     #[test]
     fn try_gamma_at_zero_is_pole() {
         // Γ has a pole at 0 (the mathematical limit is +∞).
-        assert_eq!(try_gamma(0.0), Err(GammaError::Pole(0.0)));
+        assert_eq!(try_gamma(0.0), Err(GammaDomainError::Pole(0.0)));
     }
 
     #[test]

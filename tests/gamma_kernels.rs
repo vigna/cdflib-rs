@@ -4,7 +4,7 @@
 
 mod common;
 
-use cdflib::special::{gamma_log, gamma, gamma_inc};
+use cdflib::special::{gamma, gamma_inc, gamma_log};
 use common::{
     DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL, ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
     assert_close_eps, read_csv,

@@ -51,7 +51,7 @@ fn gam1_above_one_and_negative() {
 
 #[test]
 fn gamma_negative_argument_and_overflow_paths() {
-    use cdflib::special::{GammaError, try_gamma};
+    use cdflib::special::{GammaDomainError, try_gamma};
 
     // |a| ≥ 15 reflection branch with t > 0.9. Γ(-15.95) routes through
     // `t = 0.95` → `t = 1 - 0.95 = 0.05`.
@@ -59,19 +59,19 @@ fn gamma_negative_argument_and_overflow_paths() {
     assert!(g_307.is_finite() && g_307 != 0.0, "g_307 = {g_307}");
 
     // Reflection at a negative integer with |a| ≥ 15: sin(πt) = 0 → pole.
-    assert_eq!(try_gamma(-20.0), Err(GammaError::Pole(-20.0)));
-    assert_eq!(try_gamma(-25.0), Err(GammaError::Pole(-25.0)));
+    assert_eq!(try_gamma(-20.0), Err(GammaDomainError::Pole(-20.0)));
+    assert_eq!(try_gamma(-25.0), Err(GammaDomainError::Pole(-25.0)));
 
     // Same pole via the |a| < 15 branch.
-    assert_eq!(try_gamma(-2.0), Err(GammaError::Pole(-2.0)));
-    assert_eq!(try_gamma(-5.0), Err(GammaError::Pole(-5.0)));
+    assert_eq!(try_gamma(-2.0), Err(GammaDomainError::Pole(-2.0)));
+    assert_eq!(try_gamma(-5.0), Err(GammaDomainError::Pole(-5.0)));
 
     // Reflection-branch overflow: g exceeds POS_EXPARG for a far enough
     // negative non-integer.
-    assert_eq!(try_gamma(-200.7), Err(GammaError::Overflow(-200.7)));
+    assert_eq!(try_gamma(-200.7), Err(GammaDomainError::Overflow(-200.7)));
 
     // Large positive overflow: a ≥ 15 and g > 0.99999·POS_EXPARG.
-    assert_eq!(try_gamma(200.0), Err(GammaError::Overflow(200.0)));
+    assert_eq!(try_gamma(200.0), Err(GammaDomainError::Overflow(200.0)));
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn poisson_inverse_cdf_high_quantile() {
     // expansion is structurally defensive, exercised only when the
     // initial bracket undershoots. The test just confirms the
     // surrounding inverse_cdf path returns a consistent result.
-    let d = Poisson::new(4.0).unwrap();
+    let d = Poisson::new(4.0);
     let p = 1.0 - 1e-12;
     let s = d.inverse_cdf(p).unwrap();
     assert!(d.cdf(s) >= p);
@@ -357,7 +357,7 @@ fn poisson_inverse_cdf_high_quantile() {
 fn negative_binomial_inverse_cdf_high_quantile() {
     // Same defensive expansion pattern as Poisson::inverse_cdf, applied
     // to NegativeBinomial.
-    let d = NegativeBinomial::new(5, 0.05).unwrap();
+    let d = NegativeBinomial::new(5, 0.05);
     let p = 1.0 - 1e-10;
     let s = d.inverse_cdf(p).unwrap();
     assert!(d.cdf(s) >= p);
@@ -371,7 +371,7 @@ fn fisher_snedecor_noncentral_pdf_basic() {
     // dispatcher's internal counters; the branch is structurally
     // guarded against a 0·log(0) form. Exercise the surrounding code
     // with a representative input.
-    let d = FisherSnedecorNoncentral::new(4.0, 8.0, 2.5).unwrap();
+    let d = FisherSnedecorNoncentral::new(4.0, 8.0, 2.5);
     let x = 1.0;
     let c = d.cdf(x);
     assert!(c.is_finite() && (0.0..=1.0).contains(&c));

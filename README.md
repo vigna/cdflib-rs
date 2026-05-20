@@ -39,6 +39,28 @@ libraries, such as [`statrs`], can use the high-precision functions provided by
 CDFLIB to build more ergonomic APIs. The only exception are convenience
 textbook one-liners for mean, variance, and so on.
 
+## Notation conventions
+
+The crate, like CDFLIB itself, uses several interchangeable names for the
+lower- and upper-tail probabilities of a distribution. The synonyms are:
+
+| Concept          | Method  | F90 name | CDFLIB code | Other names            |
+| ---------------- | ------- | -------- | ----------- | ---------------------- |
+| Pr[*X* ≤ *x*]    | [`cdf`] | `cum`    | _P_         | lower-tail probability |
+| Pr[*X* &gt; *x*] | [`sf`]  | `ccum`   | _Q_         | upper-tail / survival  |
+
+The two are mathematically complementary (_P_ + _Q_ = 1), but the crate
+computes them _independently_ rather than deriving one from the other by
+subtraction. This is what lets the small tail keep its precision deep into the
+tails, where `1.0 - cdf(x)` would lose digits to cancellation.
+
+The incomplete-Γ and incomplete-Β kernels follow the same convention:
+[`gamma_inc`] returns the pair (_P_, _Q_), [`beta_inc`] returns
+(_Iₓ_(_a_, _b_), 1 − _Iₓ_(_a_, _b_)) — both computed independently.
+
+Probability statements are written as Pr[*X* ≤ *x*] (square brackets,
+italic variables) throughout the crate's documentation.
+
 ## Why CDFLIB?
 
 Many libraries compute CDFs. CDFLIB is distinguished by two design choices:
@@ -75,7 +97,7 @@ Note that these calls are not realistic for a statistician: for everyday
 usage, [`statrs`] and this crate will give the same results. The last example,
 however, was the author's motivation for this port—large-scale collision tests
 of pseudorandom number generators are starting to land in that area due
-to more core memory being available, and improved techniques.
+to more core memory being available, and to improved techniques.
 
 [`rmathlib`], a Rust port of R's special-function library, is another option. It
 is accurate in the body of each distribution, but its asymptotic regime stops
@@ -90,8 +112,9 @@ of five branches in [`gamma_inc`]) covers this range cleanly:
 | (_P_, _Q_)(10⁶, 10⁶)   | (0.5001, 0.4999) | (NaN, NaN)   |
 | (_P_, _Q_)(10⁹, 10⁹)   | (0.5000, 0.5000) | (NaN, NaN)   |
 
-These correspond to χ²(1000), χ²(10⁴), …, χ²(2·10⁹) at their respective medians,
-which arise in goodness-of-fit and likelihood-ratio tests on large samples.
+These correspond to χ²(1000), χ²(10⁴), χ²(2·10⁶), and χ²(2·10⁹) at their
+respective medians, which arise in goodness-of-fit and likelihood-ratio tests on
+large samples.
 
 ### 2. Solves for any parameter, not just _x_ and _p_
 
@@ -112,7 +135,7 @@ other parameters. For example:
 use cdflib::Normal;
 use cdflib::traits::{Continuous, ContinuousCdf, Mean};
 
-let n = Normal::new(0.0, 1.0)?;
+let n = Normal::try_new(0.0, 1.0)?;
 let p   = n.cdf(1.96);              // 0.9750021048517796
 let sf  = n.sf(5.0);                // 2.866516e-7, computed directly (not 1 - cdf)
 let x   = n.inverse_cdf(0.975)?;    // 1.9599639845400538
@@ -149,11 +172,11 @@ use cdflib::{ChiSquared, ChiSquaredNoncentral};
 use cdflib::traits::ContinuousCdf;
 
 // Critical value of a χ²(5) test at α = 0.05.
-let crit = ChiSquared::new(5.0)?.inverse_cdf(0.95)?;
+let crit = ChiSquared::try_new(5.0)?.inverse_cdf(0.95)?;
 // 11.0705
 
 // Power against a noncentral alternative with ncp = 10.
-let power = ChiSquaredNoncentral::new(5.0, 10.0)?.sf(crit);
+let power = ChiSquaredNoncentral::try_new(5.0, 10.0)?.sf(crit);
 // 0.6774
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
@@ -219,8 +242,8 @@ digit. The intentional structural divergences are:
   via an integer flag) is split into two Rust functions, [`error_fc`] and
   [`error_fc_scaled`]. Same numerics, no flag argument.
 - The Fortran `cum*` and `cdf*` dispatcher families are folded into the
-  corresponding distribution module's `cdf` / `sf` / `inverse_cdf` /
-  `inverse_sf` / `solve_*` methods rather than exposed as bare functions.
+  corresponding distribution module's [`cdf`] / [`sf`] / [`inverse_cdf`] /
+  [`inverse_sf`] / `solve_*` methods rather than exposed as bare functions.
 - `dinvr` and `dzror` (the reverse-communication root finders) live as internal
   state machines in `crate::solver`. They are not part of the public surface.
 - The solver setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
@@ -245,7 +268,7 @@ compiler.
 
 The code has been extensively tested against the original Fortran 90 and C
 sources. In the process, we found [serious bugs in `rmathlib`] and a major
-mistake in the Fortran 90 version of the library that has remained undetected
+mistake in the [Fortran 90 version of the library] that has remained undetected
 for 25 years: a coefficient for the computation of the error function had been
 transcribed from the [original FORTRAN77 code] with a wrong exponent.
 
@@ -263,7 +286,6 @@ transcribed from the [original FORTRAN77 code] with a wrong exponent.
 [incomplete-Γ/Β routines]: https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.gammainc.html
 [serious bugs in `rmathlib`]: https://github.com/tla-org/rmathlib/issues/38
 [original FORTRAN77 code]: https://dl.acm.org/doi/10.1145/131766.131776#supplementary-materials
-[`thiserror`]: https://crates.io/crates/thiserror
 [traits]: https://docs.rs/cdflib/latest/cdflib/traits/index.html
 [`cdflib::special::internal`]: https://docs.rs/cdflib/latest/cdflib/special/internal/index.html
 [`gamma`]: https://docs.rs/cdflib/latest/cdflib/special/fn.gamma.html
@@ -276,3 +298,8 @@ transcribed from the [original FORTRAN77 code] with a wrong exponent.
 [`rlog`]: https://docs.rs/cdflib/latest/cdflib/special/internal/fn.rlog.html
 [noncentral χ²]: https://docs.rs/cdflib/latest/cdflib/struct.ChiSquaredNoncentral.html
 [noncentral _F_]: https://docs.rs/cdflib/latest/cdflib/struct.FisherSnedecorNoncentral.html
+[Fortran 90 version of the library]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
+[`cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.cdf
+[`sf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.sf
+[`inverse_cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_cdf
+[`inverse_sf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_sf

@@ -1,13 +1,24 @@
 use thiserror::Error;
 
-use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, solve_monotone};
+use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
 
 /// Noncentral *F* distribution with numerator df *dfn*, denominator df *dfd*,
 /// and noncentrality *λ* ≥ 0.
+///
+/// # Admissible degrees of freedom
+///
+/// The constructor requires *dfn* ≥ 1 and *dfd* ≥ 1. This is stricter than
+/// the central [`FisherSnedecor`] because `cumfnc` series-sums calls
+/// `beta_inc(0.5·dfn + i, 0.5·dfd, …)` with *dfn* itself in the argument:
+/// CDFLIB's `cdffnc` (cdflib.f90:L4619) explicitly notes that *dfn* < 1
+/// makes the underlying `beta_inc` call diverge, so the constraint is on
+/// the CDF itself, not merely the solver.
+///
+/// [`FisherSnedecor`]: crate::FisherSnedecor
 ///
 /// # Example
 ///
@@ -15,7 +26,7 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 /// use cdflib::FisherSnedecorNoncentral;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let d = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0).unwrap();
+/// let d = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0);
 ///
 /// // Pr[X ≤ 4.0]
 /// let p = d.cdf(4.0);
@@ -36,21 +47,30 @@ pub struct FisherSnedecorNoncentral {
 /// [`FisherSnedecorNoncentral`]: crate::FisherSnedecorNoncentral
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum FisherSnedecorNoncentralError {
-    /// The numerator degrees of freedom *dfn* was less than 1 (or not finite).
-    /// The CDF reduction's [`beta_inc`] call diverges below 1.
+    /// The numerator degrees of freedom *dfn* was less than 1. The CDF
+    /// reduction's [`beta_inc`] call diverges below 1.
     ///
     /// [`beta_inc`]: crate::special::beta_inc
     #[error("numerator df must be ≥ 1, got {0}")]
-    DfnInvalid(f64),
-    /// The denominator degrees of freedom *dfd* was less than 1 (or not
-    /// finite). The CDF reduction's [`beta_inc`] call diverges below 1.
+    DfnLessThanOne(f64),
+    /// The numerator degrees of freedom *dfn* was not finite.
+    #[error("numerator df must be finite, got {0}")]
+    DfnNotFinite(f64),
+    /// The denominator degrees of freedom *dfd* was less than 1. The CDF
+    /// reduction's [`beta_inc`] call diverges below 1.
     ///
     /// [`beta_inc`]: crate::special::beta_inc
     #[error("denominator df must be ≥ 1, got {0}")]
-    DfdInvalid(f64),
-    /// The noncentrality parameter *λ* was negative (or not finite).
+    DfdLessThanOne(f64),
+    /// The denominator degrees of freedom *dfd* was not finite.
+    #[error("denominator df must be finite, got {0}")]
+    DfdNotFinite(f64),
+    /// The noncentrality parameter *λ* was negative.
     #[error("noncentrality parameter must be ≥ 0, got {0}")]
     NcpNegative(f64),
+    /// The noncentrality parameter *λ* was not finite.
+    #[error("noncentrality parameter must be finite, got {0}")]
+    NcpNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -65,16 +85,35 @@ impl FisherSnedecorNoncentral {
     /// Construct a noncentral *F*(*dfn*, *dfd*, *λ*) distribution with
     /// *dfn* ≥ 1, *dfd* ≥ 1, and *λ* ≥ 0. The lower bound of 1 on the
     /// degrees of freedom is required by the underlying incomplete-Β
-    /// reduction.
+    /// reduction. Panics if any argument is invalid; use [`try_new`] for a
+    /// fallible variant.
+    ///
+    /// [`try_new`]: Self::try_new
     #[inline]
-    pub fn new(dfn: f64, dfd: f64, ncp: f64) -> Result<Self, FisherSnedecorNoncentralError> {
-        if !(dfn >= 1.0 && dfn.is_finite()) {
-            return Err(FisherSnedecorNoncentralError::DfnInvalid(dfn));
+    pub fn new(dfn: f64, dfd: f64, ncp: f64) -> Self {
+        Self::try_new(dfn, dfd, ncp).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`FisherSnedecorNoncentralError`] instead of panicking.
+    #[inline]
+    pub fn try_new(dfn: f64, dfd: f64, ncp: f64) -> Result<Self, FisherSnedecorNoncentralError> {
+        if !dfn.is_finite() {
+            return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
         }
-        if !(dfd >= 1.0 && dfd.is_finite()) {
-            return Err(FisherSnedecorNoncentralError::DfdInvalid(dfd));
+        if dfn < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfnLessThanOne(dfn));
         }
-        if !(ncp >= 0.0 && ncp.is_finite()) {
+        if !dfd.is_finite() {
+            return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
+        }
+        if dfd < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfdLessThanOne(dfd));
+        }
+        if !ncp.is_finite() {
+            return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
+        }
+        if ncp < 0.0 {
             return Err(FisherSnedecorNoncentralError::NcpNegative(ncp));
         }
         Ok(Self { dfn, dfd, ncp })
@@ -82,19 +121,19 @@ impl FisherSnedecorNoncentral {
 
     /// Returns the numerator degrees of freedom *dfn*.
     #[inline]
-    pub fn dfn(&self) -> f64 {
+    pub const fn dfn(&self) -> f64 {
         self.dfn
     }
 
     /// Returns the denominator degrees of freedom *dfd*.
     #[inline]
-    pub fn dfd(&self) -> f64 {
+    pub const fn dfd(&self) -> f64 {
         self.dfd
     }
 
     /// Returns the noncentrality parameter *λ*.
     #[inline]
-    pub fn ncp(&self) -> f64 {
+    pub const fn ncp(&self) -> f64 {
         self.ncp
     }
 
@@ -364,15 +403,15 @@ mod tests {
     #[test]
     fn rejects_invalid_inputs() {
         assert!(matches!(
-            FisherSnedecorNoncentral::new(0.0, 5.0, 1.0),
-            Err(FisherSnedecorNoncentralError::DfnInvalid(0.0))
+            FisherSnedecorNoncentral::try_new(0.0, 5.0, 1.0),
+            Err(FisherSnedecorNoncentralError::DfnLessThanOne(0.0))
         ));
         assert!(matches!(
-            FisherSnedecorNoncentral::new(5.0, 0.0, 1.0),
-            Err(FisherSnedecorNoncentralError::DfdInvalid(0.0))
+            FisherSnedecorNoncentral::try_new(5.0, 0.0, 1.0),
+            Err(FisherSnedecorNoncentralError::DfdLessThanOne(0.0))
         ));
         assert!(matches!(
-            FisherSnedecorNoncentral::new(5.0, 5.0, -1.0),
+            FisherSnedecorNoncentral::try_new(5.0, 5.0, -1.0),
             Err(FisherSnedecorNoncentralError::NcpNegative(-1.0))
         ));
         assert!(matches!(
@@ -383,21 +422,15 @@ mod tests {
 
     #[test]
     fn inverse_and_moment_edges() {
-        let d = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0).unwrap();
+        let d = FisherSnedecorNoncentral::new(5.0, 10.0, 2.0);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
         assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
         assert!(d.inverse_sf(0.25).unwrap().is_finite());
         assert!(d.mean().is_finite());
         assert!(d.variance().is_finite());
-        assert!(
-            FisherSnedecorNoncentral::new(5.0, 2.0, 2.0)
-                .unwrap()
-                .mean()
-                .is_nan()
-        );
+        assert!(FisherSnedecorNoncentral::new(5.0, 2.0, 2.0).mean().is_nan());
         assert!(
             FisherSnedecorNoncentral::new(5.0, 4.0, 2.0)
-                .unwrap()
                 .variance()
                 .is_nan()
         );
@@ -405,7 +438,7 @@ mod tests {
 
     #[test]
     fn central_reduction_path_is_consistent() {
-        let d = FisherSnedecorNoncentral::new(5.0, 10.0, 0.0).unwrap();
+        let d = FisherSnedecorNoncentral::new(5.0, 10.0, 0.0);
         let x = 1.5;
         let cdf = d.cdf(x);
         let sf = d.sf(x);

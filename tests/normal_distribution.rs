@@ -13,7 +13,7 @@ fn cdf_and_sf_match_cdfnor_reference() {
         let [mean, sd, x, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let n = Normal::new(mean, sd).unwrap();
+        let n = Normal::new(mean, sd);
         // Normal::cdf is a direct cumnor wrapper; no iterative kernel.
         assert_close_eps(n.cdf(x), expected_cdf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
         assert_close_eps(n.sf(x), expected_sf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
@@ -32,7 +32,7 @@ fn inverse_cdf_matches_cdfnor_reference() {
         let [mean, sd, p, q, expected_x] = row[..] else {
             panic!("width");
         };
-        let n = Normal::new(mean, sd).unwrap();
+        let n = Normal::new(mean, sd);
         if p <= 0.5 {
             assert_close_eps(
                 n.inverse_cdf(p).unwrap(),

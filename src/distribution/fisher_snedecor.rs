@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
@@ -11,13 +11,28 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 ///
 /// The CDF reduces to the incomplete Β (Abramowitz–Stegun 26.5.28).
 ///
+/// # Admissible degrees of freedom
+///
+/// The constructor accepts any *dfn*, *dfd* > 0 because the central-F CDF
+/// `cumf` calls `beta_inc(0.5·dfd, 0.5·dfn, …)` and remains stable for
+/// fractional df. The parameter solvers ([`solve_dfn`], [`solve_dfd`])
+/// nonetheless bracket the search in [1 . . ∞): mirroring CDFLIB's `cdff`,
+/// which lifts the lower bound to 1 because `beta_inc` diverges when *dfn*
+/// itself is the search variable below 1. This is intentionally laxer than
+/// the noncentral counterpart [`FisherSnedecorNoncentral`], whose CDF
+/// itself requires *dfn*, *dfd* ≥ 1.
+///
+/// [`solve_dfn`]: Self::solve_dfn
+/// [`solve_dfd`]: Self::solve_dfd
+/// [`FisherSnedecorNoncentral`]: crate::FisherSnedecorNoncentral
+///
 /// # Example
 ///
 /// ```
 /// use cdflib::FisherSnedecor;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let f = FisherSnedecor::new(5.0, 10.0).unwrap();
+/// let f = FisherSnedecor::new(5.0, 10.0);
 ///
 /// // Pr[X ≤ 3.33]
 /// let p = f.cdf(3.33);
@@ -37,14 +52,25 @@ pub struct FisherSnedecor {
 /// [`FisherSnedecor`]: crate::FisherSnedecor
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum FisherSnedecorError {
-    /// The numerator degrees of freedom *dfn* was not strictly positive
-    /// (or not finite).
+    /// The numerator degrees of freedom *dfn* was not strictly positive.
     #[error("numerator df must be positive, got {0}")]
     DfnNotPositive(f64),
-    /// The denominator degrees of freedom *dfd* was not strictly positive
-    /// (or not finite).
+    /// The numerator degrees of freedom *dfn* was not finite.
+    #[error("numerator df must be finite, got {0}")]
+    DfnNotFinite(f64),
+    /// The denominator degrees of freedom *dfd* was not strictly positive.
     #[error("denominator df must be positive, got {0}")]
     DfdNotPositive(f64),
+    /// The denominator degrees of freedom *dfd* was not finite.
+    #[error("denominator df must be finite, got {0}")]
+    DfdNotFinite(f64),
+    /// The value *f* (the point at which the CDF is evaluated) was not
+    /// strictly positive.
+    #[error("f must be positive, got {0}")]
+    FNotPositive(f64),
+    /// The value *f* was not finite.
+    #[error("f must be finite, got {0}")]
+    FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -57,13 +83,29 @@ pub enum FisherSnedecorError {
 
 impl FisherSnedecor {
     /// Construct an *F*(*dfn*, *dfd*) distribution with strictly positive
-    /// numerator and denominator degrees of freedom.
+    /// numerator and denominator degrees of freedom. Panics if either is
+    /// invalid; use [`try_new`] for a fallible variant.
+    ///
+    /// [`try_new`]: Self::try_new
     #[inline]
-    pub fn new(dfn: f64, dfd: f64) -> Result<Self, FisherSnedecorError> {
-        if !(dfn > 0.0 && dfn.is_finite()) {
+    pub fn new(dfn: f64, dfd: f64) -> Self {
+        Self::try_new(dfn, dfd).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`FisherSnedecorError`] instead of panicking.
+    #[inline]
+    pub fn try_new(dfn: f64, dfd: f64) -> Result<Self, FisherSnedecorError> {
+        if !dfn.is_finite() {
+            return Err(FisherSnedecorError::DfnNotFinite(dfn));
+        }
+        if dfn <= 0.0 {
             return Err(FisherSnedecorError::DfnNotPositive(dfn));
         }
-        if !(dfd > 0.0 && dfd.is_finite()) {
+        if !dfd.is_finite() {
+            return Err(FisherSnedecorError::DfdNotFinite(dfd));
+        }
+        if dfd <= 0.0 {
             return Err(FisherSnedecorError::DfdNotPositive(dfd));
         }
         Ok(Self { dfn, dfd })
@@ -71,13 +113,13 @@ impl FisherSnedecor {
 
     /// Returns the numerator degrees of freedom *dfn*.
     #[inline]
-    pub fn dfn(&self) -> f64 {
+    pub const fn dfn(&self) -> f64 {
         self.dfn
     }
 
     /// Returns the denominator degrees of freedom *dfd*.
     #[inline]
-    pub fn dfd(&self) -> f64 {
+    pub const fn dfd(&self) -> f64 {
         self.dfd
     }
 
@@ -88,7 +130,16 @@ impl FisherSnedecor {
     #[inline]
     pub fn solve_dfn(p: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
         check_prob(p)?;
-        if f <= 0.0 || dfd <= 0.0 {
+        if !f.is_finite() {
+            return Err(FisherSnedecorError::FNotFinite(f));
+        }
+        if f <= 0.0 {
+            return Err(FisherSnedecorError::FNotPositive(f));
+        }
+        if !dfd.is_finite() {
+            return Err(FisherSnedecorError::DfdNotFinite(dfd));
+        }
+        if dfd <= 0.0 {
             return Err(FisherSnedecorError::DfdNotPositive(dfd));
         }
         let q_target = 1.0 - p;
@@ -122,7 +173,16 @@ impl FisherSnedecor {
     #[inline]
     pub fn solve_dfd(p: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
         check_prob(p)?;
-        if f <= 0.0 || dfn <= 0.0 {
+        if !f.is_finite() {
+            return Err(FisherSnedecorError::FNotFinite(f));
+        }
+        if f <= 0.0 {
+            return Err(FisherSnedecorError::FNotPositive(f));
+        }
+        if !dfn.is_finite() {
+            return Err(FisherSnedecorError::DfnNotFinite(dfn));
+        }
+        if dfn <= 0.0 {
             return Err(FisherSnedecorError::DfnNotPositive(dfn));
         }
         let q_target = 1.0 - p;
@@ -304,18 +364,18 @@ mod tests {
     #[test]
     fn rejects_invalid_parameters() {
         assert!(matches!(
-            FisherSnedecor::new(0.0, 1.0),
+            FisherSnedecor::try_new(0.0, 1.0),
             Err(FisherSnedecorError::DfnNotPositive(0.0))
         ));
         assert!(matches!(
-            FisherSnedecor::new(1.0, 0.0),
+            FisherSnedecor::try_new(1.0, 0.0),
             Err(FisherSnedecorError::DfdNotPositive(0.0))
         ));
     }
 
     #[test]
     fn inverse_and_density_edges() {
-        let d = FisherSnedecor::new(5.0, 10.0).unwrap();
+        let d = FisherSnedecor::new(5.0, 10.0);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
         assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
         assert_eq!(d.pdf(0.0), 0.0);
@@ -328,22 +388,25 @@ mod tests {
 
     #[test]
     fn moment_thresholds_and_invalid_solves() {
-        assert!(FisherSnedecor::new(5.0, 2.0).unwrap().mean().is_nan());
-        assert!(FisherSnedecor::new(5.0, 4.0).unwrap().variance().is_nan());
-        assert!(FisherSnedecor::new(5.0, 10.0).unwrap().mean().is_finite());
-        assert!(
-            FisherSnedecor::new(5.0, 10.0)
-                .unwrap()
-                .variance()
-                .is_finite()
-        );
+        assert!(FisherSnedecor::new(5.0, 2.0).mean().is_nan());
+        assert!(FisherSnedecor::new(5.0, 4.0).variance().is_nan());
+        assert!(FisherSnedecor::new(5.0, 10.0).mean().is_finite());
+        assert!(FisherSnedecor::new(5.0, 10.0).variance().is_finite());
         assert!(matches!(
             FisherSnedecor::solve_dfn(-0.1, 1.0, 5.0),
             Err(FisherSnedecorError::ProbabilityOutOfRange(-0.1))
         ));
         assert!(matches!(
             FisherSnedecor::solve_dfn(0.5, 0.0, 5.0),
-            Err(FisherSnedecorError::DfdNotPositive(5.0))
+            Err(FisherSnedecorError::FNotPositive(0.0))
+        ));
+        assert!(matches!(
+            FisherSnedecor::solve_dfn(0.5, 1.0, 0.0),
+            Err(FisherSnedecorError::DfdNotPositive(0.0))
+        ));
+        assert!(matches!(
+            FisherSnedecor::solve_dfd(0.5, 0.0, 5.0),
+            Err(FisherSnedecorError::FNotPositive(0.0))
         ));
         assert!(matches!(
             FisherSnedecor::solve_dfd(0.5, 1.0, 0.0),

@@ -15,7 +15,7 @@ fn binomial_cdf_matches_cumbin_reference() {
         let [n, pr, s, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = Binomial::new(n as u64, pr).unwrap();
+        let d = Binomial::new(n as u64, pr);
         assert_close_eps(
             d.cdf(s as u64),
             expected_cdf,
@@ -37,7 +37,7 @@ fn poisson_cdf_matches_cumpoi_reference() {
         let [lambda, s, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = Poisson::new(lambda).unwrap();
+        let d = Poisson::new(lambda);
         assert_close_eps(
             d.cdf(s as u64),
             expected_cdf,
@@ -59,7 +59,7 @@ fn negative_binomial_cdf_matches_cumnbn_reference() {
         let [r, pr, s, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = NegativeBinomial::new(r as u64, pr).unwrap();
+        let d = NegativeBinomial::new(r as u64, pr);
         assert_close_eps(
             d.cdf(s as u64),
             expected_cdf,

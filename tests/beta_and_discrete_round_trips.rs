@@ -15,7 +15,7 @@ use common::{CHAINED_INVERSE_REL_TOL, DEFAULT_REL_TOL, INVERSE_REL_TOL, assert_c
 #[test]
 fn beta_round_trip() {
     for &(a, b) in &[(2.0, 5.0), (0.5, 0.5), (10.0, 3.0)] {
-        let d = Beta::new(a, b).unwrap();
+        let d = Beta::new(a, b);
         for &p in &[0.01, 0.1, 0.5, 0.9, 0.99] {
             let x = d.inverse_cdf(p).unwrap();
             assert_close_eps(d.cdf(x), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
@@ -30,7 +30,7 @@ fn students_t_known_quantiles() {
     // at this quantile (f' ≈ 0.05), so the inverse precision is
     // function-noise-limited; see `CHAINED_INVERSE_REL_TOL`.
     const T10_INV_975: f64 = 2.2281388519649425;
-    let d = StudentsT::new(10.0).unwrap();
+    let d = StudentsT::new(10.0);
     let x = d.inverse_cdf(0.975).unwrap();
     assert_close_eps(
         x,
@@ -40,7 +40,7 @@ fn students_t_known_quantiles() {
     );
     // Symmetry: P(T < 0) = 0.5 exactly.
     for &df in &[1.0, 3.0, 30.0] {
-        let d = StudentsT::new(df).unwrap();
+        let d = StudentsT::new(df);
         assert!((d.cdf(0.0) - 0.5).abs() < DEFAULT_REL_TOL);
     }
 }
@@ -48,7 +48,7 @@ fn students_t_known_quantiles() {
 #[test]
 fn students_t_round_trip() {
     for &df in &[2.0, 5.0, 30.0] {
-        let d = StudentsT::new(df).unwrap();
+        let d = StudentsT::new(df);
         for &p in &[0.05, 0.5, 0.95] {
             let t = d.inverse_cdf(p).unwrap();
             assert_close_eps(d.cdf(t), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
@@ -58,7 +58,7 @@ fn students_t_round_trip() {
 
 #[test]
 fn students_t_extreme_quantiles_stay_finite() {
-    let d = StudentsT::new(10.0).unwrap();
+    let d = StudentsT::new(10.0);
     for &p in &[1.0e-12, 1.0 - 1.0e-12] {
         let t = d.inverse_cdf(p).unwrap();
         assert!(t.is_finite(), "p={p}, t={t}");
@@ -68,23 +68,18 @@ fn students_t_extreme_quantiles_stay_finite() {
 
 #[test]
 fn students_t_moments_switch_at_documented_df_thresholds() {
-    assert!(StudentsT::new(1.0).unwrap().mean().is_nan());
-    assert_eq!(StudentsT::new(1.0 + 1.0e-12).unwrap().mean(), 0.0);
+    assert!(StudentsT::new(1.0).mean().is_nan());
+    assert_eq!(StudentsT::new(1.0 + 1.0e-12).mean(), 0.0);
 
-    assert!(StudentsT::new(1.0).unwrap().variance().is_nan());
-    assert!(StudentsT::new(1.5).unwrap().variance().is_infinite());
-    assert_eq!(StudentsT::new(2.0).unwrap().variance(), f64::INFINITY);
-    assert!(
-        StudentsT::new(2.0 + 1.0e-12)
-            .unwrap()
-            .variance()
-            .is_finite()
-    );
+    assert!(StudentsT::new(1.0).variance().is_nan());
+    assert!(StudentsT::new(1.5).variance().is_infinite());
+    assert_eq!(StudentsT::new(2.0).variance(), f64::INFINITY);
+    assert!(StudentsT::new(2.0 + 1.0e-12).variance().is_finite());
 }
 
 #[test]
 fn f_distribution_round_trip() {
-    let d = FisherSnedecor::new(5.0, 10.0).unwrap();
+    let d = FisherSnedecor::new(5.0, 10.0);
     for &p in &[0.1, 0.5, 0.95] {
         let x = d.inverse_cdf(p).unwrap();
         assert_close_eps(d.cdf(x), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
@@ -93,7 +88,7 @@ fn f_distribution_round_trip() {
 
 #[test]
 fn binomial_cdf_sums_to_one() {
-    let d = Binomial::new(20, 0.3).unwrap();
+    let d = Binomial::new(20, 0.3);
     let mut sum = 0.0;
     for s in 0..=20 {
         sum += d.pmf(s);
@@ -105,7 +100,7 @@ fn binomial_cdf_sums_to_one() {
 fn binomial_cdf_matches_cumulative_pmf() {
     // Cumulative ∑pmf accumulates rounding linearly; cdf computes the
     // identity in a single beta_inc call. The two paths differ by O(n·ε).
-    let d = Binomial::new(15, 0.4).unwrap();
+    let d = Binomial::new(15, 0.4);
     let mut running = 0.0;
     for s in 0..=15 {
         running += d.pmf(s);
@@ -115,7 +110,7 @@ fn binomial_cdf_matches_cumulative_pmf() {
 
 #[test]
 fn poisson_cdf_matches_cumulative_pmf() {
-    let d = Poisson::new(5.0).unwrap();
+    let d = Poisson::new(5.0);
     let mut running = 0.0;
     for s in 0..50 {
         running += d.pmf(s);
@@ -125,7 +120,7 @@ fn poisson_cdf_matches_cumulative_pmf() {
 
 #[test]
 fn negative_binomial_cdf_matches_cumulative_pmf() {
-    let d = NegativeBinomial::new(5, 0.4).unwrap();
+    let d = NegativeBinomial::new(5, 0.4);
     let mut running = 0.0;
     for s in 0..100 {
         running += d.pmf(s);
@@ -135,7 +130,7 @@ fn negative_binomial_cdf_matches_cumulative_pmf() {
 
 #[test]
 fn discrete_inverse_cdf_contract() {
-    let p = Poisson::new(12.0).unwrap();
+    let p = Poisson::new(12.0);
     for &target in &[0.1, 0.5, 0.95] {
         let s = p.inverse_cdf(target).unwrap();
         // Discrete-inverse contract: smallest s with cdf(s) >= target.
@@ -148,7 +143,7 @@ fn discrete_inverse_cdf_contract() {
 
 #[test]
 fn discrete_inverse_sf_contract() {
-    let binomial = Binomial::new(20, 0.3).unwrap();
+    let binomial = Binomial::new(20, 0.3);
     for &target in &[0.9, 0.5, 0.1] {
         let s = binomial.inverse_sf(target).unwrap();
         assert!(binomial.sf(s) >= target, "binomial: s={s}, q={target}");
@@ -157,7 +152,7 @@ fn discrete_inverse_sf_contract() {
         }
     }
 
-    let poisson = Poisson::new(2.0).unwrap();
+    let poisson = Poisson::new(2.0);
     assert_eq!(poisson.inverse_sf(0.9).unwrap(), 0);
     for &target in &[0.8, 0.5, 0.1, 0.05] {
         let s = poisson.inverse_sf(target).unwrap();
@@ -165,7 +160,7 @@ fn discrete_inverse_sf_contract() {
         assert!(poisson.sf(s + 1) < target, "poisson: s={s}, q={target}");
     }
 
-    let negbin = NegativeBinomial::new(5, 0.4).unwrap();
+    let negbin = NegativeBinomial::new(5, 0.4);
     for &target in &[0.9, 0.5, 0.1] {
         let s = negbin.inverse_sf(target).unwrap();
         assert!(negbin.sf(s) >= target, "negbin: s={s}, q={target}");

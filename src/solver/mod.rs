@@ -81,10 +81,10 @@ const MAX_EVAL: u32 = 1000;
 ///
 /// [`Decreasing`]: BracketStrategy::Decreasing
 #[inline]
-pub(crate) fn solve_monotone<F>(strategy: BracketStrategy, f: F) -> Result<f64, SolverError>
-where
-    F: FnMut(f64) -> f64,
-{
+pub(crate) fn solve_monotone(
+    strategy: BracketStrategy,
+    f: impl FnMut(f64) -> f64,
+) -> Result<f64, SolverError> {
     solve_monotone_with_atol(strategy, ABS_TOL, f)
 }
 
@@ -92,14 +92,11 @@ where
 /// caller-supplied `abs_tol`. Used by the noncentral-χ² dispatchers to
 /// match `cdfchn`'s `atol = 1e-50`.
 #[inline]
-pub(crate) fn solve_monotone_with_atol<F>(
+pub(crate) fn solve_monotone_with_atol(
     strategy: BracketStrategy,
     abs_tol: f64,
-    mut f: F,
-) -> Result<f64, SolverError>
-where
-    F: FnMut(f64) -> f64,
-{
+    mut f: impl FnMut(f64) -> f64,
+) -> Result<f64, SolverError> {
     let (small, big, start, sign): (f64, f64, f64, f64) = match strategy {
         BracketStrategy::Increasing { small, big, start } => (small, big, start, 1.0),
         BracketStrategy::Decreasing { small, big, start } => (small, big, start, -1.0),

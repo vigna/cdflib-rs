@@ -1,5 +1,23 @@
 # Change Log
 
+## [0.4.0] - 2026-05-21
+
+### New
+
+- `try_new` constructors return errors on wrong parameters,
+  `new` constructors panic.
+
+- `const` getters.
+
+### Changed
+
+- Error diagnostics has been made uniform.
+
+- `NegativeBinomial::solve_trials` -> `NegativeBinomial::solve_r`.
+
+- `cdflib::special::GammaError` -> `cdflib::special::GammaDomainError`
+  to avoid clash with `cdflib::GammaError`.
+
 ## [0.3.1] - 2026-05-20
 
 ### Fixed

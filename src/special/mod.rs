@@ -63,7 +63,7 @@ pub(crate) fn eval_pol(c: &[f64], x: f64) -> f64 {
 pub use beta::{BetaIncError, beta, beta_inc, beta_log, try_beta_inc};
 pub use erf::{error_f, error_fc, error_fc_scaled};
 pub use gamma::{
-    GammaError, GammaIncError, GammaIncInvError, PsiError, gamma, gamma_inc, gamma_inc_inv,
+    GammaDomainError, GammaIncError, GammaIncInvError, PsiError, gamma, gamma_inc, gamma_inc_inv,
     gamma_log, psi, try_gamma, try_gamma_inc, try_gamma_inc_inv, try_psi,
 };
 pub use normal::{cumnor, dinvnr, dlanor};

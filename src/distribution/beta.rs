@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
@@ -17,7 +17,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// use cdflib::Beta;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let b = Beta::new(2.0, 5.0).unwrap();
+/// let b = Beta::new(2.0, 5.0);
 ///
 /// // Pr[X ≤ 0.3]
 /// let p = b.cdf(0.3);
@@ -36,12 +36,18 @@ pub struct Beta {
 /// [`Beta`]: crate::Beta
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum BetaError {
-    /// The shape parameter *a* was not strictly positive (or not finite).
+    /// The shape parameter *a* was not strictly positive.
     #[error("shape parameter `a` must be positive, got {0}")]
     ANotPositive(f64),
-    /// The shape parameter *b* was not strictly positive (or not finite).
+    /// The shape parameter *a* was not finite.
+    #[error("shape parameter `a` must be finite, got {0}")]
+    ANotFinite(f64),
+    /// The shape parameter *b* was not strictly positive.
     #[error("shape parameter `b` must be positive, got {0}")]
     BNotPositive(f64),
+    /// The shape parameter *b* was not finite.
+    #[error("shape parameter `b` must be finite, got {0}")]
+    BNotFinite(f64),
     /// The argument *x* fell outside [0 . . 1].
     #[error("argument x must be in [0..1], got {0}")]
     XOutOfRange(f64),
@@ -57,18 +63,37 @@ pub enum BetaError {
 
 impl Beta {
     /// Construct a Β(*a*, *b*) distribution with the given shape parameters.
+    /// Panics if either parameter is invalid; use [`try_new`] for a fallible
+    /// variant.
     ///
-    /// Returns [`ANotPositive`] or [`BNotPositive`] if either parameter is
-    /// not strictly positive and finite.
+    /// [`try_new`]: Self::try_new
+    #[inline]
+    pub fn new(a: f64, b: f64) -> Self {
+        Self::try_new(a, b).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a [`BetaError`]
+    /// instead of panicking.
+    ///
+    /// Returns [`ANotPositive`], [`ANotFinite`], [`BNotPositive`], or
+    /// [`BNotFinite`] if either parameter fails its validity check.
     ///
     /// [`ANotPositive`]: BetaError::ANotPositive
+    /// [`ANotFinite`]: BetaError::ANotFinite
     /// [`BNotPositive`]: BetaError::BNotPositive
+    /// [`BNotFinite`]: BetaError::BNotFinite
     #[inline]
-    pub fn new(a: f64, b: f64) -> Result<Self, BetaError> {
-        if !(a > 0.0 && a.is_finite()) {
+    pub fn try_new(a: f64, b: f64) -> Result<Self, BetaError> {
+        if !a.is_finite() {
+            return Err(BetaError::ANotFinite(a));
+        }
+        if a <= 0.0 {
             return Err(BetaError::ANotPositive(a));
         }
-        if !(b > 0.0 && b.is_finite()) {
+        if !b.is_finite() {
+            return Err(BetaError::BNotFinite(b));
+        }
+        if b <= 0.0 {
             return Err(BetaError::BNotPositive(b));
         }
         Ok(Self { a, b })
@@ -76,13 +101,13 @@ impl Beta {
 
     /// Returns the shape parameter *a*.
     #[inline]
-    pub fn a(&self) -> f64 {
+    pub const fn a(&self) -> f64 {
         self.a
     }
 
     /// Returns the shape parameter *b*.
     #[inline]
-    pub fn b(&self) -> f64 {
+    pub const fn b(&self) -> f64 {
         self.b
     }
 
@@ -93,7 +118,10 @@ impl Beta {
         if !(0.0..=1.0).contains(&x) {
             return Err(BetaError::XOutOfRange(x));
         }
-        if !(b > 0.0 && b.is_finite()) {
+        if !b.is_finite() {
+            return Err(BetaError::BNotFinite(b));
+        }
+        if b <= 0.0 {
             return Err(BetaError::BNotPositive(b));
         }
         let q_target = 1.0 - p;
@@ -125,7 +153,10 @@ impl Beta {
         if !(0.0..=1.0).contains(&x) {
             return Err(BetaError::XOutOfRange(x));
         }
-        if !(a > 0.0 && a.is_finite()) {
+        if !a.is_finite() {
+            return Err(BetaError::ANotFinite(a));
+        }
+        if a <= 0.0 {
             return Err(BetaError::ANotPositive(a));
         }
         let q_target = 1.0 - p;
@@ -285,18 +316,26 @@ mod tests {
     #[test]
     fn rejects_invalid_parameters() {
         assert!(matches!(
-            Beta::new(0.0, 1.0),
+            Beta::try_new(0.0, 1.0),
             Err(BetaError::ANotPositive(0.0))
         ));
         assert!(matches!(
-            Beta::new(1.0, 0.0),
+            Beta::try_new(1.0, 0.0),
             Err(BetaError::BNotPositive(0.0))
+        ));
+        assert!(matches!(
+            Beta::try_new(f64::NAN, 1.0),
+            Err(BetaError::ANotFinite(_))
+        ));
+        assert!(matches!(
+            Beta::try_new(1.0, f64::INFINITY),
+            Err(BetaError::BNotFinite(_))
         ));
     }
 
     #[test]
     fn inverse_boundaries_and_density_edges() {
-        let d = Beta::new(2.0, 3.0).unwrap();
+        let d = Beta::new(2.0, 3.0);
         assert_eq!(d.cdf(0.0), 0.0);
         assert_eq!(d.cdf(1.0), 1.0);
         assert_eq!(d.sf(0.0), 1.0);

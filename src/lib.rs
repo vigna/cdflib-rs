@@ -1,4 +1,4 @@
-#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
+#![doc = include_str!("../README.md")]
 #![warn(missing_debug_implementations)]
 // The `γ` (Euler–Mascheroni) identifier in one psi test is intentional.
 #![allow(mixed_script_confusables, confusable_idents)]

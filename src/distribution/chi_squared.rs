@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::special::gamma_inc;
 use crate::special::{gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
@@ -18,7 +18,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// use cdflib::ChiSquared;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let c = ChiSquared::new(5.0).unwrap();
+/// let c = ChiSquared::new(5.0);
 ///
 /// // Pr[X ≤ 11.07] ≈ 0.95
 /// let p = c.cdf(11.07);
@@ -57,13 +57,23 @@ pub enum ChiSquaredError {
 
 impl ChiSquared {
     /// Construct a *χ*²(*df*) distribution with *df* > 0 degrees of freedom.
+    /// Panics if *df* is invalid; use [`try_new`] for a fallible variant.
+    ///
+    /// [`try_new`]: Self::try_new
+    #[inline]
+    pub fn new(df: f64) -> Self {
+        Self::try_new(df).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`ChiSquaredError`] instead of panicking.
     ///
     /// Returns [`DfNotFinite`] or [`DfNotPositive`] otherwise.
     ///
     /// [`DfNotFinite`]: ChiSquaredError::DfNotFinite
     /// [`DfNotPositive`]: ChiSquaredError::DfNotPositive
     #[inline]
-    pub fn new(df: f64) -> Result<Self, ChiSquaredError> {
+    pub fn try_new(df: f64) -> Result<Self, ChiSquaredError> {
         if !df.is_finite() {
             return Err(ChiSquaredError::DfNotFinite(df));
         }
@@ -75,7 +85,7 @@ impl ChiSquared {
 
     /// Returns the degrees of freedom *df*.
     #[inline]
-    pub fn df(&self) -> f64 {
+    pub const fn df(&self) -> f64 {
         self.df
     }
 
@@ -238,7 +248,7 @@ mod tests {
 
     #[test]
     fn cdf_at_simple_points() {
-        let c = ChiSquared::new(2.0).unwrap();
+        let c = ChiSquared::new(2.0);
         // For df=2, χ² ≡ Exp(1/2); Pr[X ≤ x] = 1 - exp(-x/2).
         for &x in &[0.5_f64, 1.0, 3.84, 10.0] {
             let expected = 1.0 - (-x / 2.0).exp();
@@ -249,21 +259,21 @@ mod tests {
     #[test]
     fn cdf_at_3_84_with_df_1() {
         // χ²₁ at 3.841 ≈ 0.95 (classic statistics-textbook value).
-        let c = ChiSquared::new(1.0).unwrap();
+        let c = ChiSquared::new(1.0);
         let p = c.cdf(3.841458820694124);
         assert!((p - 0.95).abs() < 1e-10, "p = {p}");
     }
 
     #[test]
     fn moments() {
-        let c = ChiSquared::new(7.0).unwrap();
+        let c = ChiSquared::new(7.0);
         assert_eq!(c.mean(), 7.0);
         assert_eq!(c.variance(), 14.0);
     }
 
     #[test]
     fn pdf_nonzero_in_body() {
-        let c = ChiSquared::new(4.0).unwrap();
+        let c = ChiSquared::new(4.0);
         for &x in &[1.0, 2.0, 4.0, 8.0] {
             let p = c.pdf(x);
             assert!(p > 0.0 && p < 1.0, "x={x}: pdf={p}");
@@ -277,19 +287,19 @@ mod tests {
     #[test]
     fn new_rejects_bad_df() {
         assert!(matches!(
-            ChiSquared::new(f64::NAN),
+            ChiSquared::try_new(f64::NAN),
             Err(ChiSquaredError::DfNotFinite(_))
         ));
         assert!(matches!(
-            ChiSquared::new(f64::INFINITY),
+            ChiSquared::try_new(f64::INFINITY),
             Err(ChiSquaredError::DfNotFinite(_))
         ));
         assert!(matches!(
-            ChiSquared::new(-1.0),
+            ChiSquared::try_new(-1.0),
             Err(ChiSquaredError::DfNotPositive(_))
         ));
         assert!(matches!(
-            ChiSquared::new(0.0),
+            ChiSquared::try_new(0.0),
             Err(ChiSquaredError::DfNotPositive(_))
         ));
     }
@@ -321,7 +331,7 @@ mod tests {
         // Verify round-trip works in both halves.
         for (p_target, x) in [(0.99, 6.63), (0.999, 10.83), (0.95, 3.84), (0.5, 0.455)] {
             let df = ChiSquared::solve_df(p_target, x).unwrap();
-            let cdf_back = ChiSquared::new(df).unwrap().cdf(x);
+            let cdf_back = ChiSquared::new(df).cdf(x);
             assert!(
                 (cdf_back - p_target).abs() < 1e-6,
                 "p={p_target}, x={x}, df={df}, cdf_back={cdf_back}"
@@ -331,27 +341,27 @@ mod tests {
 
     #[test]
     fn cdf_at_x_zero_is_zero() {
-        let c = ChiSquared::new(5.0).unwrap();
+        let c = ChiSquared::new(5.0);
         assert_eq!(c.cdf(0.0), 0.0);
         assert_eq!(c.cdf(-1.0), 0.0);
     }
 
     #[test]
     fn sf_at_x_zero_is_one() {
-        let c = ChiSquared::new(5.0).unwrap();
+        let c = ChiSquared::new(5.0);
         assert_eq!(c.sf(0.0), 1.0);
         assert_eq!(c.sf(-1.0), 1.0);
     }
 
     #[test]
     fn inverse_cdf_p_zero_returns_zero() {
-        let c = ChiSquared::new(5.0).unwrap();
+        let c = ChiSquared::new(5.0);
         assert_eq!(c.inverse_cdf(0.0).unwrap(), 0.0);
     }
 
     #[test]
     fn inverse_cdf_rejects_bad_p() {
-        let c = ChiSquared::new(5.0).unwrap();
+        let c = ChiSquared::new(5.0);
         assert!(matches!(
             c.inverse_cdf(-0.1),
             Err(ChiSquaredError::ProbabilityOutOfRange(_))
@@ -364,13 +374,13 @@ mod tests {
 
     #[test]
     fn inverse_sf_q_one_returns_zero() {
-        let c = ChiSquared::new(5.0).unwrap();
+        let c = ChiSquared::new(5.0);
         assert_eq!(c.inverse_sf(1.0).unwrap(), 0.0);
     }
 
     #[test]
     fn inverse_sf_rejects_bad_q() {
-        let c = ChiSquared::new(5.0).unwrap();
+        let c = ChiSquared::new(5.0);
         assert!(matches!(
             c.inverse_sf(-0.1),
             Err(ChiSquaredError::ProbabilityOutOfRange(_))
@@ -383,7 +393,7 @@ mod tests {
 
     #[test]
     fn pdf_at_x_zero_for_df_le_2_handled() {
-        let c = ChiSquared::new(3.0).unwrap();
+        let c = ChiSquared::new(3.0);
         assert_eq!(c.pdf(0.0), 0.0);
         assert_eq!(c.pdf(-1.0), 0.0);
         assert_eq!(c.ln_pdf(0.0), f64::NEG_INFINITY);
@@ -393,7 +403,7 @@ mod tests {
     #[test]
     fn entropy_finite_for_df_ge_1() {
         for df in [1.0_f64, 2.0, 5.0, 10.0, 30.0] {
-            let h = ChiSquared::new(df).unwrap().entropy();
+            let h = ChiSquared::new(df).entropy();
             assert!(h.is_finite(), "df={df}: entropy={h}");
         }
     }

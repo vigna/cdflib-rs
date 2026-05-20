@@ -2,9 +2,9 @@ use std::f64::consts::PI;
 
 use thiserror::Error;
 
-use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, solve_monotone};
+use crate::special::beta_inc;
 use crate::special::{dt1, gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 
@@ -16,7 +16,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// use cdflib::StudentsT;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let d = StudentsT::new(10.0).unwrap();
+/// let d = StudentsT::new(10.0);
 ///
 /// // Two-sided 95% critical value
 /// let t = d.inverse_cdf(0.975).unwrap();
@@ -34,9 +34,12 @@ pub struct StudentsT {
 /// [`StudentsT`]: crate::StudentsT
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum StudentsTError {
-    /// The degrees of freedom *df* was not strictly positive (or not finite).
+    /// The degrees of freedom *df* was not strictly positive.
     #[error("degrees of freedom must be positive, got {0}")]
     DfNotPositive(f64),
+    /// The degrees of freedom *df* was not finite.
+    #[error("degrees of freedom must be finite, got {0}")]
+    DfNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -49,12 +52,29 @@ pub enum StudentsTError {
 
 impl StudentsT {
     /// Construct a Student's *t* distribution with *df* > 0 degrees of
-    /// freedom. Returns [`DfNotPositive`] otherwise.
+    /// freedom. Panics if *df* is invalid; use [`try_new`] for a fallible
+    /// variant.
+    ///
+    /// [`try_new`]: Self::try_new
+    #[inline]
+    pub fn new(df: f64) -> Self {
+        Self::try_new(df).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`StudentsTError`] instead of panicking.
+    ///
+    /// Returns [`DfNotPositive`] or [`DfNotFinite`] if *df* fails its
+    /// validity check.
     ///
     /// [`DfNotPositive`]: StudentsTError::DfNotPositive
+    /// [`DfNotFinite`]: StudentsTError::DfNotFinite
     #[inline]
-    pub fn new(df: f64) -> Result<Self, StudentsTError> {
-        if !(df > 0.0 && df.is_finite()) {
+    pub fn try_new(df: f64) -> Result<Self, StudentsTError> {
+        if !df.is_finite() {
+            return Err(StudentsTError::DfNotFinite(df));
+        }
+        if df <= 0.0 {
             return Err(StudentsTError::DfNotPositive(df));
         }
         Ok(Self { df })
@@ -62,7 +82,7 @@ impl StudentsT {
 
     /// Returns the degrees of freedom *df*.
     #[inline]
-    pub fn df(&self) -> f64 {
+    pub const fn df(&self) -> f64 {
         self.df
     }
 
@@ -260,16 +280,20 @@ mod tests {
     #[test]
     fn new_rejects_nonpositive_or_nonfinite_df() {
         assert!(matches!(
-            StudentsT::new(0.0),
+            StudentsT::try_new(0.0),
             Err(StudentsTError::DfNotPositive(0.0))
         ));
         assert!(matches!(
-            StudentsT::new(-1.0),
+            StudentsT::try_new(-1.0),
             Err(StudentsTError::DfNotPositive(-1.0))
         ));
         assert!(matches!(
-            StudentsT::new(f64::INFINITY),
-            Err(StudentsTError::DfNotPositive(x)) if x.is_infinite()
+            StudentsT::try_new(f64::INFINITY),
+            Err(StudentsTError::DfNotFinite(x)) if x.is_infinite()
+        ));
+        assert!(matches!(
+            StudentsT::try_new(f64::NAN),
+            Err(StudentsTError::DfNotFinite(_))
         ));
     }
 
@@ -287,7 +311,7 @@ mod tests {
 
     #[test]
     fn rejects_probability_out_of_range() {
-        let d = StudentsT::new(10.0).unwrap();
+        let d = StudentsT::new(10.0);
         assert!(matches!(
             d.inverse_cdf(-1.0),
             Err(StudentsTError::ProbabilityOutOfRange(-1.0))
@@ -300,7 +324,7 @@ mod tests {
 
     #[test]
     fn inverse_sf_is_zero_at_median() {
-        let d = StudentsT::new(7.0).unwrap();
+        let d = StudentsT::new(7.0);
         assert_eq!(d.inverse_sf(0.5).unwrap(), 0.0);
         let t = d.inverse_sf(0.25).unwrap();
         assert!(t.is_finite());
@@ -309,7 +333,7 @@ mod tests {
 
     #[test]
     fn extreme_left_tail_matches_high_precision_reference() {
-        let d = StudentsT::new(100.0).unwrap();
+        let d = StudentsT::new(100.0);
         let t = -6.5;
         let expected_cdf = 1.589_507_013_117_725_5e-9;
         let expected_sf = 0.999_999_998_410_493;
@@ -319,7 +343,7 @@ mod tests {
 
     #[test]
     fn pdf_ln_pdf_and_entropy_are_finite() {
-        let d = StudentsT::new(5.0).unwrap();
+        let d = StudentsT::new(5.0);
         let x = 1.25;
         let ln_pdf = d.ln_pdf(x);
         assert!(ln_pdf.is_finite());

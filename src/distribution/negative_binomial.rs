@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
@@ -19,7 +19,7 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// use cdflib::NegativeBinomial;
 /// use cdflib::traits::{Discrete, DiscreteCdf};
 ///
-/// let nb = NegativeBinomial::new(5, 0.5).unwrap();
+/// let nb = NegativeBinomial::new(5, 0.5);
 ///
 /// // Probability of 3 or fewer failures before 5th success
 /// let cdf = nb.cdf(3);
@@ -65,7 +65,14 @@ impl NegativeBinomial {
     /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
     /// [`PrOutOfRange`]: NegativeBinomialError::PrOutOfRange
     #[inline]
-    pub fn new(r: u64, pr: f64) -> Result<Self, NegativeBinomialError> {
+    pub fn new(r: u64, pr: f64) -> Self {
+        Self::try_new(r, pr).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`NegativeBinomialError`] instead of panicking.
+    #[inline]
+    pub fn try_new(r: u64, pr: f64) -> Result<Self, NegativeBinomialError> {
         if r == 0 {
             return Err(NegativeBinomialError::RNotPositive);
         }
@@ -77,20 +84,20 @@ impl NegativeBinomial {
 
     /// Returns the target number of successes *r*.
     #[inline]
-    pub fn r(&self) -> u64 {
+    pub const fn r(&self) -> u64 {
         self.r
     }
 
     /// Returns the success probability *pr*.
     #[inline]
-    pub fn pr(&self) -> f64 {
+    pub const fn pr(&self) -> f64 {
         self.pr
     }
 
     /// Returns the target number of successes *r* satisfying
     /// Pr[*F* ≤ *s*] = *p* given the success probability.
     #[inline]
-    pub fn solve_trials(p: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
+    pub fn solve_r(p: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_prob(p)?;
         if !(pr > 0.0 && pr <= 1.0) {
             return Err(NegativeBinomialError::PrOutOfRange(pr));
@@ -235,18 +242,18 @@ mod tests {
     #[test]
     fn rejects_invalid_parameters() {
         assert!(matches!(
-            NegativeBinomial::new(0, 0.5),
+            NegativeBinomial::try_new(0, 0.5),
             Err(NegativeBinomialError::RNotPositive)
         ));
         assert!(matches!(
-            NegativeBinomial::new(1, 0.0),
+            NegativeBinomial::try_new(1, 0.0),
             Err(NegativeBinomialError::PrOutOfRange(0.0))
         ));
     }
 
     #[test]
     fn inverse_zero_and_moments() {
-        let d = NegativeBinomial::new(5, 0.4).unwrap();
+        let d = NegativeBinomial::new(5, 0.4);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0);
         assert!(d.ln_pmf(3).is_finite());
         assert!(d.mean().is_finite());
@@ -256,11 +263,11 @@ mod tests {
     #[test]
     fn solve_helpers_reject_invalid_inputs() {
         assert!(matches!(
-            NegativeBinomial::solve_trials(-0.1, 0.5, 3),
+            NegativeBinomial::solve_r(-0.1, 0.5, 3),
             Err(NegativeBinomialError::ProbabilityOutOfRange(-0.1))
         ));
         assert!(matches!(
-            NegativeBinomial::solve_trials(0.5, 0.0, 3),
+            NegativeBinomial::solve_r(0.5, 0.0, 3),
             Err(NegativeBinomialError::PrOutOfRange(0.0))
         ));
     }

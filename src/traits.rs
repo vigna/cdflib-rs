@@ -22,7 +22,7 @@
 /// use cdflib::Normal;
 /// use cdflib::traits::ContinuousCdf;
 ///
-/// let n = Normal::new(0.0, 1.0).unwrap();
+/// let n = Normal::new(0.0, 1.0);
 /// let p = n.cdf(0.0);       // 0.5
 /// let x = n.inverse_cdf(p).unwrap(); // 0.0
 /// ```
@@ -58,7 +58,7 @@ pub trait ContinuousCdf {
 /// use cdflib::Poisson;
 /// use cdflib::traits::DiscreteCdf;
 ///
-/// let p = Poisson::new(3.0).unwrap();
+/// let p = Poisson::new(3.0);
 /// let c = p.cdf(2);
 /// let s = p.inverse_cdf(c).unwrap(); // 2
 /// ```

@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::beta_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
@@ -19,7 +19,7 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// use cdflib::Binomial;
 /// use cdflib::traits::{Discrete, DiscreteCdf};
 ///
-/// let b = Binomial::new(10, 0.3).unwrap();
+/// let b = Binomial::new(10, 0.3);
 ///
 /// // Probability of 3 or fewer successes in 10 trials
 /// let cdf = b.cdf(3);
@@ -61,7 +61,14 @@ impl Binomial {
     ///
     /// [`PrOutOfRange`]: BinomialError::PrOutOfRange
     #[inline]
-    pub fn new(n: u64, pr: f64) -> Result<Self, BinomialError> {
+    pub fn new(n: u64, pr: f64) -> Self {
+        Self::try_new(n, pr).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`BinomialError`] instead of panicking.
+    #[inline]
+    pub fn try_new(n: u64, pr: f64) -> Result<Self, BinomialError> {
         if !(0.0..=1.0).contains(&pr) || !pr.is_finite() {
             return Err(BinomialError::PrOutOfRange(pr));
         }
@@ -70,13 +77,13 @@ impl Binomial {
 
     /// Returns the number of trials *n*.
     #[inline]
-    pub fn n(&self) -> u64 {
+    pub const fn n(&self) -> u64 {
         self.n
     }
 
     /// Returns the success probability *pr*.
     #[inline]
-    pub fn pr(&self) -> f64 {
+    pub const fn pr(&self) -> f64 {
         self.pr
     }
 
@@ -256,7 +263,7 @@ mod tests {
     #[test]
     fn rejects_invalid_inputs() {
         assert!(matches!(
-            Binomial::new(10, -0.1),
+            Binomial::try_new(10, -0.1),
             Err(BinomialError::PrOutOfRange(-0.1))
         ));
         assert!(matches!(
@@ -279,12 +286,12 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn edge_and_moment_cases() {
-        let b = Binomial::new(10, 0.3).unwrap();
+        let b = Binomial::new(10, 0.3);
         assert_eq!(b.inverse_cdf(0.0).unwrap(), 0);
         assert_eq!(b.pmf(11), 0.0);
         assert_eq!(b.ln_pmf(11), f64::NEG_INFINITY);
-        assert_eq!(Binomial::new(10, 0.0).unwrap().ln_pmf(0), 0.0);
-        assert_eq!(Binomial::new(10, 1.0).unwrap().ln_pmf(10), 0.0);
+        assert_eq!(Binomial::new(10, 0.0).ln_pmf(0), 0.0);
+        assert_eq!(Binomial::new(10, 1.0).ln_pmf(10), 0.0);
         assert_eq!(b.mean(), 3.0);
         assert!((b.variance() - 2.1).abs() < 1e-15);
     }

@@ -16,7 +16,7 @@ fn beta_cdf_matches_cumbet_reference() {
         let [a, b, x, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = Beta::new(a, b).unwrap();
+        let d = Beta::new(a, b);
         assert_close_eps(
             d.cdf(x),
             expected_cdf,
@@ -38,7 +38,7 @@ fn students_t_cdf_matches_cumt_reference() {
         let [df, t, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = StudentsT::new(df).unwrap();
+        let d = StudentsT::new(df);
         assert_close_eps(
             d.cdf(t),
             expected_cdf,
@@ -60,7 +60,7 @@ fn f_cdf_matches_cumf_reference() {
         let [dfn, dfd, fx, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
         };
-        let d = FisherSnedecor::new(dfn, dfd).unwrap();
+        let d = FisherSnedecor::new(dfn, dfd);
         assert_close_eps(
             d.cdf(fx),
             expected_cdf,

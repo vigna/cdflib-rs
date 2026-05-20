@@ -38,7 +38,7 @@ fn cdfbet_x_matches_beta_inverse_cdf() {
         let [p, _q, a, b, x_ref] = row[..] else {
             panic!("width")
         };
-        let got = Beta::new(a, b).unwrap().inverse_cdf(p).unwrap();
+        let got = Beta::new(a, b).inverse_cdf(p).unwrap();
         assert_close_eps(got, x_ref, REL, ABS);
     }
 }
@@ -97,7 +97,7 @@ fn cdfchi_x_matches_chi_squared_inverse_cdf() {
         let [p, _q, df, x_ref] = row[..] else {
             panic!("width")
         };
-        let got = ChiSquared::new(df).unwrap().inverse_cdf(p).unwrap();
+        let got = ChiSquared::new(df).inverse_cdf(p).unwrap();
         assert_close_eps(got, x_ref, REL, ABS);
     }
 }
@@ -121,10 +121,7 @@ fn cdfchn_x_matches_chi_squared_noncentral_inverse_cdf() {
         let [p, _q, df, pnonc, x_ref] = row[..] else {
             panic!("width")
         };
-        let got = ChiSquaredNoncentral::new(df, pnonc)
-            .unwrap()
-            .inverse_cdf(p)
-            .unwrap();
+        let got = ChiSquaredNoncentral::new(df, pnonc).inverse_cdf(p).unwrap();
         assert_close_eps(got, x_ref, REL, ABS);
     }
 }
@@ -159,10 +156,7 @@ fn cdff_f_matches_fisher_snedecor_inverse_cdf() {
         let [p, _q, dfn, dfd, f_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecor::new(dfn, dfd)
-            .unwrap()
-            .inverse_cdf(p)
-            .unwrap();
+        let got = FisherSnedecor::new(dfn, dfd).inverse_cdf(p).unwrap();
         assert_close_eps(got, f_ref, REL, ABS);
     }
 }
@@ -198,7 +192,6 @@ fn cdffnc_f_matches_fisher_snedecor_noncentral_inverse_cdf() {
             panic!("width")
         };
         let got = FisherSnedecorNoncentral::new(dfn, dfd, phonc)
-            .unwrap()
             .inverse_cdf(p)
             .unwrap();
         assert_close_eps(got, f_ref, REL, ABS);
@@ -251,7 +244,7 @@ fn cdfgam_x_matches_gamma_inverse_cdf() {
         let [p, _q, shape, rate, x_ref] = row[..] else {
             panic!("width")
         };
-        let got = Gamma::new(shape, rate).unwrap().inverse_cdf(p).unwrap();
+        let got = Gamma::new(shape, rate).inverse_cdf(p).unwrap();
         assert_close_eps(got, x_ref, REL, ABS);
     }
 }
@@ -281,12 +274,12 @@ fn cdfgam_scale_matches_gamma_solve_rate() {
 // ========================================================= NegativeBinomial
 
 #[test]
-fn cdfnbn_xn_matches_negative_binomial_solve_trials() {
+fn cdfnbn_xn_matches_negative_binomial_solve_r() {
     for row in read_csv("tests/data/cdfnbn_xn.csv") {
         let [p, _q, s, pr, xn_ref] = row[..] else {
             panic!("width")
         };
-        let got = NegativeBinomial::solve_trials(p, pr, s as u64).unwrap();
+        let got = NegativeBinomial::solve_r(p, pr, s as u64).unwrap();
         assert_close_eps(got, xn_ref, REL, ABS);
     }
 }
@@ -310,7 +303,7 @@ fn cdfnor_x_matches_normal_inverse_cdf() {
         let [p, _q, mean, sd, x_ref] = row[..] else {
             panic!("width")
         };
-        let got = Normal::new(mean, sd).unwrap().inverse_cdf(p).unwrap();
+        let got = Normal::new(mean, sd).inverse_cdf(p).unwrap();
         assert_close_eps(got, x_ref, REL, ABS);
     }
 }
@@ -365,7 +358,7 @@ fn cdft_t_matches_students_t_inverse_cdf() {
         let [p, _q, df, t_ref] = row[..] else {
             panic!("width")
         };
-        let got = StudentsT::new(df).unwrap().inverse_cdf(p).unwrap();
+        let got = StudentsT::new(df).inverse_cdf(p).unwrap();
         assert_close_eps(got, t_ref, REL, ABS);
     }
 }

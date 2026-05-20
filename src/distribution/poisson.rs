@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::special::gamma_inc;
 use crate::error::SolverError;
 use crate::solver::{BracketStrategy, SOLVER_BOUND, solve_monotone};
+use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 
@@ -19,7 +19,7 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// use cdflib::Poisson;
 /// use cdflib::traits::{Discrete, DiscreteCdf, Mean};
 ///
-/// let p = Poisson::new(3.0).unwrap();
+/// let p = Poisson::new(3.0);
 /// assert_eq!(p.mean(), 3.0);
 ///
 /// // Probability of observing exactly 2 events
@@ -41,9 +41,12 @@ pub struct Poisson {
 /// [`Poisson`]: crate::Poisson
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum PoissonError {
-    /// The rate parameter *λ* was not strictly positive (or not finite).
+    /// The rate parameter *λ* was not strictly positive.
     #[error("lambda must be positive, got {0}")]
     LambdaNotPositive(f64),
+    /// The rate parameter *λ* was not finite.
+    #[error("lambda must be finite, got {0}")]
+    LambdaNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
@@ -55,13 +58,29 @@ pub enum PoissonError {
 }
 
 impl Poisson {
-    /// Construct a Poisson(*λ*) distribution with rate *λ* > 0. Returns
-    /// [`LambdaNotPositive`] otherwise.
+    /// Construct a Poisson(*λ*) distribution with rate *λ* > 0. Panics if
+    /// *λ* is invalid; use [`try_new`] for a fallible variant.
+    ///
+    /// [`try_new`]: Self::try_new
+    #[inline]
+    pub fn new(lambda: f64) -> Self {
+        Self::try_new(lambda).unwrap()
+    }
+
+    /// Fallible counterpart of [`new`](Self::new) returning a [`PoissonError`]
+    /// instead of panicking.
+    ///
+    /// Returns [`LambdaNotPositive`] or [`LambdaNotFinite`] if *λ* fails its
+    /// validity check.
     ///
     /// [`LambdaNotPositive`]: PoissonError::LambdaNotPositive
+    /// [`LambdaNotFinite`]: PoissonError::LambdaNotFinite
     #[inline]
-    pub fn new(lambda: f64) -> Result<Self, PoissonError> {
-        if !(lambda > 0.0 && lambda.is_finite()) {
+    pub fn try_new(lambda: f64) -> Result<Self, PoissonError> {
+        if !lambda.is_finite() {
+            return Err(PoissonError::LambdaNotFinite(lambda));
+        }
+        if lambda <= 0.0 {
             return Err(PoissonError::LambdaNotPositive(lambda));
         }
         Ok(Self { lambda })
@@ -69,7 +88,7 @@ impl Poisson {
 
     /// Returns the rate parameter *λ*.
     #[inline]
-    pub fn lambda(&self) -> f64 {
+    pub const fn lambda(&self) -> f64 {
         self.lambda
     }
 
@@ -187,20 +206,20 @@ mod tests {
     #[test]
     fn new_rejects_bad_lambda() {
         assert!(matches!(
-            Poisson::new(-1.0),
+            Poisson::try_new(-1.0),
             Err(PoissonError::LambdaNotPositive(_))
         ));
         assert!(matches!(
-            Poisson::new(0.0),
+            Poisson::try_new(0.0),
             Err(PoissonError::LambdaNotPositive(_))
         ));
         assert!(matches!(
-            Poisson::new(f64::NAN),
-            Err(PoissonError::LambdaNotPositive(_))
+            Poisson::try_new(f64::NAN),
+            Err(PoissonError::LambdaNotFinite(_))
         ));
         assert!(matches!(
-            Poisson::new(f64::INFINITY),
-            Err(PoissonError::LambdaNotPositive(_))
+            Poisson::try_new(f64::INFINITY),
+            Err(PoissonError::LambdaNotFinite(_))
         ));
     }
 
@@ -222,13 +241,13 @@ mod tests {
 
     #[test]
     fn inverse_cdf_p_zero_returns_zero() {
-        let p = Poisson::new(5.0).unwrap();
+        let p = Poisson::new(5.0);
         assert_eq!(p.inverse_cdf(0.0).unwrap(), 0);
     }
 
     #[test]
     fn inverse_cdf_rejects_bad_p() {
-        let p = Poisson::new(5.0).unwrap();
+        let p = Poisson::new(5.0);
         assert!(matches!(
             p.inverse_cdf(-0.1),
             Err(PoissonError::ProbabilityOutOfRange(_))
@@ -251,7 +270,7 @@ mod tests {
         // stays small. Round-trip should still recover the original.
         let lambda = 5.0_f64;
         let s = 10u64; // mean+5σ-ish, cdf will be very close to 1
-        let p_target = Poisson::new(lambda).unwrap().cdf(s);
+        let p_target = Poisson::new(lambda).cdf(s);
         let recovered = Poisson::solve_lambda(p_target, s).unwrap();
         assert!(
             (recovered - lambda).abs() < 1e-5,
@@ -261,7 +280,7 @@ mod tests {
 
     #[test]
     fn extreme_right_tail_matches_high_precision_reference() {
-        let p = Poisson::new(200.0).unwrap();
+        let p = Poisson::new(200.0);
         let expected_cdf = 0.999_999_993_591_493_9;
         let expected_sf = 6.408_506_071_899_014e-9;
         assert!((p.cdf(285) - expected_cdf).abs() < 1e-15);
@@ -271,7 +290,7 @@ mod tests {
     #[test]
     fn moments_match_lambda() {
         // Verify exact-value mean/variance assertions
-        let p = Poisson::new(4.0).unwrap();
+        let p = Poisson::new(4.0);
         assert_eq!(p.mean(), 4.0);
         assert_eq!(p.variance(), 4.0);
         assert!(p.ln_pmf(3).is_finite());
