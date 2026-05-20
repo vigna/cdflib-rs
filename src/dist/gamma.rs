@@ -74,7 +74,7 @@ pub enum GammaError {
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfgam` status 3.
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///

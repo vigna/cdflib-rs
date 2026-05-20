@@ -65,7 +65,7 @@ pub enum PoissonError {
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfpoi` status 3.
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
@@ -241,7 +241,11 @@ impl Poisson {
         // the binding order is (ccum, cum).
         let f = |s: f64| {
             let (ccum, cum) = gamma_inc(s + 1.0, lambda);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
         Ok(solve_monotone(

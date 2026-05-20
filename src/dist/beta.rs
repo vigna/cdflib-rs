@@ -59,7 +59,7 @@ pub enum BetaError {
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfbet` status 3.
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
@@ -302,22 +302,39 @@ impl Beta {
         let a = self.a;
         let b = self.b;
         let p = 1.0 - q;
-        let f = |x: f64| {
-            let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
-            if p <= q {
+        // F90 cdfbet which=2 (cdflib.f90:2713-2745) switches the search
+        // variable: dzror on x with cum-p when p<=q, dzror on y with
+        // ccum-q when p>q, keeping y = 1-x (or x = 1-y) updated each
+        // iteration. The variable-switch preserves precision when the
+        // small tail is near the right edge.
+        if p <= q {
+            let f = |x: f64| {
+                let (cum, _) = beta_inc(a, b, x, 1.0 - x);
                 cum - p
-            } else {
+            };
+            Ok(solve_monotone(
+                BracketStrategy::Increasing {
+                    small: 0.0,
+                    big: 1.0,
+                    start: a / (a + b),
+                },
+                f,
+            )?)
+        } else {
+            let f = |y: f64| {
+                let (_, ccum) = beta_inc(a, b, 1.0 - y, y);
                 ccum - q
-            }
-        };
-        Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: 1.0,
-                start: a / (a + b),
-            },
-            f,
-        )?)
+            };
+            let y = solve_monotone(
+                BracketStrategy::Increasing {
+                    small: 0.0,
+                    big: 1.0,
+                    start: b / (a + b),
+                },
+                f,
+            )?;
+            Ok(1.0 - y)
+        }
     }
 }
 

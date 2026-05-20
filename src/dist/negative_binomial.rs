@@ -61,7 +61,7 @@ pub enum NegativeBinomialError {
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
     /// Mirrors CDFLIB's `cdfnbn` status 3.
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
@@ -287,7 +287,11 @@ impl NegativeBinomial {
         // outputs in (cum, ccum) order matching beta_inc's (P, Q).
         let f = |s: f64| {
             let (cum, ccum) = beta_inc(rf, s + 1.0, pr, 1.0 - pr);
-            if p <= q { cum - p } else { ccum - q }
+            if p <= q {
+                cum - p
+            } else {
+                ccum - q
+            }
         };
         // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
         Ok(solve_monotone(
