@@ -275,7 +275,8 @@ impl Binomial {
     /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
     /// smooth continuous extension via *I*₁₋ₚᵣ(*n*−*s*, *s*+1).
     ///
-    /// Mirrors CDFLIB's `cdfbin` with `which = 2` (cdflib.f90:3144).
+    /// Mirrors CDFLIB's `cdfbin` with `which = 2` (cdflib.f90:3138-3185):
+    /// single dinvr loop, residual cum-p if p≤q else ccum-q.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
@@ -284,39 +285,28 @@ impl Binomial {
         let nf = self.n as f64;
         let pr = self.pr;
         let p = 1.0 - q;
-        if p <= q {
-            let f = |s: f64| {
-                if s >= nf {
-                    return 1.0 - p;
-                }
-                let (_sf_bin, cdf_bin) = beta_inc(s + 1.0, nf - s, pr, 1.0 - pr);
-                cdf_bin - p
+        // F90 cumbin(s, xn, pr, ompr, cum, ccum) handles s >= xn natively by
+        // setting cum=1, ccum=0 (cdflib.f90:6648-6651); otherwise reduces to
+        // beta_inc, which returns (P, Q) where Rust's binding is (ccum, cum)
+        // matching F90 cumbet's argument order.
+        let f = |s: f64| {
+            let (cum, ccum) = if s >= nf {
+                (1.0, 0.0)
+            } else {
+                let (cb_ccum, cb_cum) = beta_inc(s + 1.0, nf - s, pr, 1.0 - pr);
+                (cb_cum, cb_ccum)
             };
-            Ok(solve_monotone(
-                BracketStrategy::Increasing {
-                    small: 0.0,
-                    big: nf,
-                    start: 5.0,
-                },
-                f,
-            )?)
-        } else {
-            let f = |s: f64| {
-                if s >= nf {
-                    return -q;
-                }
-                let (sf_bin, _cdf_bin) = beta_inc(s + 1.0, nf - s, pr, 1.0 - pr);
-                sf_bin - q
-            };
-            Ok(solve_monotone(
-                BracketStrategy::Decreasing {
-                    small: 0.0,
-                    big: nf,
-                    start: 5.0,
-                },
-                f,
-            )?)
-        }
+            if p <= q { cum - p } else { ccum - q }
+        };
+        // F90 dstinv(0.0, xn, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
+        Ok(solve_monotone(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: nf,
+                start: 5.0,
+            },
+            f,
+        )?)
     }
 }
 

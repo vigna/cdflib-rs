@@ -227,7 +227,8 @@ impl DiscreteCdf for Poisson {
 impl Poisson {
     /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q*.
     ///
-    /// Mirrors CDFLIB's `cdfpoi` with `which = 2` (cdflib.f90:7765).
+    /// Mirrors CDFLIB's `cdfpoi` with `which = 2` (cdflib.f90:5915-5938):
+    /// single dinvr loop, residual cum-p if p≤q else ccum-q.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
@@ -235,33 +236,22 @@ impl Poisson {
         check_q(q)?;
         let lambda = self.lambda;
         let p = 1.0 - q;
-        if p <= q {
-            let f = |s: f64| {
-                let (_, cdf) = gamma_inc(s + 1.0, lambda);
-                cdf - p
-            };
-            Ok(solve_monotone(
-                BracketStrategy::Increasing {
-                    small: 0.0,
-                    big: SOLVER_BOUND,
-                    start: 5.0,
-                },
-                f,
-            )?)
-        } else {
-            let f = |s: f64| {
-                let (sf_upper, _) = gamma_inc(s + 1.0, lambda);
-                sf_upper - q
-            };
-            Ok(solve_monotone(
-                BracketStrategy::Decreasing {
-                    small: 0.0,
-                    big: SOLVER_BOUND,
-                    start: 5.0,
-                },
-                f,
-            )?)
-        }
+        // F90 cumpoi(s, λ) writes cum and ccum: cum = Q(s+1, λ) = Poisson CDF,
+        // ccum = P(s+1, λ) = Poisson SF. Rust gamma_inc returns (P, Q) so
+        // the binding order is (ccum, cum).
+        let f = |s: f64| {
+            let (ccum, cum) = gamma_inc(s + 1.0, lambda);
+            if p <= q { cum - p } else { ccum - q }
+        };
+        // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
+        Ok(solve_monotone(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
+            },
+            f,
+        )?)
     }
 }
 

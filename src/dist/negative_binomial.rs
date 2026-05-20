@@ -272,7 +272,8 @@ impl NegativeBinomial {
     /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
     /// smooth continuous extension via *I*ₚᵣ(*r*, *s*+1).
     ///
-    /// Mirrors CDFLIB's `cdfnbn` with `which = 2` (cdflib.f90:5341).
+    /// Mirrors CDFLIB's `cdfnbn` with `which = 2` (cdflib.f90:5335-5380):
+    /// single dinvr loop, residual cum-p if p≤q else ccum-q.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
@@ -281,33 +282,22 @@ impl NegativeBinomial {
         let rf = self.r as f64;
         let pr = self.pr;
         let p = 1.0 - q;
-        if p <= q {
-            let f = |s: f64| {
-                let (cum, _) = beta_inc(rf, s + 1.0, pr, 1.0 - pr);
-                cum - p
-            };
-            Ok(solve_monotone(
-                BracketStrategy::Increasing {
-                    small: 0.0,
-                    big: SOLVER_BOUND,
-                    start: 5.0,
-                },
-                f,
-            )?)
-        } else {
-            let f = |s: f64| {
-                let (_, ccum) = beta_inc(rf, s + 1.0, pr, 1.0 - pr);
-                ccum - q
-            };
-            Ok(solve_monotone(
-                BracketStrategy::Decreasing {
-                    small: 0.0,
-                    big: SOLVER_BOUND,
-                    start: 5.0,
-                },
-                f,
-            )?)
-        }
+        // F90 cumnbn(f, s_r, pr, ompr, cum, ccum) reduces to cumbet(pr, ompr,
+        // s_r, f+1.0, cum, ccum), which is beta_inc(s_r, f+1, pr, ompr) with
+        // outputs in (cum, ccum) order matching beta_inc's (P, Q).
+        let f = |s: f64| {
+            let (cum, ccum) = beta_inc(rf, s + 1.0, pr, 1.0 - pr);
+            if p <= q { cum - p } else { ccum - q }
+        };
+        // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
+        Ok(solve_monotone(
+            BracketStrategy::Increasing {
+                small: 0.0,
+                big: SOLVER_BOUND,
+                start: 5.0,
+            },
+            f,
+        )?)
     }
 }
 
