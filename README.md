@@ -59,18 +59,23 @@ and at large parameter values, where continued-fraction implementations lose
 digits to subtractive cancellation or stall on convergence.
 
 The Rust statistical ecosystem already has [`statrs`], which covers most of
-CDFLIB's distributions. However, besides not offering at the time of this
-writing parameter solvers, [`statrs`]'s special function are not as precise as
-CDFLIB's:
+CDFLIB's distributions. However, at the time of this writing [`statrs`] does
+not offer parameter solvers, [noncentral χ²], or [noncentral _F_], and its
+special functions are not as precise as CDFLIB's:
 
-| Query                         | `cdflib`     | `statrs` (`1 - cdf`) |
-| ----------------------------- | ------------ | -------------------- |
-| `Normal::standard().sf(10.0)` | `7.620e-24`  | `0.0`                |
-| `Normal::standard().sf(15.0)` | `3.671e-51`  | `0.0`                |
-| `ChiSquared(df=2).sf(100.0)`  | `1.929e-22`  | `0.0`                |
-| `Poisson(λ=1).sf(20)`         | `7.543e-21`  | `0.0`                |
-| `Poisson(λ=1e5).sf(110_000)`  | `6.748e-213` | `0.0`                |
-| `StudentsT(df=100).sf(20.0)`  | `4.997e-37`  | `0.0`                |
+|                                    | True value | CDFLIB   | [`statrs`] |
+| ---------------------------------- | ---------- | -------- | ---------- |
+| _P_(10¹³, 10¹³ + 1)                | ≈ 0.5      | 0.5000   | 0.4926     |
+| _P_(10¹⁵, 10¹⁵ − 1)                | ≈ 0.5      | 0.5000   | 0.00645    |
+| *I*ₓ(10⁸, 4·10⁸) at _x_ = 0.2      | ≈ 0.5      | 0.500009 | 2.262      |
+| *I*ₓ(10¹², 3·10¹²) at _x_ = 0.25   | ≈ 0.5      | 0.500000 | 217.7      |
+| Pr[Poisson(10¹⁵) > 10¹⁵ + 2·√10¹⁵] | ≈ 0.0228   | 0.02275  | 3.97·10⁻⁵  |
+
+Note that these calls are not realistic for a statistician: for everyday
+usage, [`statrs`] and this crate will give the same results. The last example,
+however, was the author's motivation for this port—large-scale collision tests
+of pseudorandom number generators are starting to land in that area due
+to more core memory being available, and improved techniques.
 
 [`rmathlib`], a Rust port of R's special-function library, is another option. It
 is accurate in the body of each distribution, but its asymptotic regime stops
@@ -78,19 +83,19 @@ working for large _a_ in the regularized incomplete Γ—exactly where χ² test
 with many degrees of freedom land. CDFLIB's Tricomi–Temme asymptotic regime (one
 of five branches in [`gamma_inc`]) covers this range cleanly:
 
-| Query                     | `cdflib-rs`        | [`rmathlib`] |
-| ------------------------- | ------------------ | ------------ |
-| `gamma_inc(500, 500)`     | `(0.5059, 0.4941)` | `(NaN, NaN)` |
-| `gamma_inc(5_000, 5_000)` | `(0.5019, 0.4981)` | `(NaN, NaN)` |
-| `gamma_inc(1e6, 1e6)`     | `(0.5001, 0.4999)` | `(NaN, NaN)` |
-| `gamma_inc(1e9, 1e9)`     | `(0.5000, 0.5000)` | `(NaN, NaN)` |
+|                        | CDFLIB           | [`rmathlib`] |
+| ---------------------- | ---------------- | ------------ |
+| (_P_, _Q_)(500, 500)   | (0.5059, 0.4941) | (NaN, NaN)   |
+| (_P_, _Q_)(5000, 5000) | (0.5019, 0.4981) | (NaN, NaN)   |
+| (_P_, _Q_)(10⁶, 10⁶)   | (0.5001, 0.4999) | (NaN, NaN)   |
+| (_P_, _Q_)(10⁹, 10⁹)   | (0.5000, 0.5000) | (NaN, NaN)   |
 
 These correspond to χ²(1000), χ²(10⁴), …, χ²(2·10⁹) at their respective medians,
 which arise in goodness-of-fit and likelihood-ratio tests on large samples.
 
 ### 2. Solves for any parameter, not just _x_ and _p_
 
-Given a CDF identity _p_ = _F_(_x_ ; *θ*₁, *θ*₂, …), most libraries can give you _p_
+Given a CDF identity _p_ = _F_(_x_; *θ*₁, *θ*₂, …), most libraries can give you _p_
 from _x_ (the CDF) or _x_ from _p_ (the inverse CDF, also called the quantile function).
 CDFLIB can additionally solve for any _θᵢ_ when you know _p_, _x_, and the
 other parameters. For example:
@@ -190,7 +195,6 @@ let y = Β(2.0, 3.0);       // Β(2, 3) = 1/12
 let (p, _) = Φ(1.96);      // Φ(1.96) ≈ 0.975
 let γ = -ψ(1.0);           // ψ(1) = −γ (Euler–Mascheroni)
 # let _ = (x, y, p, γ);
-# Ok::<(), cdflib::special::GammaIncError>(())
 ```
 
 ## Fidelity to CDFLIB
@@ -270,3 +274,5 @@ transcribed from the [original FORTRAN77 code] with a wrong exponent.
 [`bcorr`]: https://docs.rs/cdflib/latest/cdflib/special/internal/fn.bcorr.html
 [`gam1`]: https://docs.rs/cdflib/latest/cdflib/special/internal/fn.gam1.html
 [`rlog`]: https://docs.rs/cdflib/latest/cdflib/special/internal/fn.rlog.html
+[noncentral χ²]: https://docs.rs/cdflib/latest/cdflib/struct.ChiSquaredNoncentral.html
+[noncentral _F_]: https://docs.rs/cdflib/latest/cdflib/struct.FisherSnedecorNoncentral.html

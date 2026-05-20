@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.3.1] - 2026-05-20
+
+### Fixed
+
+- Examples about `statrs` were not correct.
+
+# Change Log
+
 ## [0.3.0] - 2026-05-20
 
 ### Changed
