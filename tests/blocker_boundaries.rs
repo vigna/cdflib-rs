@@ -120,11 +120,11 @@ fn negative_binomial_endpoints() {
 fn normal_solve_rejects_nan_x() {
     use cdflib::NormalError;
     assert!(matches!(
-        Normal::solve_mean(0.5, f64::NAN, 1.0),
+        Normal::solve_mean(0.5, 0.5, f64::NAN, 1.0),
         Err(NormalError::XNotFinite(_))
     ));
     assert!(matches!(
-        Normal::solve_sd(0.5, f64::NAN, 0.0),
+        Normal::solve_sd(0.5, 0.5, f64::NAN, 0.0),
         Err(NormalError::XNotFinite(_))
     ));
 }
@@ -133,15 +133,15 @@ fn normal_solve_rejects_nan_x() {
 fn gamma_solve_rejects_nan_x() {
     use cdflib::GammaError;
     assert!(matches!(
-        Gamma::solve_shape(0.5, f64::NAN, 2.0),
+        Gamma::solve_shape(0.5, 0.5, f64::NAN, 2.0),
         Err(GammaError::XNotFinite(_))
     ));
     assert!(matches!(
-        Gamma::solve_rate(0.5, f64::NAN, 2.0),
+        Gamma::solve_rate(0.5, 0.5, f64::NAN, 2.0),
         Err(GammaError::XNotFinite(_))
     ));
     assert!(matches!(
-        Gamma::solve_shape(0.5, 1.0, f64::NAN),
+        Gamma::solve_shape(0.5, 0.5, 1.0, f64::NAN),
         Err(GammaError::RateNotFinite(_))
     ));
 }
@@ -150,7 +150,7 @@ fn gamma_solve_rejects_nan_x() {
 fn chi_squared_solve_rejects_nan_x() {
     use cdflib::ChiSquaredError;
     assert!(matches!(
-        ChiSquared::solve_df(0.5, f64::NAN),
+        ChiSquared::solve_df(0.5, 0.5, f64::NAN),
         Err(ChiSquaredError::XNotFinite(_))
     ));
 }
@@ -176,7 +176,7 @@ fn chi_squared_noncentral_solve_rejects_nan() {
 fn students_t_solve_rejects_nan_t() {
     use cdflib::StudentsTError;
     assert!(matches!(
-        StudentsT::solve_df(0.5, f64::NAN),
+        StudentsT::solve_df(0.5, 0.5, f64::NAN),
         Err(StudentsTError::TNotFinite(_))
     ));
 }

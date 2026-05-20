@@ -24,7 +24,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// let p = c.cdf(11.07);
 ///
 /// // Solve for df given Pr[X ≤ 3.84] = 0.95
-/// let df = ChiSquared::solve_df(0.95, 3.84).unwrap();
+/// let df = ChiSquared::solve_df(0.95, 0.05, 3.84).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquared {
@@ -51,6 +51,10 @@ pub enum ChiSquaredError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdfchi` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -97,27 +101,23 @@ impl ChiSquared {
 
     /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
-    /// CDFLIB's `cdfchi` with `which = 3`.
+    /// CDFLIB's `cdfchi` with `which = 3`. Caller passes both *p* and *q*
+    /// = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_df(p: f64, x: f64) -> Result<f64, ChiSquaredError> {
-        check_prob(p)?;
+    pub fn solve_df(p: f64, q: f64, x: f64) -> Result<f64, ChiSquaredError> {
+        check_pq(p, q)?;
         if !x.is_finite() {
             return Err(ChiSquaredError::XNotFinite(x));
         }
         if x <= 0.0 {
             return Err(ChiSquaredError::XNotPositive(x));
         }
-        let q_target = 1.0 - p;
         // F(x; df) = P(df/2, x/2) is decreasing in df for fixed x > 0.
         // Mirror cdfchi's cum-p if p<=q else ccum-q precision pivot so
         // the residual stays small near both tails of p.
         let f = |df: f64| {
             let (cum, ccum) = gamma_inc(df / 2.0, x / 2.0);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         // Match cdfchi's which=3 dstinv setup: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
@@ -138,6 +138,16 @@ fn check_prob(p: f64) -> Result<(), ChiSquaredError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), ChiSquaredError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(ChiSquaredError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 impl ContinuousCdf for ChiSquared {
@@ -322,19 +332,23 @@ mod tests {
     #[test]
     fn solve_df_rejects_bad_inputs() {
         assert!(matches!(
-            ChiSquared::solve_df(-0.1, 3.0),
+            ChiSquared::solve_df(-0.1, 1.1, 3.0),
             Err(ChiSquaredError::ProbabilityOutOfRange(_))
         ));
         assert!(matches!(
-            ChiSquared::solve_df(1.5, 3.0),
+            ChiSquared::solve_df(1.5, -0.5, 3.0),
             Err(ChiSquaredError::ProbabilityOutOfRange(_))
         ));
         assert!(matches!(
-            ChiSquared::solve_df(0.5, 0.0),
+            ChiSquared::solve_df(0.3, 0.3, 3.0),
+            Err(ChiSquaredError::ProbabilityPairInconsistent { .. })
+        ));
+        assert!(matches!(
+            ChiSquared::solve_df(0.5, 0.5, 0.0),
             Err(ChiSquaredError::XNotPositive(0.0))
         ));
         assert!(matches!(
-            ChiSquared::solve_df(0.5, -1.0),
+            ChiSquared::solve_df(0.5, 0.5, -1.0),
             Err(ChiSquaredError::XNotPositive(-1.0))
         ));
     }
@@ -345,7 +359,7 @@ mod tests {
         // dominated by 1-cum-eps; the ccum-q form is numerically better.
         // Verify round-trip works in both halves.
         for (p_target, x) in [(0.99, 6.63), (0.999, 10.83), (0.95, 3.84), (0.5, 0.455)] {
-            let df = ChiSquared::solve_df(p_target, x).unwrap();
+            let df = ChiSquared::solve_df(p_target, 1.0 - p_target, x).unwrap();
             let cdf_back = ChiSquared::new(df).cdf(x);
             assert!(
                 (cdf_back - p_target).abs() < 1e-6,

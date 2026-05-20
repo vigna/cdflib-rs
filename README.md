@@ -154,12 +154,12 @@ use cdflib::{ChiSquared, Poisson};
 
 // Upper 95% confidence bound on λ after observing 3 Poisson events
 // (the Garwood / exact-Poisson interval).
-let lambda_hi = Poisson::solve_lambda(0.05, 3)?;
+let lambda_hi = Poisson::solve_lambda(0.05, 0.95, 3)?;
 // 7.7537
 
 // Degrees of freedom that put 95% of a χ² distribution below x = 3.84
 // (recovers df = 1, the classic likelihood-ratio test critical value).
-let df = ChiSquared::solve_df(0.95, 3.84)?;
+let df = ChiSquared::solve_df(0.95, 0.05, 3.84)?;
 // 0.9994
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```

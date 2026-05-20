@@ -23,7 +23,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// let p = b.cdf(0.3);
 ///
 /// // Solve for parameter a given Pr[X ≤ 0.5] = 0.9 and b = 2.0
-/// let a = Beta::solve_a(0.9, 0.5, 2.0).unwrap();
+/// let a = Beta::solve_a(0.9, 0.1, 0.5, 2.0).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Beta {
@@ -54,6 +54,10 @@ pub enum BetaError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdfbet` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -115,9 +119,12 @@ impl Beta {
     }
 
     /// Returns the shape parameter *a* satisfying Pr[*X* ≤ *x*] = *p*.
+    ///
+    /// CDFLIB's `cdfbet` with `which = 3`. Caller passes both *p* and
+    /// *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_a(p: f64, x: f64, b: f64) -> Result<f64, BetaError> {
-        check_prob(p)?;
+    pub fn solve_a(p: f64, q: f64, x: f64, b: f64) -> Result<f64, BetaError> {
+        check_pq(p, q)?;
         if !(0.0..=1.0).contains(&x) {
             return Err(BetaError::XOutOfRange(x));
         }
@@ -127,14 +134,9 @@ impl Beta {
         if b <= 0.0 {
             return Err(BetaError::BNotPositive(b));
         }
-        let q_target = 1.0 - p;
         let f = |a: f64| {
             let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         // I_x(a, b) is decreasing in a (more weight near 1 when a grows).
         // Match cdfbet's which=3: bracket (zero, inf), start = 5.0;
@@ -150,9 +152,12 @@ impl Beta {
     }
 
     /// Returns the shape parameter *b* satisfying Pr[*X* ≤ *x*] = *p*.
+    ///
+    /// CDFLIB's `cdfbet` with `which = 4`. Caller passes both *p* and
+    /// *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_b(p: f64, x: f64, a: f64) -> Result<f64, BetaError> {
-        check_prob(p)?;
+    pub fn solve_b(p: f64, q: f64, x: f64, a: f64) -> Result<f64, BetaError> {
+        check_pq(p, q)?;
         if !(0.0..=1.0).contains(&x) {
             return Err(BetaError::XOutOfRange(x));
         }
@@ -162,14 +167,9 @@ impl Beta {
         if a <= 0.0 {
             return Err(BetaError::ANotPositive(a));
         }
-        let q_target = 1.0 - p;
         let f = |b: f64| {
             let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         // I_x(a, b) is increasing in b. Match cdfbet's which=4 setup and
         // precision pivot.
@@ -191,6 +191,16 @@ fn check_prob(p: f64) -> Result<(), BetaError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), BetaError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(BetaError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 impl ContinuousCdf for Beta {
@@ -362,23 +372,23 @@ mod tests {
     #[test]
     fn solve_parameter_rejects_invalid_inputs() {
         assert!(matches!(
-            Beta::solve_a(-0.1, 0.5, 2.0),
+            Beta::solve_a(-0.1, 1.1, 0.5, 2.0),
             Err(BetaError::ProbabilityOutOfRange(-0.1))
         ));
         assert!(matches!(
-            Beta::solve_a(0.5, 0.5, 0.0),
+            Beta::solve_a(0.5, 0.5, 0.5, 0.0),
             Err(BetaError::BNotPositive(0.0))
         ));
         assert!(matches!(
-            Beta::solve_b(0.5, 0.5, 0.0),
+            Beta::solve_b(0.5, 0.5, 0.5, 0.0),
             Err(BetaError::ANotPositive(0.0))
         ));
         assert!(matches!(
-            Beta::solve_a(0.5, 1.5, 2.0),
+            Beta::solve_a(0.5, 0.5, 1.5, 2.0),
             Err(BetaError::XOutOfRange(1.5))
         ));
         assert!(matches!(
-            Beta::solve_b(0.5, -0.1, 2.0),
+            Beta::solve_b(0.5, 0.5, -0.1, 2.0),
             Err(BetaError::XOutOfRange(x)) if x == -0.1
         ));
     }

@@ -16,17 +16,20 @@ use thiserror::Error;
 
 /// Errors of the internal root-finder used by parameter solvers and
 /// non-closed-form inverse CDFs.
+///
+/// The two out-of-bounds variants mirror CDFLIB's `status = 1` and
+/// `status = 2` (cdflib.f90:5568) — the answer fell below the lowest
+/// search bound or above the highest, respectively. `bound` carries
+/// the violated endpoint (CDFLIB's `bound` output).
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum SolverError {
     /// The iteration limit was reached before the convergence criterion held.
     #[error("root-finder failed to converge after {iterations} iterations")]
     NotConverged { iterations: u32 },
-    /// The solution lay outside the bracket the root-finder searched in. The
-    /// `nearest` value is the endpoint of `searched_in` closest to the true
-    /// answer.
-    #[error("answer fell outside search bounds {searched_in:?}; nearest bound was {nearest}")]
-    SearchOutOfBounds {
-        searched_in: (f64, f64),
-        nearest: f64,
-    },
+    /// The solution lay below the lower search bound (CDFLIB `status = 1`).
+    #[error("answer fell below lower search bound {bound}")]
+    AnswerBelowLowerBound { bound: f64 },
+    /// The solution lay above the upper search bound (CDFLIB `status = 2`).
+    #[error("answer fell above upper search bound {bound}")]
+    AnswerAboveUpperBound { bound: f64 },
 }

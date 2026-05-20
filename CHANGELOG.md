@@ -28,6 +28,8 @@
 
 - Restored accuracy selection for `gamma_inc` via `gamma_inc_with_acc`.
 
+- Solvers now take *P* and *Q* instead of computing *Q* = 1 - *P*.
+
 ## [0.3.1] - 2026-05-20
 
 ### Fixed

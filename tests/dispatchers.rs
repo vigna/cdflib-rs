@@ -46,10 +46,10 @@ fn cdfbet_x_matches_beta_inverse_cdf() {
 #[test]
 fn cdfbet_a_matches_beta_solve_a() {
     for row in read_csv("tests/data/cdfbet_a.csv") {
-        let [p, _q, x, b, a_ref] = row[..] else {
+        let [p, q, x, b, a_ref] = row[..] else {
             panic!("width")
         };
-        let got = Beta::solve_a(p, x, b).unwrap();
+        let got = Beta::solve_a(p, q, x, b).unwrap();
         assert_close_eps(got, a_ref, REL, ABS);
     }
 }
@@ -57,10 +57,10 @@ fn cdfbet_a_matches_beta_solve_a() {
 #[test]
 fn cdfbet_b_matches_beta_solve_b() {
     for row in read_csv("tests/data/cdfbet_b.csv") {
-        let [p, _q, x, a, b_ref] = row[..] else {
+        let [p, q, x, a, b_ref] = row[..] else {
             panic!("width")
         };
-        let got = Beta::solve_b(p, x, a).unwrap();
+        let got = Beta::solve_b(p, q, x, a).unwrap();
         assert_close_eps(got, b_ref, REL, ABS);
     }
 }
@@ -70,10 +70,10 @@ fn cdfbet_b_matches_beta_solve_b() {
 #[test]
 fn cdfbin_xn_matches_binomial_solve_trials() {
     for row in read_csv("tests/data/cdfbin_xn.csv") {
-        let [p, _q, s, pr, xn_ref] = row[..] else {
+        let [p, q, s, pr, xn_ref] = row[..] else {
             panic!("width")
         };
-        let got = Binomial::solve_trials(p, pr, s as u64).unwrap();
+        let got = Binomial::solve_trials(p, q, pr, s as u64).unwrap();
         assert_close_eps(got, xn_ref, REL, ABS);
     }
 }
@@ -81,10 +81,10 @@ fn cdfbin_xn_matches_binomial_solve_trials() {
 #[test]
 fn cdfbin_pr_matches_binomial_solve_pr() {
     for row in read_csv("tests/data/cdfbin_pr.csv") {
-        let [p, _q, s, xn, pr_ref] = row[..] else {
+        let [p, q, s, xn, pr_ref] = row[..] else {
             panic!("width")
         };
-        let got = Binomial::solve_pr(p, xn as u64, s as u64).unwrap();
+        let got = Binomial::solve_pr(p, q, xn as u64, s as u64).unwrap();
         assert_close_eps(got, pr_ref, REL, ABS);
     }
 }
@@ -105,10 +105,10 @@ fn cdfchi_x_matches_chi_squared_inverse_cdf() {
 #[test]
 fn cdfchi_df_matches_chi_squared_solve_df() {
     for row in read_csv("tests/data/cdfchi_df.csv") {
-        let [p, _q, x, df_ref] = row[..] else {
+        let [p, q, x, df_ref] = row[..] else {
             panic!("width")
         };
-        let got = ChiSquared::solve_df(p, x).unwrap();
+        let got = ChiSquared::solve_df(p, q, x).unwrap();
         assert_close_eps(got, df_ref, REL, ABS);
     }
 }
@@ -164,10 +164,10 @@ fn cdff_f_matches_fisher_snedecor_inverse_cdf() {
 #[test]
 fn cdff_dfn_matches_fisher_snedecor_solve_dfn() {
     for row in read_csv("tests/data/cdff_dfn.csv") {
-        let [p, _q, f, dfd, dfn_ref] = row[..] else {
+        let [p, q, f, dfd, dfn_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecor::solve_dfn(p, f, dfd).unwrap();
+        let got = FisherSnedecor::solve_dfn(p, q, f, dfd).unwrap();
         assert_close_eps(got, dfn_ref, REL, ABS);
     }
 }
@@ -175,10 +175,10 @@ fn cdff_dfn_matches_fisher_snedecor_solve_dfn() {
 #[test]
 fn cdff_dfd_matches_fisher_snedecor_solve_dfd() {
     for row in read_csv("tests/data/cdff_dfd.csv") {
-        let [p, _q, f, dfn, dfd_ref] = row[..] else {
+        let [p, q, f, dfn, dfd_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecor::solve_dfd(p, f, dfn).unwrap();
+        let got = FisherSnedecor::solve_dfd(p, q, f, dfn).unwrap();
         assert_close_eps(got, dfd_ref, REL, ABS);
     }
 }
@@ -252,10 +252,10 @@ fn cdfgam_x_matches_gamma_inverse_cdf() {
 #[test]
 fn cdfgam_shape_matches_gamma_solve_shape() {
     for row in read_csv("tests/data/cdfgam_shape.csv") {
-        let [p, _q, x, rate, shape_ref] = row[..] else {
+        let [p, q, x, rate, shape_ref] = row[..] else {
             panic!("width")
         };
-        let got = Gamma::solve_shape(p, x, rate).unwrap();
+        let got = Gamma::solve_shape(p, q, x, rate).unwrap();
         assert_close_eps(got, shape_ref, REL, ABS);
     }
 }
@@ -263,10 +263,10 @@ fn cdfgam_shape_matches_gamma_solve_shape() {
 #[test]
 fn cdfgam_scale_matches_gamma_solve_rate() {
     for row in read_csv("tests/data/cdfgam_scale.csv") {
-        let [p, _q, x, shape, rate_ref] = row[..] else {
+        let [p, q, x, shape, rate_ref] = row[..] else {
             panic!("width")
         };
-        let got = Gamma::solve_rate(p, x, shape).unwrap();
+        let got = Gamma::solve_rate(p, q, x, shape).unwrap();
         assert_close_eps(got, rate_ref, REL, ABS);
     }
 }
@@ -276,10 +276,10 @@ fn cdfgam_scale_matches_gamma_solve_rate() {
 #[test]
 fn cdfnbn_xn_matches_negative_binomial_solve_r() {
     for row in read_csv("tests/data/cdfnbn_xn.csv") {
-        let [p, _q, s, pr, xn_ref] = row[..] else {
+        let [p, q, s, pr, xn_ref] = row[..] else {
             panic!("width")
         };
-        let got = NegativeBinomial::solve_r(p, pr, s as u64).unwrap();
+        let got = NegativeBinomial::solve_r(p, q, pr, s as u64).unwrap();
         assert_close_eps(got, xn_ref, REL, ABS);
     }
 }
@@ -287,10 +287,10 @@ fn cdfnbn_xn_matches_negative_binomial_solve_r() {
 #[test]
 fn cdfnbn_pr_matches_negative_binomial_solve_pr() {
     for row in read_csv("tests/data/cdfnbn_pr.csv") {
-        let [p, _q, s, xn, pr_ref] = row[..] else {
+        let [p, q, s, xn, pr_ref] = row[..] else {
             panic!("width")
         };
-        let got = NegativeBinomial::solve_pr(p, xn as u64, s as u64).unwrap();
+        let got = NegativeBinomial::solve_pr(p, q, xn as u64, s as u64).unwrap();
         assert_close_eps(got, pr_ref, REL, ABS);
     }
 }
@@ -311,10 +311,10 @@ fn cdfnor_x_matches_normal_inverse_cdf() {
 #[test]
 fn cdfnor_mean_matches_normal_solve_mean() {
     for row in read_csv("tests/data/cdfnor_mean.csv") {
-        let [p, _q, x, sd, mean_ref] = row[..] else {
+        let [p, q, x, sd, mean_ref] = row[..] else {
             panic!("width")
         };
-        let got = Normal::solve_mean(p, x, sd).unwrap();
+        let got = Normal::solve_mean(p, q, x, sd).unwrap();
         assert_close_eps(got, mean_ref, REL, ABS);
     }
 }
@@ -322,17 +322,17 @@ fn cdfnor_mean_matches_normal_solve_mean() {
 #[test]
 fn cdfnor_sd_matches_normal_solve_sd() {
     for row in read_csv("tests/data/cdfnor_sd.csv") {
-        let [p, _q, x, mean, sd_ref] = row[..] else {
+        let [p, q, x, mean, sd_ref] = row[..] else {
             panic!("width")
         };
         if p == 0.5 && x == mean {
             assert!(matches!(
-                Normal::solve_sd(p, x, mean),
+                Normal::solve_sd(p, q, x, mean),
                 Err(cdflib::NormalError::UnderdeterminedSd)
             ));
             continue;
         }
-        let got = Normal::solve_sd(p, x, mean).unwrap();
+        let got = Normal::solve_sd(p, q, x, mean).unwrap();
         assert_close_eps(got, sd_ref, REL, ABS);
     }
 }
@@ -342,10 +342,10 @@ fn cdfnor_sd_matches_normal_solve_sd() {
 #[test]
 fn cdfpoi_xlam_matches_poisson_solve_lambda() {
     for row in read_csv("tests/data/cdfpoi_xlam.csv") {
-        let [p, _q, s, xlam_ref] = row[..] else {
+        let [p, q, s, xlam_ref] = row[..] else {
             panic!("width")
         };
-        let got = Poisson::solve_lambda(p, s as u64).unwrap();
+        let got = Poisson::solve_lambda(p, q, s as u64).unwrap();
         assert_close_eps(got, xlam_ref, REL, ABS);
     }
 }
@@ -366,10 +366,10 @@ fn cdft_t_matches_students_t_inverse_cdf() {
 #[test]
 fn cdft_df_matches_students_t_solve_df() {
     for row in read_csv("tests/data/cdft_df.csv") {
-        let [p, _q, t, df_ref] = row[..] else {
+        let [p, q, t, df_ref] = row[..] else {
             panic!("width")
         };
-        let got = StudentsT::solve_df(p, t).unwrap();
+        let got = StudentsT::solve_df(p, q, t).unwrap();
         assert_close_eps(got, df_ref, REL, ABS);
     }
 }

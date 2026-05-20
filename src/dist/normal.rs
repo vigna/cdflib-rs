@@ -49,6 +49,10 @@ pub enum NormalError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdfnor` status 3 (cdflib.f90:5659).
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The standard deviation is underdetermined by the inputs to
     /// [`Normal::solve_sd`]: *p* = 1/2 fixes *z* = 0 and *x* = *μ*
     /// makes the numerator zero, so every *σ* > 0 satisfies the equation.
@@ -114,11 +118,15 @@ impl Normal {
 
     /// Returns the mean *μ* satisfying *p* = Pr[*X* ≤ *x*] given *σ*.
     ///
-    /// CDFLIB's `cdfnor` with `which = 3`. Closed-form via the inverse
-    /// standard-normal CDF.
+    /// CDFLIB's `cdfnor` with `which = 3` (cdflib.f90:5695). Caller passes
+    /// both *p* and *q* = 1 − *p*; consistency is enforced within
+    /// 3 ε via [`ProbabilityPairInconsistent`]. Passing the pair preserves
+    /// tail precision when one tail is much smaller than the other.
+    ///
+    /// [`ProbabilityPairInconsistent`]: NormalError::ProbabilityPairInconsistent
     #[inline]
-    pub fn solve_mean(p: f64, x: f64, sd: f64) -> Result<f64, NormalError> {
-        check_prob(p)?;
+    pub fn solve_mean(p: f64, q: f64, x: f64, sd: f64) -> Result<f64, NormalError> {
+        check_pq(p, q)?;
         if !x.is_finite() {
             return Err(NormalError::XNotFinite(x));
         }
@@ -128,22 +136,23 @@ impl Normal {
         if sd <= 0.0 {
             return Err(NormalError::SdNotPositive(sd));
         }
-        let q = 1.0 - p;
         let z = dinvnr(p, q);
         Ok(x - sd * z)
     }
 
     /// Returns the standard deviation *σ* satisfying *p* = Pr[*X* ≤ *x*] given *μ*.
     ///
-    /// CDFLIB's `cdfnor` with `which = 4`. Closed-form. Returns
-    /// [`UnderdeterminedSd`] when *p* = 1/2 (which makes the standard
-    /// normal quantile *z* = 0) and *x* = *μ*, since in that case every
-    /// *σ* > 0 satisfies the equation.
+    /// CDFLIB's `cdfnor` with `which = 4` (cdflib.f90:5702). Caller passes
+    /// both *p* and *q*; see [`solve_mean`] for the (*p*, *q*) convention.
+    /// Returns [`UnderdeterminedSd`] when *p* = 1/2 (which makes the
+    /// standard normal quantile *z* = 0) and *x* = *μ*, since in that case
+    /// every *σ* > 0 satisfies the equation.
     ///
+    /// [`solve_mean`]: Self::solve_mean
     /// [`UnderdeterminedSd`]: NormalError::UnderdeterminedSd
     #[inline]
-    pub fn solve_sd(p: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
-        check_prob(p)?;
+    pub fn solve_sd(p: f64, q: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
+        check_pq(p, q)?;
         if !x.is_finite() {
             return Err(NormalError::XNotFinite(x));
         }
@@ -153,7 +162,6 @@ impl Normal {
         if p == 0.5 && x == mean {
             return Err(NormalError::UnderdeterminedSd);
         }
-        let q = 1.0 - p;
         let z = dinvnr(p, q);
         Ok((x - mean) / z)
     }
@@ -166,6 +174,17 @@ fn check_prob(p: f64) -> Result<(), NormalError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), NormalError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    // F90 cdflib.f90:5659 uses 3 * epsilon as the consistency tolerance.
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(NormalError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 impl ContinuousCdf for Normal {
@@ -339,7 +358,7 @@ mod tests {
     #[test]
     fn solve_mean_inverts_cdf_relation() {
         // If Pr[X ≤ 2] = 0.975 with sd = 1, mean should be 2 - 1.96 ≈ 0.04.
-        let mean = Normal::solve_mean(0.975, 2.0, 1.0).unwrap();
+        let mean = Normal::solve_mean(0.975, 0.025, 2.0, 1.0).unwrap();
         let expected = 2.0 - 1.9599639845400545;
         assert!((mean - expected).abs() < 1e-10, "mean = {mean}");
     }
@@ -347,7 +366,7 @@ mod tests {
     #[test]
     fn solve_sd_inverts_cdf_relation() {
         // If Pr[X ≤ 2] = 0.975 with mean = 0, sd should be 2/1.96 ≈ 1.02.
-        let sd = Normal::solve_sd(0.975, 2.0, 0.0).unwrap();
+        let sd = Normal::solve_sd(0.975, 0.025, 2.0, 0.0).unwrap();
         let expected = 2.0 / 1.9599639845400545;
         assert!((sd - expected).abs() < 1e-10, "sd = {sd}");
     }
@@ -357,7 +376,7 @@ mod tests {
         // p = 1/2 makes z = 0 and x = mean makes the numerator zero, so
         // every sd > 0 satisfies the equation.
         assert!(matches!(
-            Normal::solve_sd(0.5, 3.0, 3.0),
+            Normal::solve_sd(0.5, 0.5, 3.0, 3.0),
             Err(NormalError::UnderdeterminedSd)
         ));
     }
@@ -366,25 +385,30 @@ mod tests {
     fn solve_mean_rejects_bad_inputs() {
         // p out of range
         assert!(matches!(
-            Normal::solve_mean(-0.1, 0.0, 1.0),
+            Normal::solve_mean(-0.1, 1.1, 0.0, 1.0),
             Err(NormalError::ProbabilityOutOfRange(_))
         ));
         assert!(matches!(
-            Normal::solve_mean(1.1, 0.0, 1.0),
+            Normal::solve_mean(1.1, -0.1, 0.0, 1.0),
             Err(NormalError::ProbabilityOutOfRange(_))
+        ));
+        // p + q != 1
+        assert!(matches!(
+            Normal::solve_mean(0.3, 0.3, 0.0, 1.0),
+            Err(NormalError::ProbabilityPairInconsistent { .. })
         ));
         // sd not finite
         assert!(matches!(
-            Normal::solve_mean(0.5, 0.0, f64::NAN),
+            Normal::solve_mean(0.5, 0.5, 0.0, f64::NAN),
             Err(NormalError::SdNotFinite(_))
         ));
         // sd <= 0
         assert!(matches!(
-            Normal::solve_mean(0.5, 0.0, -1.0),
+            Normal::solve_mean(0.5, 0.5, 0.0, -1.0),
             Err(NormalError::SdNotPositive(_))
         ));
         assert!(matches!(
-            Normal::solve_mean(0.5, 0.0, 0.0),
+            Normal::solve_mean(0.5, 0.5, 0.0, 0.0),
             Err(NormalError::SdNotPositive(_))
         ));
     }
@@ -392,21 +416,33 @@ mod tests {
     #[test]
     fn solve_sd_rejects_bad_inputs() {
         assert!(matches!(
-            Normal::solve_sd(-0.1, 0.0, 0.0),
+            Normal::solve_sd(-0.1, 1.1, 0.0, 0.0),
             Err(NormalError::ProbabilityOutOfRange(_))
         ));
         assert!(matches!(
-            Normal::solve_sd(1.5, 0.0, 0.0),
+            Normal::solve_sd(1.5, -0.5, 0.0, 0.0),
             Err(NormalError::ProbabilityOutOfRange(_))
         ));
         assert!(matches!(
-            Normal::solve_sd(0.5, 0.0, f64::NAN),
+            Normal::solve_sd(0.5, 0.5, 0.0, f64::NAN),
             Err(NormalError::MeanNotFinite(_))
         ));
         assert!(matches!(
-            Normal::solve_sd(0.5, 0.0, f64::INFINITY),
+            Normal::solve_sd(0.5, 0.5, 0.0, f64::INFINITY),
             Err(NormalError::MeanNotFinite(_))
         ));
+    }
+
+    #[test]
+    fn solve_mean_tail_precision_with_independent_q() {
+        // The F90 (p, q) pair convention: when q is tiny and known
+        // precisely, deriving q' = 1 - p loses it. solve_mean should
+        // use the precise q.
+        let q = 1.0e-15;
+        let p = 1.0 - q;
+        let mean_independent = Normal::solve_mean(p, q, 2.0, 1.0).unwrap();
+        // For p ~ 1 - 1e-15, z ≈ +7.94, so mean ≈ 2 - 7.94 ≈ -5.94.
+        assert!(mean_independent < 0.0);
     }
 
     #[test]

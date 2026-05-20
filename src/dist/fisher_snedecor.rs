@@ -23,7 +23,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// let p = f.cdf(3.33);
 ///
 /// // Solve for numerator df given Pr[X ≤ 3.33] = 0.95 and dfd = 10
-/// let dfn = FisherSnedecor::solve_dfn(0.95, 3.33, 10.0).unwrap();
+/// let dfn = FisherSnedecor::solve_dfn(0.95, 0.05, 3.33, 10.0).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FisherSnedecor {
@@ -59,6 +59,10 @@ pub enum FisherSnedecorError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdff` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -113,12 +117,15 @@ impl FisherSnedecor {
     }
 
     /// Returns the numerator degrees of freedom *dfn* satisfying
-    /// Pr[*X* ≤ *f*] = *p* given *dfd*. Mirrors CDFLIB's `cdff` with
-    /// `which = 3`. The search is bracketed below by 1, since *dfn* < 1
-    /// makes `cumf`'s `beta_inc` call diverge.
+    /// Pr[*X* ≤ *f*] = *p* given *dfd*.
+    ///
+    /// Mirrors CDFLIB's `cdff` with `which = 3`. Caller passes both *p*
+    /// and *q* = 1 − *p*; consistency is enforced within 3 ε. The search
+    /// is bracketed below by 1, since *dfn* < 1 makes `cumf`'s
+    /// `beta_inc` call diverge.
     #[inline]
-    pub fn solve_dfn(p: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
-        check_prob(p)?;
+    pub fn solve_dfn(p: f64, q: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
+        check_pq(p, q)?;
         if !f.is_finite() {
             return Err(FisherSnedecorError::FNotFinite(f));
         }
@@ -131,19 +138,12 @@ impl FisherSnedecor {
         if dfd <= 0.0 {
             return Err(FisherSnedecorError::DfdNotPositive(dfd));
         }
-        let q_target = 1.0 - p;
-        // Lower bound 1.0 (not 1e-300): the Fortran reference notes that
-        // dfn < 1 makes cumf's internal beta_inc call diverge.
         // Mirror Fortran cdff's cum-p if p<=q else ccum-q precision pivot.
         let func = |dfn: f64| {
             let dist = FisherSnedecor { dfn, dfd };
             let cum = dist.cdf(f);
             let ccum = dist.sf(f);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         Ok(solve_monotone(
             BracketStrategy::Increasing {
@@ -156,12 +156,15 @@ impl FisherSnedecor {
     }
 
     /// Returns the denominator degrees of freedom *dfd* satisfying
-    /// Pr[*X* ≤ *f*] = *p* given *dfn*. Mirrors CDFLIB's `cdff` with
-    /// `which = 4`. Bracketed below by 1 for the same convergence reason
-    /// as [`solve_dfn`](Self::solve_dfn).
+    /// Pr[*X* ≤ *f*] = *p* given *dfn*.
+    ///
+    /// Mirrors CDFLIB's `cdff` with `which = 4`. Caller passes both *p*
+    /// and *q* = 1 − *p*; consistency is enforced within 3 ε. Bracketed
+    /// below by 1 for the same convergence reason as
+    /// [`solve_dfn`](Self::solve_dfn).
     #[inline]
-    pub fn solve_dfd(p: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
-        check_prob(p)?;
+    pub fn solve_dfd(p: f64, q: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
+        check_pq(p, q)?;
         if !f.is_finite() {
             return Err(FisherSnedecorError::FNotFinite(f));
         }
@@ -174,18 +177,12 @@ impl FisherSnedecor {
         if dfn <= 0.0 {
             return Err(FisherSnedecorError::DfnNotPositive(dfn));
         }
-        let q_target = 1.0 - p;
         // F CDF is increasing in dfd for fixed f > 0 and dfn.
-        // Lower bound 1.0 for the same beta_inc reason as solve_dfn.
         let func = |dfd: f64| {
             let dist = FisherSnedecor { dfn, dfd };
             let cum = dist.cdf(f);
             let ccum = dist.sf(f);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         Ok(solve_monotone(
             BracketStrategy::Increasing {
@@ -205,6 +202,16 @@ fn check_prob(p: f64) -> Result<(), FisherSnedecorError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), FisherSnedecorError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(FisherSnedecorError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 /// `cumf`: CDF of the *F* distribution via the incomplete-Β reduction.
@@ -388,23 +395,23 @@ mod tests {
         assert!(FisherSnedecor::new(5.0, 10.0).mean().is_finite());
         assert!(FisherSnedecor::new(5.0, 10.0).variance().is_finite());
         assert!(matches!(
-            FisherSnedecor::solve_dfn(-0.1, 1.0, 5.0),
+            FisherSnedecor::solve_dfn(-0.1, 1.1, 1.0, 5.0),
             Err(FisherSnedecorError::ProbabilityOutOfRange(-0.1))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfn(0.5, 0.0, 5.0),
+            FisherSnedecor::solve_dfn(0.5, 0.5, 0.0, 5.0),
             Err(FisherSnedecorError::FNotPositive(0.0))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfn(0.5, 1.0, 0.0),
+            FisherSnedecor::solve_dfn(0.5, 0.5, 1.0, 0.0),
             Err(FisherSnedecorError::DfdNotPositive(0.0))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfd(0.5, 0.0, 5.0),
+            FisherSnedecor::solve_dfd(0.5, 0.5, 0.0, 5.0),
             Err(FisherSnedecorError::FNotPositive(0.0))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfd(0.5, 1.0, 0.0),
+            FisherSnedecor::solve_dfd(0.5, 0.5, 1.0, 0.0),
             Err(FisherSnedecorError::DfnNotPositive(0.0))
         ));
     }

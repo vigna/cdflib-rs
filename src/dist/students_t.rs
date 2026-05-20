@@ -46,6 +46,10 @@ pub enum StudentsTError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdft` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -93,21 +97,19 @@ impl StudentsT {
     }
 
     /// Returns the degrees of freedom *df* satisfying Pr[*T* ≤ *t*] = *p*.
+    ///
+    /// CDFLIB's `cdft` with `which = 3`. Caller passes both *p* and
+    /// *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_df(p: f64, t: f64) -> Result<f64, StudentsTError> {
-        check_prob(p)?;
+    pub fn solve_df(p: f64, q: f64, t: f64) -> Result<f64, StudentsTError> {
+        check_pq(p, q)?;
         if !t.is_finite() {
             return Err(StudentsTError::TNotFinite(t));
         }
-        let q_target = 1.0 - p;
         // Mirror cdft's cum-p if p<=q else ccum-q precision pivot.
         let f = |df: f64| {
             let (cum, ccum) = cumt(t, df);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         // CDF at fixed t > 0 is increasing in df (more mass below); at
         // t < 0 it's decreasing. Use the appropriate strategy.
@@ -118,9 +120,13 @@ impl StudentsT {
             if (p - 0.5).abs() < 1e-15 {
                 return Ok(5.0);
             }
-            return Err(StudentsTError::Solver(SolverError::SearchOutOfBounds {
-                searched_in: (1.0, 1.0e10),
-                nearest: 5.0,
+            // f(df) = 0.5 - p has constant sign for all df. p > 0.5 means
+            // f < 0 everywhere; dstinv walks toward big and reports the
+            // upper bound. p < 0.5 yields the symmetric lower-bound report.
+            return Err(StudentsTError::Solver(if p > 0.5 {
+                SolverError::AnswerAboveUpperBound { bound: 1.0e10 }
+            } else {
+                SolverError::AnswerBelowLowerBound { bound: 1.0 }
             }));
         }
         // Match cdft's which=3 setup: Fortran cdflib.f90 L6251 uses
@@ -150,6 +156,16 @@ fn check_prob(p: f64) -> Result<(), StudentsTError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), StudentsTError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(StudentsTError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 /// `cumt`: CDF of Student's *t* via the incomplete-Β reduction.
@@ -320,13 +336,18 @@ mod tests {
 
     #[test]
     fn solve_df_handles_t_zero_special_case() {
-        assert_eq!(StudentsT::solve_df(0.5, 0.0).unwrap(), 5.0);
+        assert_eq!(StudentsT::solve_df(0.5, 0.5, 0.0).unwrap(), 5.0);
         assert!(matches!(
-            StudentsT::solve_df(0.6, 0.0),
-            Err(StudentsTError::Solver(SolverError::SearchOutOfBounds {
-                searched_in: (1.0, 1.0e10),
-                nearest: 5.0
-            }))
+            StudentsT::solve_df(0.6, 0.4, 0.0),
+            Err(StudentsTError::Solver(
+                SolverError::AnswerAboveUpperBound { bound: 1.0e10 }
+            ))
+        ));
+        assert!(matches!(
+            StudentsT::solve_df(0.4, 0.6, 0.0),
+            Err(StudentsTError::Solver(
+                SolverError::AnswerBelowLowerBound { bound: 1.0 }
+            ))
         ));
     }
 

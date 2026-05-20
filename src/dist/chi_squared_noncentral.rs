@@ -126,6 +126,11 @@ impl ChiSquaredNoncentral {
 
     /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*
     /// given *λ*. Mirrors CDFLIB's `cdfchn` with `which = 3`.
+    ///
+    /// Unlike most `cdf*` solvers, this one does not take *q*: CDFLIB
+    /// (cdflib.f90:3685) documents *q* as "generally not used by this
+    /// subroutine and is only included for similarity with other routines",
+    /// so it is dropped from the Rust surface.
     #[inline]
     pub fn solve_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_prob(p)?;
@@ -157,7 +162,8 @@ impl ChiSquaredNoncentral {
     /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *x*] = *p* given *df*.
     ///
     /// Mirrors CDFLIB's `cdfchn` with `which = 4`. The search is bracketed
-    /// on (0, 10⁴] because `cumchn`'s iteration cost grows with *λ*.
+    /// on (0, 10⁴] because `cumchn`'s iteration cost grows with *λ*. As in
+    /// [`solve_df`](Self::solve_df), *q* is dropped from the Rust surface.
     #[inline]
     pub fn solve_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_prob(p)?;

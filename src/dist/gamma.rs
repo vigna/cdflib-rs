@@ -32,7 +32,7 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// let p = g.cdf(2.0);
 ///
 /// // Solve for shape parameter given Pr[X ≤ 5.0] = 0.9 and rate = 2.0
-/// let shape = Gamma::solve_shape(0.9, 5.0, 2.0).unwrap();
+/// let shape = Gamma::solve_shape(0.9, 0.1, 5.0, 2.0).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Gamma {
@@ -66,6 +66,10 @@ pub enum GammaError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdfgam` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -134,10 +138,11 @@ impl Gamma {
 
     /// Returns the shape parameter *α* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
-    /// Mirrors CDFLIB's `cdfgam` with `which = 3`.
+    /// Mirrors CDFLIB's `cdfgam` with `which = 3`. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_shape(p: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
-        check_prob(p)?;
+    pub fn solve_shape(p: f64, q: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
+        check_pq(p, q)?;
         if !x.is_finite() {
             return Err(GammaError::XNotFinite(x));
         }
@@ -153,14 +158,9 @@ impl Gamma {
         // F(x; shape, rate) = P(shape, rate·x) is decreasing in shape
         // for fixed x > 0. Mirror Fortran cdfgam's precision pivot.
         let xr = x * rate;
-        let q_target = 1.0 - p;
         let f = |shape: f64| {
             let (cum, ccum) = gamma_inc(shape, xr);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         // Match cdfgam's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
@@ -175,11 +175,11 @@ impl Gamma {
 
     /// Returns the rate parameter *β* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
-    /// Mirrors CDFLIB's `cdfgam` with `which = 4`: invert the incomplete-Γ
-    /// ratio for the shifted argument, then divide out *x*.
+    /// Mirrors CDFLIB's `cdfgam` with `which = 4`. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_rate(p: f64, x: f64, shape: f64) -> Result<f64, GammaError> {
-        check_prob(p)?;
+    pub fn solve_rate(p: f64, q: f64, x: f64, shape: f64) -> Result<f64, GammaError> {
+        check_pq(p, q)?;
         if !x.is_finite() {
             return Err(GammaError::XNotFinite(x));
         }
@@ -192,8 +192,7 @@ impl Gamma {
         if shape <= 0.0 {
             return Err(GammaError::ShapeNotPositive(shape));
         }
-        let q = 1.0 - p;
-        let xx = try_gamma_inc_inv(shape, -1.0, p, q)?;
+        let (xx, _iters) = try_gamma_inc_inv(shape, -1.0, p, q)?;
         Ok(xx / x)
     }
 }
@@ -205,6 +204,16 @@ fn check_prob(p: f64) -> Result<(), GammaError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), GammaError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(GammaError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 impl ContinuousCdf for Gamma {
@@ -240,7 +249,7 @@ impl ContinuousCdf for Gamma {
         // cdfgam's which=2 calls gamma_inc_inv directly: solve
         // P(shape, xx) = p for xx, then divide out the rate.
         let q = 1.0 - p;
-        let xx = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
+        let (xx, _iters) = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
         Ok(xx / self.rate)
     }
 
@@ -256,7 +265,7 @@ impl ContinuousCdf for Gamma {
         // Same closed-form inversion as inverse_cdf, expressed in the
         // upper-tail direction so a tiny q keeps its precision.
         let p = 1.0 - q;
-        let xx = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
+        let (xx, _iters) = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
         Ok(xx / self.rate)
     }
 }
@@ -354,7 +363,7 @@ mod tests {
             Err(GammaError::RateNotFinite(x)) if x.is_infinite()
         ));
         assert!(matches!(
-            Gamma::solve_shape(-0.1, 1.0, 1.0),
+            Gamma::solve_shape(-0.1, 1.1, 1.0, 1.0),
             Err(GammaError::ProbabilityOutOfRange(-0.1))
         ));
     }
@@ -376,19 +385,19 @@ mod tests {
     #[test]
     fn solve_parameter_rejects_nonpositive_inputs() {
         assert!(matches!(
-            Gamma::solve_shape(0.5, 0.0, 1.0),
+            Gamma::solve_shape(0.5, 0.5, 0.0, 1.0),
             Err(GammaError::XNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::solve_shape(0.5, 1.0, 0.0),
+            Gamma::solve_shape(0.5, 0.5, 1.0, 0.0),
             Err(GammaError::RateNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::solve_rate(0.5, 1.0, 0.0),
+            Gamma::solve_rate(0.5, 0.5, 1.0, 0.0),
             Err(GammaError::ShapeNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::solve_rate(0.5, -0.1, 2.0),
+            Gamma::solve_rate(0.5, 0.5, -0.1, 2.0),
             Err(GammaError::XNotPositive(x)) if x == -0.1
         ));
     }

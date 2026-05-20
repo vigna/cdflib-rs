@@ -146,6 +146,11 @@ impl FisherSnedecorNoncentral {
     /// Returns the numerator degrees of freedom *dfn* satisfying
     /// Pr[*X* ≤ *f*] = *p* given *dfd* and *λ*. Mirrors CDFLIB's `cdffnc`
     /// with `which = 3`. The search is bracketed in [1 . . 10³⁰].
+    ///
+    /// Unlike most `cdf*` solvers, this one does not take *q*: CDFLIB
+    /// (cdflib.f90:3766) documents *q* as "not used by this subroutine,
+    /// and is only included for similarity with the other routines", so
+    /// it is dropped from the Rust surface.
     #[inline]
     pub fn solve_dfn(
         p: f64,
@@ -189,7 +194,8 @@ impl FisherSnedecorNoncentral {
 
     /// Returns the denominator degrees of freedom *dfd* satisfying
     /// Pr[*X* ≤ *f*] = *p* given *dfn* and *λ*. Mirrors CDFLIB's `cdffnc`
-    /// with `which = 4`.
+    /// with `which = 4`. As in [`solve_dfn`](Self::solve_dfn), *q* is
+    /// dropped from the Rust surface.
     #[inline]
     pub fn solve_dfd(
         p: f64,
@@ -233,6 +239,8 @@ impl FisherSnedecorNoncentral {
     /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *f*] = *p* given
     /// *dfn* and *dfd*. Mirrors CDFLIB's `cdffnc` with `which = 5`. The
     /// search is bracketed at 10⁴ above to avoid overflow inside `cumfnc`.
+    /// As in [`solve_dfn`](Self::solve_dfn), *q* is dropped from the Rust
+    /// surface.
     #[inline]
     pub fn solve_ncp(
         p: f64,

@@ -31,7 +31,7 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// let cdf = nb.cdf(3);
 ///
 /// // Solve for success probability given Pr[F ≤ 5] = 0.9 and r = 10
-/// let pr = NegativeBinomial::solve_pr(0.9, 10, 5).unwrap();
+/// let pr = NegativeBinomial::solve_pr(0.9, 0.1, 10, 5).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NegativeBinomial {
@@ -56,6 +56,10 @@ pub enum NegativeBinomialError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdfnbn` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -105,23 +109,21 @@ impl NegativeBinomial {
 
     /// Returns the target number of successes *r* satisfying
     /// Pr[*F* ≤ *s*] = *p* given the success probability.
+    ///
+    /// Mirrors CDFLIB's `cdfnbn` with `which = 3`. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_r(p: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
-        check_prob(p)?;
+    pub fn solve_r(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
+        check_pq(p, q)?;
         if !(pr > 0.0 && pr <= 1.0) {
             return Err(NegativeBinomialError::PrOutOfRange(pr));
         }
         let sf = s as f64;
-        let q_target = 1.0 - p;
         // I_pr(r, s+1) is the negative-binomial CDF (A-S 26.5.26), so
         // beta_inc's cum here is the CDF and ccum is the SF.
         let f = |r: f64| {
             let (cum, ccum) = beta_inc(r, sf + 1.0, pr, 1.0 - pr);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         // Match cdfnbn's which=3: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
@@ -135,19 +137,17 @@ impl NegativeBinomial {
     }
 
     /// Returns the success probability *pr* satisfying Pr[*F* ≤ *s*] = *p* given *r*.
+    ///
+    /// Mirrors CDFLIB's `cdfnbn` with `which = 4`. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_pr(p: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
-        check_prob(p)?;
+    pub fn solve_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
+        check_pq(p, q)?;
         let rf = r as f64;
         let sf = s as f64;
-        let q_target = 1.0 - p;
         let f = |pr: f64| {
             let (cum, ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
-            if p <= q_target {
-                cum - p
-            } else {
-                ccum - q_target
-            }
+            if p <= q { cum - p } else { ccum - q }
         };
         // I_pr(r, s+1) is increasing in pr; cdfnbn's which=4 uses dstzr
         // on (0, 1).
@@ -169,6 +169,16 @@ fn check_prob(p: f64) -> Result<(), NegativeBinomialError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), NegativeBinomialError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(NegativeBinomialError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 impl DiscreteCdf for NegativeBinomial {
@@ -281,11 +291,11 @@ mod tests {
     #[test]
     fn solve_helpers_reject_invalid_inputs() {
         assert!(matches!(
-            NegativeBinomial::solve_r(-0.1, 0.5, 3),
+            NegativeBinomial::solve_r(-0.1, 1.1, 0.5, 3),
             Err(NegativeBinomialError::ProbabilityOutOfRange(-0.1))
         ));
         assert!(matches!(
-            NegativeBinomial::solve_r(0.5, 0.0, 3),
+            NegativeBinomial::solve_r(0.5, 0.5, 0.0, 3),
             Err(NegativeBinomialError::PrOutOfRange(0.0))
         ));
     }

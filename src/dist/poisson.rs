@@ -35,7 +35,7 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// let cdf = p.cdf(2);
 ///
 /// // Solve for lambda given Pr[X ≤ 3] = 0.5
-/// let lambda = Poisson::solve_lambda(0.5, 3).unwrap();
+/// let lambda = Poisson::solve_lambda(0.5, 0.5, 3).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Poisson {
@@ -56,6 +56,10 @@ pub enum PoissonError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdfpoi` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -102,21 +106,18 @@ impl Poisson {
     }
 
     /// Returns the rate parameter *λ* satisfying Pr[*X* ≤ *s*] = *p*.
+    ///
+    /// Mirrors CDFLIB's `cdfpoi` with `which = 3`. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_lambda(p: f64, s: u64) -> Result<f64, PoissonError> {
-        check_prob(p)?;
+    pub fn solve_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
+        check_pq(p, q)?;
         let sf = s as f64;
-        let q_target = 1.0 - p;
         // CDF is decreasing in λ for fixed s (more mass shifts right).
-        // Mirror cdfpoi's if p <= q then cum-p else ccum-q precision
-        // pivot so the residual stays small near both tails of p.
+        // Mirror cdfpoi's if p <= q then cum-p else ccum-q precision pivot.
         let f = |lambda: f64| {
             let (sf_upper, cdf) = gamma_inc(sf + 1.0, lambda);
-            if p <= q_target {
-                cdf - p
-            } else {
-                sf_upper - q_target
-            }
+            if p <= q { cdf - p } else { sf_upper - q }
         };
         // Match cdfpoi's which=3: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
@@ -137,6 +138,16 @@ fn check_prob(p: f64) -> Result<(), PoissonError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), PoissonError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(PoissonError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 impl DiscreteCdf for Poisson {
@@ -245,15 +256,15 @@ mod tests {
     #[test]
     fn solve_lambda_rejects_bad_p() {
         assert!(matches!(
-            Poisson::solve_lambda(-0.1, 3),
+            Poisson::solve_lambda(-0.1, 1.1, 3),
             Err(PoissonError::ProbabilityOutOfRange(_))
         ));
         assert!(matches!(
-            Poisson::solve_lambda(1.5, 3),
+            Poisson::solve_lambda(1.5, -0.5, 3),
             Err(PoissonError::ProbabilityOutOfRange(_))
         ));
         assert!(matches!(
-            Poisson::solve_lambda(f64::NAN, 3),
+            Poisson::solve_lambda(f64::NAN, 0.5, 3),
             Err(PoissonError::ProbabilityOutOfRange(_))
         ));
     }
@@ -289,8 +300,10 @@ mod tests {
         // stays small. Round-trip should still recover the original.
         let lambda = 5.0_f64;
         let s = 10u64; // mean+5σ-ish, cdf will be very close to 1
-        let p_target = Poisson::new(lambda).cdf(s);
-        let recovered = Poisson::solve_lambda(p_target, s).unwrap();
+        let dist = Poisson::new(lambda);
+        let p_target = dist.cdf(s);
+        let q_target = dist.sf(s);
+        let recovered = Poisson::solve_lambda(p_target, q_target, s).unwrap();
         assert!(
             (recovered - lambda).abs() < 1e-5,
             "p_target={p_target}, recovered={recovered}"

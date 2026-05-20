@@ -138,9 +138,10 @@ pub(crate) fn solve_monotone_with_atol(
             }
             InvrAction::Converged(x) => return Ok(x),
             InvrAction::Failed { qleft, .. } => {
-                return Err(SolverError::SearchOutOfBounds {
-                    searched_in: (small, big),
-                    nearest: if qleft { small } else { big },
+                return Err(if qleft {
+                    SolverError::AnswerBelowLowerBound { bound: small }
+                } else {
+                    SolverError::AnswerAboveUpperBound { bound: big }
                 });
             }
         }
@@ -216,7 +217,7 @@ mod tests {
         );
         assert!(matches!(
             r,
-            Err(SolverError::SearchOutOfBounds { nearest, .. }) if nearest == 1.0
+            Err(SolverError::AnswerBelowLowerBound { bound }) if bound == 1.0
         ));
     }
 
@@ -234,7 +235,7 @@ mod tests {
         );
         assert!(matches!(
             r,
-            Err(SolverError::SearchOutOfBounds { nearest, .. }) if nearest == 10.0
+            Err(SolverError::AnswerAboveUpperBound { bound }) if bound == 10.0
         ));
     }
 
@@ -251,7 +252,7 @@ mod tests {
         );
         assert!(matches!(
             r,
-            Err(SolverError::SearchOutOfBounds { nearest, .. }) if nearest == 1.0
+            Err(SolverError::AnswerBelowLowerBound { bound }) if bound == 1.0
         ));
     }
 
@@ -268,7 +269,7 @@ mod tests {
         );
         assert!(matches!(
             r,
-            Err(SolverError::SearchOutOfBounds { nearest, .. }) if nearest == 10.0
+            Err(SolverError::AnswerAboveUpperBound { bound }) if bound == 10.0
         ));
     }
 
@@ -290,7 +291,7 @@ mod tests {
     #[test]
     fn nan_objective_surfaces_as_search_failure() {
         // A NaN-returning objective should not panic; it should surface as
-        // SearchOutOfBounds at the lower endpoint (since the initial evaluation
+        // AnswerBelowLowerBound (since the initial evaluation
         // at start is NaN, which is not < 0 nor > 0,
         // so the bracket-expansion logic falls through).
         let err = solve_monotone(
@@ -304,10 +305,7 @@ mod tests {
         .unwrap_err();
         assert!(matches!(
             err,
-            SolverError::SearchOutOfBounds {
-                searched_in: (0.0, 1.0),
-                nearest: 0.0
-            }
+            SolverError::AnswerBelowLowerBound { bound: 0.0 }
         ));
     }
 }

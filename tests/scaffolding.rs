@@ -75,12 +75,10 @@ fn read_csv_parses_a_simple_table() {
 fn solver_error_displays_useful_messages() {
     let e = SolverError::NotConverged { iterations: 42 };
     assert!(e.to_string().contains("42"), "got: {e}");
-    let e = SolverError::SearchOutOfBounds {
-        searched_in: (-1.0, 1.0),
-        nearest: 1.0,
-    };
-    let s = e.to_string();
-    assert!(s.contains("-1") && s.contains('1'), "got: {s}");
+    let e = SolverError::AnswerBelowLowerBound { bound: -1.0 };
+    assert!(e.to_string().contains("-1"), "got: {e}");
+    let e = SolverError::AnswerAboveUpperBound { bound: 1.0 };
+    assert!(e.to_string().contains('1'), "got: {e}");
 }
 
 // A tiny stub distribution to prove the trait shape compiles and the

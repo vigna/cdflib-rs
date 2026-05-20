@@ -428,7 +428,7 @@ fn gamma_inc_inv_small_a_label_30_early_return() {
     // b = q · gamma(1.5) / 0.5 ≈ 1.8e-29 < 1e-28.
     let q = 1.0e-29;
     let p = 1.0 - q;
-    let r = gamma_inc_inv(0.5, -1.0, p, q);
+    let (r, _) = gamma_inc_inv(0.5, -1.0, p, q);
     assert!(r.is_finite() && r > 0.0);
 }
 
@@ -437,7 +437,7 @@ fn gamma_inc_inv_amin_early_return() {
     // a ≥ AMIN[iop] = 500 (iop = 0) with d = |1 - xn0/a| ≤ DMIN[iop] = 1e-6.
     // With p = 0.5 the rational s ≈ 0, so xn0 ≈ a + (s²−1)/3 ≈ a − 1/3.
     // d ≈ 1/(3a). a = 1e7 gives d ≈ 3.3e-8 < 1e-6 → early-return.
-    let r = gamma_inc_inv(1.0e7, -1.0, 0.5, 0.5);
+    let (r, _) = gamma_inc_inv(1.0e7, -1.0, 0.5, 0.5);
     assert!(r.is_finite() && r > 0.0);
     assert!((r - 1.0e7).abs() < 1.0);
 }
@@ -452,7 +452,7 @@ fn gamma_inc_inv_initial_approx_small_b_bq_branch() {
     // The routine may legitimately return Ok or a soft-failure error;
     // the only goal here is to drive the code path.
     match r {
-        Ok(x) => assert!(x.is_finite() && x > 0.0),
+        Ok((x, _iters)) => assert!(x.is_finite() && x > 0.0),
         Err(GammaIncInvError::NoSolution)
         | Err(GammaIncInvError::IterationFailed)
         | Err(GammaIncInvError::UncertainAccuracy { .. }) => {}

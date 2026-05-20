@@ -31,7 +31,7 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// let cdf = b.cdf(3);
 ///
 /// // Solve for success probability given Pr[S ≤ 2] = 0.5 and n = 10
-/// let pr = Binomial::solve_pr(0.5, 10, 2).unwrap();
+/// let pr = Binomial::solve_pr(0.5, 0.5, 10, 2).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Binomial {
@@ -53,6 +53,10 @@ pub enum BinomialError {
     /// The probability *p* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     ProbabilityOutOfRange(f64),
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// Mirrors CDFLIB's `cdfbin` status 3.
+    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3 epsilon")]
+    ProbabilityPairInconsistent { p: f64, q: f64 },
     /// The internal root-finder failed; see [`SolverError`].
     ///
     /// [`SolverError`]: crate::error::SolverError
@@ -104,28 +108,24 @@ impl Binomial {
     /// Returns the (continuous) number of trials *n* satisfying
     /// Pr[*S* ≤ *s*] = *p* given the success probability. The solver
     /// works on the continuous extension of the CDF.
+    ///
+    /// Mirrors CDFLIB's `cdfbin` with `which = 3`. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_trials(p: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
-        check_prob(p)?;
+    pub fn solve_trials(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
+        check_pq(p, q)?;
         if !(0.0..=1.0).contains(&pr) || !pr.is_finite() {
             return Err(BinomialError::PrOutOfRange(pr));
         }
         let sf = s as f64;
-        let q_target = 1.0 - p;
-        // For pr fixed, Pr[S ≤ s] is decreasing in n (more trials → more
-        // mass on the right). beta_inc(s+1, n-s, pr, 1-pr).ccum is the
-        // binomial CDF (A-S 26.5.24); .cum is the SF.
+        // For pr fixed, Pr[S ≤ s] is decreasing in n.
         let f = |n: f64| {
             if sf >= n {
                 // Degenerate left side: CDF == 1, SF == 0.
-                return if p <= q_target { 1.0 - p } else { -q_target };
+                return if p <= q { 1.0 - p } else { -q };
             }
             let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, n - sf, pr, 1.0 - pr);
-            if p <= q_target {
-                cdf_bin - p
-            } else {
-                sf_bin - q_target
-            }
+            if p <= q { cdf_bin - p } else { sf_bin - q }
         };
         // Match cdfbin's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
@@ -139,23 +139,21 @@ impl Binomial {
     }
 
     /// Returns the success probability *pr* satisfying Pr[*S* ≤ *s*] = *p* given *n*.
+    ///
+    /// Mirrors CDFLIB's `cdfbin` with `which = 4`. Caller passes both
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_pr(p: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
-        check_prob(p)?;
+    pub fn solve_pr(p: f64, q: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
+        check_pq(p, q)?;
         if s > n {
             return Err(BinomialError::SuccessesExceedTrials { s, n });
         }
         let nf = n as f64;
         let sf = s as f64;
-        let q_target = 1.0 - p;
         // For n, s fixed, Pr[S ≤ s] is decreasing in pr.
         let f = |pr: f64| {
             let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
-            if p <= q_target {
-                cdf_bin - p
-            } else {
-                sf_bin - q_target
-            }
+            if p <= q { cdf_bin - p } else { sf_bin - q }
         };
         // Match cdfbin's which=4 dstzr setup: bounded [0..1].
         Ok(solve_monotone(
@@ -176,6 +174,16 @@ fn check_prob(p: f64) -> Result<(), BinomialError> {
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), BinomialError> {
+    check_prob(p)?;
+    check_prob(q)?;
+    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
+        return Err(BinomialError::ProbabilityPairInconsistent { p, q });
+    }
+    Ok(())
 }
 
 /// `cumbin`: cumulative binomial via beta reduction.
@@ -284,15 +292,15 @@ mod tests {
             Err(BinomialError::PrOutOfRange(-0.1))
         ));
         assert!(matches!(
-            Binomial::solve_trials(-0.1, 0.5, 3),
+            Binomial::solve_trials(-0.1, 1.1, 0.5, 3),
             Err(BinomialError::ProbabilityOutOfRange(-0.1))
         ));
         assert!(matches!(
-            Binomial::solve_trials(0.5, f64::NAN, 3),
+            Binomial::solve_trials(0.5, 0.5, f64::NAN, 3),
             Err(BinomialError::PrOutOfRange(x)) if x.is_nan()
         ));
         assert!(matches!(
-            Binomial::solve_pr(0.5, 3, 4),
+            Binomial::solve_pr(0.5, 0.5, 3, 4),
             Err(BinomialError::SuccessesExceedTrials { s: 4, n: 3 })
         ));
     }

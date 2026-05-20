@@ -1629,7 +1629,8 @@ pub enum GammaIncInvError {
 /// # Panics
 ///
 /// Panics on a [`GammaIncInvError`]. Use [`try_gamma_inc_inv`] for the
-/// fallible form.
+/// fallible form. Returns `(value, iterations)`; see [`try_gamma_inc_inv`]
+/// for the meaning of the second component.
 ///
 /// # Example
 ///
@@ -1637,29 +1638,32 @@ pub enum GammaIncInvError {
 /// use cdflib::special::gamma_inc_inv;
 ///
 /// // For a = 2.0, p = 0.5, q = 0.5: the median of Γ(2, 1) is ≈ 1.6783.
-/// let x = gamma_inc_inv(2.0, -1.0, 0.5, 0.5);
+/// let (x, _iters) = gamma_inc_inv(2.0, -1.0, 0.5, 0.5);
 /// assert!((x - 1.6783).abs() < 1e-3);
 /// ```
 ///
 /// [`try_gamma_inc_inv`]: crate::special::try_gamma_inc_inv
 #[inline]
-pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> f64 {
+pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> (f64, u32) {
     if a.is_nan() || x0.is_nan() || p.is_nan() || q.is_nan() {
-        return f64::NAN;
+        return (f64::NAN, 0);
     }
     try_gamma_inc_inv(a, x0, p, q)
         .unwrap_or_else(|e| panic!("gamma_inc_inv(a={a}, x0={x0}, p={p}, q={q}): {e}"))
 }
 
-/// Fallible form of [`gamma_inc_inv`]: returns [`GammaIncInvError`] on
-/// invalid input, iteration failure, or when the answer is +∞.
+/// Fallible form of [`gamma_inc_inv`]: returns `(value, iterations)` on
+/// success or [`GammaIncInvError`] otherwise. `iterations` is the Schröder
+/// iteration count, mirroring CDFLIB's positive `ierr`: 0 indicates the
+/// closed-form path was taken (F90 ierr = 0), positive values mean K
+/// Schröder iterations were performed (F90 ierr = K).
 ///
 /// # Example
 ///
 /// ```
 /// use cdflib::special::{try_gamma_inc_inv, GammaIncInvError};
 ///
-/// let x = try_gamma_inc_inv(2.0, -1.0, 0.5, 0.5).unwrap();
+/// let (x, _iters) = try_gamma_inc_inv(2.0, -1.0, 0.5, 0.5).unwrap();
 /// assert!((x - 1.6783).abs() < 1e-3);
 /// assert_eq!(
 ///     try_gamma_inc_inv(2.0, -1.0, 1.0, 0.0),
@@ -1669,7 +1673,12 @@ pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> f64 {
 ///
 /// [`GammaIncInvError`]: crate::special::GammaIncInvError
 #[inline]
-pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIncInvError> {
+pub fn try_gamma_inc_inv(
+    a: f64,
+    x0: f64,
+    p: f64,
+    q: f64,
+) -> Result<(f64, u32), GammaIncInvError> {
     // Constants from cdflib.f90 L11070+.
     const A0: f64 = 3.31125922108741;
     const A1: f64 = 11.6616720288968;
@@ -1702,13 +1711,13 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
         return Err(GammaIncInvError::InconsistentPq);
     }
     if p == 0.0 {
-        return Ok(0.0);
+        return Ok((0.0, 0));
     }
     if q == 0.0 {
         return Err(GammaIncInvError::AtInfinity);
     }
     if a == 1.0 {
-        return Ok(if q >= 0.9 { -alnrel(-p) } else { -q.ln() });
+        return Ok((if q >= 0.9 { -alnrel(-p) } else { -q.ln() }, 0));
     }
 
     // ---- setup ---------------------------------------------------------
@@ -1782,7 +1791,7 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
                     xn = xn_30;
                     use_q = true;
                 } else {
-                    return Ok(xn_30);
+                    return Ok((xn_30, 0));
                 }
             }
         } else {
@@ -1814,7 +1823,7 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
         if AMIN[iop] <= a {
             let d = HALF + (HALF - xn0 / a);
             if d.abs() <= DMIN[iop] {
-                return Ok(xn0);
+                return Ok((xn0, 0));
             }
         }
 
@@ -1822,7 +1831,7 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<f64, GammaIn
             // F90 L11340: label 130, a > 1, p ≤ 0.5.
             let (refined_xn, early_return) = label_130(a, p, q, xn0, EMIN[iop]);
             if early_return {
-                return Ok(refined_xn);
+                return Ok((refined_xn, 0));
             }
             xn = refined_xn;
             use_q = false; // `go to 170`
@@ -1955,7 +1964,7 @@ fn schroder_p(
     eps: f64,
     amax: f64,
     e2: f64,
-) -> Result<f64, GammaIncInvError> {
+) -> Result<(f64, u32), GammaIncInvError> {
     const HALF: f64 = 0.5;
     const TOL: f64 = 1.0e-5;
     if p <= 1.0e10 * f64::MIN_POSITIVE {
@@ -1995,7 +2004,7 @@ fn schroder_p(
                 return Err(GammaIncInvError::IterationFailed);
             }
             if w.abs() >= 1.0 && w.abs() * t * t <= eps {
-                return Ok(x);
+                return Ok((x, iter));
             }
             (x, h.abs())
         } else {
@@ -2009,10 +2018,10 @@ fn schroder_p(
         xn = x;
         if d <= TOL {
             if d <= eps {
-                return Ok(xn);
+                return Ok((xn, iter));
             }
             if (p - pn).abs() <= TOL * p {
-                return Ok(xn);
+                return Ok((xn, iter));
             }
         }
     }
@@ -2028,7 +2037,7 @@ fn schroder_q(
     eps: f64,
     amax: f64,
     e2: f64,
-) -> Result<f64, GammaIncInvError> {
+) -> Result<(f64, u32), GammaIncInvError> {
     const HALF: f64 = 0.5;
     const TOL: f64 = 1.0e-5;
     if q <= 1.0e10 * f64::MIN_POSITIVE {
@@ -2066,7 +2075,7 @@ fn schroder_q(
                 return Err(GammaIncInvError::IterationFailed);
             }
             if w.abs() >= 1.0 && w.abs() * t * t <= eps {
-                return Ok(x);
+                return Ok((x, iter));
             }
             (x, h.abs())
         } else {
@@ -2081,10 +2090,10 @@ fn schroder_q(
             continue;
         }
         if d <= eps {
-            return Ok(xn);
+            return Ok((xn, iter));
         }
         if (q - qn).abs() <= TOL * q {
-            return Ok(xn);
+            return Ok((xn, iter));
         }
     }
 }
@@ -2182,7 +2191,7 @@ mod tests {
 
     /// Helper: round-trip residual at the returned x.
     fn round_trip_residual(a: f64, p: f64, q: f64) -> (f64, f64) {
-        let x = gamma_inc_inv(a, -1.0, p, q);
+        let (x, _iters) = gamma_inc_inv(a, -1.0, p, q);
         let (pn, qn) = gamma_inc(a, x);
         (pn - p, qn - q)
     }
@@ -2210,7 +2219,7 @@ mod tests {
     #[test]
     fn gamma_inc_inv_trivial_endpoints() {
         // p = 0 ⇒ x = 0 (P(a, 0) = 0 for all a > 0).
-        assert_eq!(try_gamma_inc_inv(2.0, -1.0, 0.0, 1.0), Ok(0.0));
+        assert_eq!(try_gamma_inc_inv(2.0, -1.0, 0.0, 1.0), Ok((0.0, 0)));
         // q = 0 means P(a, x) = 1, which only happens as x → +∞:
         // reported as the AtInfinity variant.
         assert_eq!(
@@ -2231,11 +2240,13 @@ mod tests {
         // Q(1, x) = exp(-x) ⇒ x = -ln(q). The F90 also uses
         // -alnrel(-p) when q ≥ 0.9 (== p ≤ 0.1) for tail accuracy.
         for &(p, q) in &[(0.5, 0.5), (0.9, 0.1), (0.05, 0.95), (0.001, 0.999)] {
-            let x = gamma_inc_inv(1.0, -1.0, p, q);
+            let (x, iters) = gamma_inc_inv(1.0, -1.0, p, q);
             assert!(
                 (-q.ln() - x).abs() / x.abs().max(1.0) < 1e-13,
                 "p={p}: x={x}"
             );
+            // The a = 1 path is closed-form (F90 ierr = 0): no iteration.
+            assert_eq!(iters, 0, "p={p}: unexpected Schröder iteration");
         }
     }
 
@@ -2276,11 +2287,11 @@ mod tests {
     #[test]
     fn gamma_inc_inv_deep_tails() {
         // Verify tail behavior: p near 0 (small x) and p near 1 (large x).
-        let x = gamma_inc_inv(3.0, -1.0, 1.0e-6, 1.0 - 1.0e-6);
+        let (x, _) = gamma_inc_inv(3.0, -1.0, 1.0e-6, 1.0 - 1.0e-6);
         let (pn, _) = gamma_inc(3.0, x);
         assert!((pn - 1.0e-6).abs() / 1.0e-6 < 1e-4);
 
-        let x = gamma_inc_inv(3.0, -1.0, 1.0 - 1.0e-6, 1.0e-6);
+        let (x, _) = gamma_inc_inv(3.0, -1.0, 1.0 - 1.0e-6, 1.0e-6);
         let (_, qn) = gamma_inc(3.0, x);
         assert!((qn - 1.0e-6).abs() / 1.0e-6 < 1e-4);
     }
@@ -2290,8 +2301,8 @@ mod tests {
         // x0 > 0 mode: caller supplies an initial approximation. The
         // routine should still converge to the same answer (within
         // tolerance) as the x0 ≤ 0 mode.
-        let x_auto = gamma_inc_inv(5.0, -1.0, 0.7, 0.3);
-        let x_seeded = gamma_inc_inv(5.0, x_auto * 1.1, 0.7, 0.3);
+        let (x_auto, _) = gamma_inc_inv(5.0, -1.0, 0.7, 0.3);
+        let (x_seeded, _) = gamma_inc_inv(5.0, x_auto * 1.1, 0.7, 0.3);
         assert!((x_seeded - x_auto).abs() / x_auto < 1e-7);
     }
 
@@ -2333,8 +2344,8 @@ mod tests {
                 // solution (NoSolution), iterate went non-positive
                 // (IterationFailed), and accuracy cannot be certified
                 // (UncertainAccuracy).
-                let x = match result {
-                    Ok(x) => x,
+                let (x, _iters) = match result {
+                    Ok(pair) => pair,
                     Err(GammaIncInvError::NoSolution)
                     | Err(GammaIncInvError::IterationFailed)
                     | Err(GammaIncInvError::UncertainAccuracy { .. }) => continue,
@@ -2357,7 +2368,7 @@ mod tests {
     fn gamma_inc_inv_caller_supplied_x0_p_le_half() {
         // x0 > 0 mode with p ≤ 0.5 routes through schroder_p; the auto
         // mode with p ≤ 0.5 also routes through it for small a.
-        let x = gamma_inc_inv(3.0, 1.5, 0.3, 0.7);
+        let (x, _) = gamma_inc_inv(3.0, 1.5, 0.3, 0.7);
         let (pn, _) = gamma_inc(3.0, x);
         assert!((pn - 0.3).abs() < 1e-7);
     }
@@ -2365,7 +2376,7 @@ mod tests {
     #[test]
     fn gamma_inc_inv_caller_supplied_x0_p_gt_half() {
         // x0 > 0 with p > 0.5 routes through schroder_q.
-        let x = gamma_inc_inv(3.0, 5.0, 0.8, 0.2);
+        let (x, _) = gamma_inc_inv(3.0, 5.0, 0.8, 0.2);
         let (_, qn) = gamma_inc(3.0, x);
         assert!((qn - 0.2).abs() < 1e-7);
     }
