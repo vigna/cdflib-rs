@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::solver::{solve_bounded_zero, solve_monotone, BracketStrategy, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -261,25 +261,23 @@ impl ContinuousCdf for Beta {
         }
         let a = self.a;
         let b = self.b;
-        // Mirror cdfbet's which=2 precision pivot: cum-p if p<=q else
-        // ccum-q (cdflib.f90:2570), with q = 1 - p.
         let q = 1.0 - p;
-        let f = |x: f64| {
-            let (cum, ccum) = beta_inc(a, b, x, 1.0 - x);
-            if p <= q {
+        // F90 cdfbet which=2 drives dzror directly on x when p<=q and on y
+        // when p>q, keeping x+y=1 exactly throughout the search.
+        if p <= q {
+            let f = |x: f64| {
+                let (cum, _) = beta_inc(a, b, x, 1.0 - x);
                 cum - p
-            } else {
+            };
+            Ok(solve_bounded_zero(0.0, 1.0, f)?)
+        } else {
+            let f = |y: f64| {
+                let (_, ccum) = beta_inc(a, b, 1.0 - y, y);
                 ccum - q
-            }
-        };
-        Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: 1.0,
-                start: a / (a + b),
-            },
-            f,
-        )?)
+            };
+            let y = solve_bounded_zero(0.0, 1.0, f)?;
+            Ok(1.0 - y)
+        }
     }
 }
 
@@ -312,27 +310,13 @@ impl Beta {
                 let (cum, _) = beta_inc(a, b, x, 1.0 - x);
                 cum - p
             };
-            Ok(solve_monotone(
-                BracketStrategy::Increasing {
-                    small: 0.0,
-                    big: 1.0,
-                    start: a / (a + b),
-                },
-                f,
-            )?)
+            Ok(solve_bounded_zero(0.0, 1.0, f)?)
         } else {
             let f = |y: f64| {
                 let (_, ccum) = beta_inc(a, b, 1.0 - y, y);
                 ccum - q
             };
-            let y = solve_monotone(
-                BracketStrategy::Increasing {
-                    small: 0.0,
-                    big: 1.0,
-                    start: b / (a + b),
-                },
-                f,
-            )?;
+            let y = solve_bounded_zero(0.0, 1.0, f)?;
             Ok(1.0 - y)
         }
     }

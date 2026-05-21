@@ -17,3 +17,6 @@ pub use dist::{
 };
 pub use error::SolverError;
 pub use traits::{Continuous, ContinuousCdf, Discrete, DiscreteCdf, Entropy, Mean, Variance};
+
+#[cfg(test)]
+mod solver_trace_lockstep;

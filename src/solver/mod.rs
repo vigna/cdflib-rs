@@ -31,9 +31,14 @@
 
 mod dinvr;
 mod dzror;
+mod trace;
 
 use crate::error::SolverError;
 use dinvr::{InvrAction, InvrConfig, InvrState};
+use dzror::{ZrorAction, ZrorConfig, ZrorState};
+
+#[cfg(test)]
+pub(crate) use trace::capture;
 
 /// How to expand the bracket starting from an initial guess.
 ///
@@ -69,10 +74,10 @@ const REL_TOL: f64 = 1.0e-8;
 /// Returns *x* such that *f*(*x*) = 0 on a monotone function, driving
 /// CDFLIB's `dinvr` state machine internally.
 ///
-/// `strategy` provides the search bounds, initial guess, and
-/// monotonicity direction. For [`Decreasing`], the function is negated
-/// internally so that `dinvr` (which assumes increasing) does the right
-/// thing.
+/// `strategy` provides the search bounds and initial guess. The wrapped
+/// CDFLIB `dinvr` state machine infers monotonicity from the endpoint
+/// evaluations, so both increasing and decreasing callsites pass the
+/// original residual unchanged.
 ///
 /// Uses the default absolute tolerance [`ABS_TOL`] = 1e-10, matching every
 /// CDFLIB `cdf*` dispatcher except `cdfchn`; that one wants a tighter
@@ -96,9 +101,9 @@ pub(crate) fn solve_monotone_with_atol(
     abs_tol: f64,
     mut f: impl FnMut(f64) -> f64,
 ) -> Result<f64, SolverError> {
-    let (small, big, start, sign): (f64, f64, f64, f64) = match strategy {
-        BracketStrategy::Increasing { small, big, start } => (small, big, start, 1.0),
-        BracketStrategy::Decreasing { small, big, start } => (small, big, start, -1.0),
+    let (small, big, start): (f64, f64, f64) = match strategy {
+        BracketStrategy::Increasing { small, big, start } => (small, big, start),
+        BracketStrategy::Decreasing { small, big, start } => (small, big, start),
     };
 
     // Cap the upper bound at 1e300 the way CDFLIB's cdf* callers do:
@@ -124,6 +129,15 @@ pub(crate) fn solve_monotone_with_atol(
         abs_tol,
         rel_tol: REL_TOL,
     };
+    trace::record_dstinv(
+        cfg.small,
+        cfg.big,
+        cfg.abs_step,
+        cfg.rel_step,
+        cfg.stp_mul,
+        cfg.abs_tol,
+        cfg.rel_tol,
+    );
 
     let mut state = InvrState::new(cfg, start);
     let mut fx = 0.0;
@@ -132,7 +146,7 @@ pub(crate) fn solve_monotone_with_atol(
     loop {
         match state.step(fx) {
             InvrAction::NeedEval(x) => {
-                fx = sign * f(x);
+                fx = f(x);
             }
             InvrAction::Converged(x) => return Ok(x),
             InvrAction::Failed { qleft, .. } => {
@@ -141,6 +155,49 @@ pub(crate) fn solve_monotone_with_atol(
                 } else {
                     SolverError::AnswerAboveUpperBound { bound: big }
                 });
+            }
+        }
+    }
+}
+
+/// Returns *x* such that *f*(*x*) = 0 on a bracketed interval, driving
+/// CDFLIB's `dzror` state machine directly.
+#[inline]
+pub(crate) fn solve_bounded_zero(
+    xlo: f64,
+    xhi: f64,
+    mut f: impl FnMut(f64) -> f64,
+) -> Result<f64, SolverError> {
+    solve_bounded_zero_with_tol(xlo, xhi, ABS_TOL, REL_TOL, &mut f)
+}
+
+#[inline]
+pub(crate) fn solve_bounded_zero_with_tol(
+    xlo: f64,
+    xhi: f64,
+    abs_tol: f64,
+    rel_tol: f64,
+    f: &mut impl FnMut(f64) -> f64,
+) -> Result<f64, SolverError> {
+    let cfg = ZrorConfig {
+        xlo,
+        xhi,
+        abstol: abs_tol,
+        reltol: rel_tol,
+    };
+    trace::record_dstzr(cfg.xlo, cfg.xhi, cfg.abstol, cfg.reltol);
+    let mut state = ZrorState::new(cfg);
+    let mut fx = 0.0;
+    loop {
+        match state.step(fx) {
+            ZrorAction::NeedEval(x) => fx = f(x),
+            ZrorAction::Converged { xlo, .. } => return Ok(xlo),
+            ZrorAction::Failed { qleft, .. } => {
+                return Err(if qleft {
+                    SolverError::AnswerBelowLowerBound { bound: cfg.xlo }
+                } else {
+                    SolverError::AnswerAboveUpperBound { bound: cfg.xhi }
+                })
             }
         }
     }

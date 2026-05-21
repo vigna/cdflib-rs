@@ -7897,6 +7897,207 @@ function dinvnr ( p, q )
 
   return
 end
+function solver_trace_hex64 ( x )
+
+!*****************************************************************************80
+!
+!! SOLVER_TRACE_HEX64 returns the IEEE-754 bit pattern of X in hex.
+!
+  implicit none
+
+  integer, parameter :: rk = kind ( 1.0D+00 )
+
+  integer ( kind = 8 ) bits
+  character ( len = 16 ) solver_trace_hex64
+  real ( kind = rk ) x
+
+  bits = transfer ( x, bits )
+  write ( solver_trace_hex64, '(z16.16)' ) bits
+
+  return
+end
+function solver_trace_i32 ( i )
+
+!*****************************************************************************80
+!
+!! SOLVER_TRACE_I32 formats an integer without leading spaces.
+!
+  implicit none
+
+  integer i
+  character ( len = 16 ) solver_trace_i32
+
+  write ( solver_trace_i32, '(i0)' ) i
+
+  return
+end
+function solver_trace_bit ( flag )
+
+!*****************************************************************************80
+!
+!! SOLVER_TRACE_BIT formats a logical flag as 0 or 1.
+!
+  implicit none
+
+  logical flag
+  character ( len = 1 ) solver_trace_bit
+
+  if ( flag ) then
+    solver_trace_bit = '1'
+  else
+    solver_trace_bit = '0'
+  end if
+
+  return
+end
+subroutine solver_trace_enable ( unit )
+
+!*****************************************************************************80
+!
+!! SOLVER_TRACE_ENABLE and its ENTRY points manage solver tracing.
+!
+  implicit none
+
+  integer, parameter :: rk = kind ( 1.0D+00 )
+
+  real ( kind = rk ) a
+  real ( kind = rk ) abs_step
+  real ( kind = rk ) abstol
+  real ( kind = rk ) b
+  real ( kind = rk ) big
+  real ( kind = rk ) c
+  real ( kind = rk ) d
+  integer event
+  integer ext
+  real ( kind = rk ) fa
+  real ( kind = rk ) fb
+  real ( kind = rk ) fbig
+  real ( kind = rk ) fc
+  real ( kind = rk ) fd
+  real ( kind = rk ) first_real
+  real ( kind = rk ) fsmall
+  real ( kind = rk ) fx
+  logical first
+  character ( len = 768 ) line
+  real ( kind = rk ) mb
+  logical qhi
+  logical qincr
+  logical qleft
+  real ( kind = rk ) rel_step
+  real ( kind = rk ) reltol
+  real ( kind = rk ) small
+  character ( len = 16 ) solver_trace_hex64
+  character ( len = 16 ) solver_trace_i32
+  character ( len = 1 ) solver_trace_bit
+  integer stage
+  integer status
+  real ( kind = rk ) step
+  real ( kind = rk ) stp_mul
+  logical, save :: trace_enabled = .false.
+  integer, save :: trace_unit = -1
+  integer unit
+  real ( kind = rk ) w
+  real ( kind = rk ) x
+  real ( kind = rk ) xhi
+  real ( kind = rk ) xlb
+  real ( kind = rk ) xlo
+  real ( kind = rk ) xsave
+  real ( kind = rk ) xub
+
+  save
+
+  trace_enabled = .true.
+  trace_unit = unit
+  return
+
+entry solver_trace_disable ( )
+
+  trace_enabled = .false.
+  trace_unit = 0
+  return
+
+entry solver_trace_dstinv ( small, big, abs_step, rel_step, stp_mul, abstol, reltol )
+
+  if ( .not. trace_enabled ) then
+    return
+  end if
+
+  line = 'dstinv|small=' // solver_trace_hex64 ( small ) // &
+    '|big=' // solver_trace_hex64 ( big ) // &
+    '|abs_step=' // solver_trace_hex64 ( abs_step ) // &
+    '|rel_step=' // solver_trace_hex64 ( rel_step ) // &
+    '|stp_mul=' // solver_trace_hex64 ( stp_mul ) // &
+    '|abs_tol=' // solver_trace_hex64 ( abstol ) // &
+    '|rel_tol=' // solver_trace_hex64 ( reltol )
+  write ( trace_unit, '(a)' ) trim ( line )
+  return
+
+entry solver_trace_dstzr ( xlo, xhi, abstol, reltol )
+
+  if ( .not. trace_enabled ) then
+    return
+  end if
+
+  line = 'dstzr|xlo=' // solver_trace_hex64 ( xlo ) // &
+    '|xhi=' // solver_trace_hex64 ( xhi ) // &
+    '|abs_tol=' // solver_trace_hex64 ( abstol ) // &
+    '|rel_tol=' // solver_trace_hex64 ( reltol )
+  write ( trace_unit, '(a)' ) trim ( line )
+  return
+
+entry solver_trace_dinvr ( event, stage, status, x, fx, qleft, qhi, xsave, fsmall, fbig, qincr, step, xlb, xub )
+
+  if ( .not. trace_enabled ) then
+    return
+  end if
+
+  line = 'dinvr|event=' // trim ( solver_trace_i32 ( event ) ) // &
+    '|stage=' // trim ( solver_trace_i32 ( stage ) ) // &
+    '|status=' // trim ( solver_trace_i32 ( status ) ) // &
+    '|x=' // solver_trace_hex64 ( x ) // &
+    '|fx=' // solver_trace_hex64 ( fx ) // &
+    '|qleft=' // solver_trace_bit ( qleft ) // &
+    '|qhi=' // solver_trace_bit ( qhi ) // &
+    '|xsave=' // solver_trace_hex64 ( xsave ) // &
+    '|fsmall=' // solver_trace_hex64 ( fsmall ) // &
+    '|fbig=' // solver_trace_hex64 ( fbig ) // &
+    '|qincr=' // solver_trace_bit ( qincr ) // &
+    '|step=' // solver_trace_hex64 ( step ) // &
+    '|xlb=' // solver_trace_hex64 ( xlb ) // &
+    '|xub=' // solver_trace_hex64 ( xub )
+  write ( trace_unit, '(a)' ) trim ( line )
+  return
+
+entry solver_trace_dzror ( event, stage, status, x, fx, qleft, qhi, xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
+
+  if ( .not. trace_enabled ) then
+    return
+  end if
+
+  line = 'dzror|event=' // trim ( solver_trace_i32 ( event ) ) // &
+    '|stage=' // trim ( solver_trace_i32 ( stage ) ) // &
+    '|status=' // trim ( solver_trace_i32 ( status ) ) // &
+    '|x=' // solver_trace_hex64 ( x ) // &
+    '|fx=' // solver_trace_hex64 ( fx ) // &
+    '|qleft=' // solver_trace_bit ( qleft ) // &
+    '|qhi=' // solver_trace_bit ( qhi ) // &
+    '|xlo=' // solver_trace_hex64 ( xlo ) // &
+    '|xhi=' // solver_trace_hex64 ( xhi ) // &
+    '|a=' // solver_trace_hex64 ( a ) // &
+    '|b=' // solver_trace_hex64 ( b ) // &
+    '|c=' // solver_trace_hex64 ( c ) // &
+    '|d=' // solver_trace_hex64 ( d ) // &
+    '|fa=' // solver_trace_hex64 ( fa ) // &
+    '|fb=' // solver_trace_hex64 ( fb ) // &
+    '|fc=' // solver_trace_hex64 ( fc ) // &
+    '|fd=' // solver_trace_hex64 ( fd ) // &
+    '|w=' // solver_trace_hex64 ( w ) // &
+    '|mb=' // solver_trace_hex64 ( mb ) // &
+    '|ext=' // trim ( solver_trace_i32 ( ext ) ) // &
+    '|first=' // solver_trace_bit ( first )
+  write ( trace_unit, '(a)' ) trim ( line )
+  return
+end
 subroutine dinvr ( status, x, fx, qleft, qhi )
 
 !*****************************************************************************80
@@ -8025,6 +8226,12 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   end if
 
   xsave = x
+  fsmall = 0.0D+00
+  fbig = 0.0D+00
+  qincr = .false.
+  step = 0.0D+00
+  xlb = 0.0D+00
+  xub = 0.0D+00
 !
 !  See that SMALL and BIG bound the zero and set QINCR.
 !
@@ -8032,6 +8239,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
 !
 !  GET-function-VALUE
 !
+  call solver_trace_dinvr ( 1, 1, 1, x, 0.0D+00, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
   i99999 = 10
   status = 1
   return
@@ -8043,6 +8251,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
 !
 !  GET-function-VALUE
 !
+  call solver_trace_dinvr ( 1, 2, 1, x, fx, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
   i99999 = 20
   status = 1
   return
@@ -8056,6 +8265,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   if ( fsmall <= fbig ) then
 
     if ( 0.0D+00 < fsmall ) then
+      call solver_trace_dinvr ( 3, 2, -1, small, fx, .true., .true., xsave, fsmall, fbig, qincr, step, xlb, xub )
       status = -1
       qleft = .true.
       qhi = .true.
@@ -8063,6 +8273,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
     end if
 
     if ( fbig < 0.0D+00 ) then
+      call solver_trace_dinvr ( 3, 2, -1, big, fx, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
       status = -1
       qleft = .false.
       qhi = .false.
@@ -8072,6 +8283,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   else if ( fbig < fsmall ) then
 
     if ( fsmall < 0.0D+00 ) then
+      call solver_trace_dinvr ( 3, 2, -1, small, fx, .true., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
       status = -1
       qleft = .true.
       qhi = .false.
@@ -8079,6 +8291,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
     end if
 
     if ( 0.0D+00 < fbig ) then
+      call solver_trace_dinvr ( 3, 2, -1, big, fx, .false., .true., xsave, fsmall, fbig, qincr, step, xlb, xub )
       status = -1
       qleft = .false.
       qhi = .true.
@@ -8093,6 +8306,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
 !  YY = F(X) - Y
 !  GET-function-VALUE
 !
+  call solver_trace_dinvr ( 1, 3, 1, x, fx, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
   i99999 = 90
   status = 1
   return
@@ -8102,6 +8316,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   yy = fx
 
   if ( yy == 0.0D+00 ) then
+    call solver_trace_dinvr ( 2, 3, 0, xsave, fx, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
     status = 0
     return
   end if
@@ -8135,6 +8350,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
 !
 !  GET-function-VALUE
 !
+  call solver_trace_dinvr ( 1, 4, 1, x, yy, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
   i99999 = 130
   status = 1
   return
@@ -8158,6 +8374,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   150 continue
 
   if ( qlim .and. .not. qbdd ) then
+    call solver_trace_dinvr ( 3, 4, -1, big, fx, .false., .not. qincr, xsave, fsmall, fbig, qincr, step, xlb, xub )
     status = -1
     qleft = .false.
     qhi = .not. qincr
@@ -8189,6 +8406,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
 !
 !  GET-function-VALUE
 !
+  call solver_trace_dinvr ( 1, 5, 1, x, yy, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
   i99999 = 200
   status = 1
   return
@@ -8212,6 +8430,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   220 continue
 
   if ( qlim .and. ( .not. qbdd ) ) then
+    call solver_trace_dinvr ( 3, 5, -1, small, fx, .true., qincr, xsave, fsmall, fbig, qincr, step, xlb, xub )
     status = -1
     qleft = .true.
     qhi = qincr
@@ -8231,6 +8450,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   250 continue
 
     if ( status /= 1 ) then
+      call solver_trace_dinvr ( 2, 6, 0, xlo, fx, .false., .false., xsave, fsmall, fbig, qincr, step, xlb, xub )
       x = xlo
       status = 0
       return
@@ -8340,6 +8560,7 @@ entry dstinv ( zsmall, zbig, zabsst, zrelst, zstpmu, zabsto, zrelto )
   stpmul = zstpmu
   abstol = zabsto
   reltol = zrelto
+  call solver_trace_dstinv ( small, big, absstp, relstp, stpmul, abstol, reltol )
 
   return
 end
@@ -8680,6 +8901,18 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
     go to 280
   end if
 
+  a = 0.0D+00
+  b = 0.0D+00
+  c = 0.0D+00
+  d = 0.0D+00
+  fa = 0.0D+00
+  fb = 0.0D+00
+  fc = 0.0D+00
+  fd = 0.0D+00
+  w = 0.0D+00
+  mb = 0.0D+00
+  ext = 0
+  first = .true.
   xlo = xxlo
   xhi = xxhi
   b = xlo
@@ -8687,6 +8920,7 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
 !
 !  GET-function-VALUE
 !
+  call solver_trace_dzror ( 1, 1, 1, x, 0.0D+00, .false., .false., xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
   i99999 = 10
   go to 270
 
@@ -8699,6 +8933,7 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
 !
 !  GET-function-VALUE
 !
+  call solver_trace_dzror ( 1, 2, 1, x, fx, .false., .false., xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
   i99999 = 20
   go to 270
 !
@@ -8708,6 +8943,7 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
 
   if ( fb < 0.0D+00 ) then
     if ( fx < 0.0D+00 ) then
+      call solver_trace_dzror ( 3, 2, -1, xlo, fx, fx < fb, .false., xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
       status = -1
       qleft = ( fx < fb )
       qhi = .false.
@@ -8717,6 +8953,7 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
 
   if ( 0.0D+00 < fb ) then
     if ( 0.0D+00 < fx ) then
+      call solver_trace_dzror ( 3, 2, -1, xlo, fx, fb < fx, .true., xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
       status = -1
       qleft = ( fb < fx )
       qhi = .true.
@@ -8838,6 +9075,7 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
 !
 !  GET-function-VALUE
 !
+  call solver_trace_dzror ( 1, 3, 1, x, fb, .false., .false., xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
   i99999 = 200
   go to 270
 
@@ -8868,8 +9106,10 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
     ( fc < 0.0D+00 .and. fb >= 0.0D+00 )
 
   if ( qrzero ) then
+    call solver_trace_dzror ( 2, 3, 0, xlo, fb, .false., .false., xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
     status = 0
   else
+    call solver_trace_dzror ( 3, 3, -1, xlo, fb, .false., .false., xlo, xhi, a, b, c, d, fa, fb, fc, fd, w, mb, ext, first )
     status = -1
   end if
 
@@ -8932,6 +9172,7 @@ entry dstzr ( zxlo, zxhi, zabstl, zreltl )
   xxhi = zxhi
   abstol = zabstl
   reltol = zreltl
+  call solver_trace_dstzr ( xxlo, xxhi, abstol, reltol )
   return
 !
 !     TO GET-function-VALUE
@@ -13952,4 +14193,3 @@ function stvaln ( p )
 
   return
 end
-

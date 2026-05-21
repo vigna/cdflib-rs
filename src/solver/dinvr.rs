@@ -6,6 +6,7 @@
 //! [`super::dzror::ZrorState`] for refinement.
 
 use super::dzror::{ZrorAction, ZrorConfig, ZrorState};
+use super::trace;
 
 /// Configuration mirroring CDFLIB's `dstinv`.
 #[derive(Debug, Clone, Copy)]
@@ -29,6 +30,21 @@ enum Stage {
     AwaitUpper,
     AwaitLower,
     InZror,
+}
+
+impl Stage {
+    #[inline]
+    fn code(self) -> i32 {
+        match self {
+            Stage::Start => 0,
+            Stage::AwaitFsmall => 1,
+            Stage::AwaitFbig => 2,
+            Stage::AwaitInitial => 3,
+            Stage::AwaitUpper => 4,
+            Stage::AwaitLower => 5,
+            Stage::InZror => 6,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -89,11 +105,13 @@ impl InvrState {
             Stage::Start => {
                 // x = small; request F(small).
                 self.stage = Stage::AwaitFsmall;
+                self.trace(1, Stage::AwaitFsmall, 1, self.cfg.small, fx, false, false);
                 InvrAction::NeedEval(self.cfg.small)
             }
             Stage::AwaitFsmall => {
                 self.fsmall = fx;
                 self.stage = Stage::AwaitFbig;
+                self.trace(1, Stage::AwaitFbig, 1, self.cfg.big, fx, false, false);
                 InvrAction::NeedEval(self.cfg.big)
             }
             Stage::AwaitFbig => {
@@ -106,6 +124,7 @@ impl InvrState {
                 // is strict, used only for search-direction logic below.
                 if self.fsmall <= self.fbig {
                     if self.fsmall > 0.0 {
+                        self.trace(3, Stage::AwaitFbig, -1, self.cfg.small, fx, true, true);
                         return InvrAction::Failed {
                             qleft: true,
                             qhi: true,
@@ -113,6 +132,7 @@ impl InvrState {
                         };
                     }
                     if self.fbig < 0.0 {
+                        self.trace(3, Stage::AwaitFbig, -1, self.cfg.big, fx, false, false);
                         return InvrAction::Failed {
                             qleft: false,
                             qhi: false,
@@ -121,6 +141,7 @@ impl InvrState {
                     }
                 } else {
                     if self.fsmall < 0.0 {
+                        self.trace(3, Stage::AwaitFbig, -1, self.cfg.small, fx, true, false);
                         return InvrAction::Failed {
                             qleft: true,
                             qhi: false,
@@ -128,6 +149,7 @@ impl InvrState {
                         };
                     }
                     if self.fbig > 0.0 {
+                        self.trace(3, Stage::AwaitFbig, -1, self.cfg.big, fx, false, true);
                         return InvrAction::Failed {
                             qleft: false,
                             qhi: true,
@@ -139,11 +161,13 @@ impl InvrState {
                 let x = self.xsave;
                 self.step = self.cfg.abs_step.max(self.cfg.rel_step * x.abs());
                 self.stage = Stage::AwaitInitial;
+                self.trace(1, Stage::AwaitInitial, 1, x, fx, false, false);
                 InvrAction::NeedEval(x)
             }
             Stage::AwaitInitial => {
                 let yy = fx;
                 if yy == 0.0 {
+                    self.trace(2, Stage::AwaitInitial, 0, self.xsave, fx, false, false);
                     return InvrAction::Converged(self.xsave);
                 }
                 let qup = (self.qincr && yy < 0.0) || (!self.qincr && yy > 0.0);
@@ -152,12 +176,14 @@ impl InvrState {
                     self.xlb = self.xsave;
                     self.xub = (self.xlb + self.step).min(self.cfg.big);
                     self.stage = Stage::AwaitUpper;
+                    self.trace(1, Stage::AwaitUpper, 1, self.xub, fx, false, false);
                     InvrAction::NeedEval(self.xub)
                 } else {
                     // Step lower.
                     self.xub = self.xsave;
                     self.xlb = (self.xub - self.step).max(self.cfg.small);
                     self.stage = Stage::AwaitLower;
+                    self.trace(1, Stage::AwaitLower, 1, self.xlb, fx, false, false);
                     InvrAction::NeedEval(self.xlb)
                 }
             }
@@ -170,6 +196,7 @@ impl InvrState {
                     return self.start_zror();
                 }
                 if qlim {
+                    self.trace(3, Stage::AwaitUpper, -1, self.cfg.big, fx, false, !self.qincr);
                     return InvrAction::Failed {
                         qleft: false,
                         qhi: !self.qincr,
@@ -180,6 +207,7 @@ impl InvrState {
                 self.step *= self.cfg.stp_mul;
                 self.xlb = self.xub;
                 self.xub = (self.xlb + self.step).min(self.cfg.big);
+                self.trace(1, Stage::AwaitUpper, 1, self.xub, fx, false, false);
                 InvrAction::NeedEval(self.xub)
             }
             Stage::AwaitLower => {
@@ -190,6 +218,7 @@ impl InvrState {
                     return self.start_zror();
                 }
                 if qlim {
+                    self.trace(3, Stage::AwaitLower, -1, self.cfg.small, fx, true, self.qincr);
                     return InvrAction::Failed {
                         qleft: true,
                         qhi: self.qincr,
@@ -199,18 +228,25 @@ impl InvrState {
                 self.step *= self.cfg.stp_mul;
                 self.xub = self.xlb;
                 self.xlb = (self.xub - self.step).max(self.cfg.small);
+                self.trace(1, Stage::AwaitLower, 1, self.xlb, fx, false, false);
                 InvrAction::NeedEval(self.xlb)
             }
             Stage::InZror => {
                 let z = self.zror.as_mut().expect("zror");
                 match z.step(fx) {
                     ZrorAction::NeedEval(x) => InvrAction::NeedEval(x),
-                    ZrorAction::Converged { xlo, .. } => InvrAction::Converged(xlo),
+                    ZrorAction::Converged { xlo, .. } => {
+                        self.trace(2, Stage::InZror, 0, xlo, fx, false, false);
+                        InvrAction::Converged(xlo)
+                    }
                     // F90 dinvr (cdflib.f90:8233-8237 label 250) treats a
                     // dzror failure (status = -1) identically to convergence:
                     // it executes "x = xlo; status = 0; return". Mirror that
                     // silent-success behavior here.
-                    ZrorAction::Failed { xlo, .. } => InvrAction::Converged(xlo),
+                    ZrorAction::Failed { xlo, .. } => {
+                        self.trace(2, Stage::InZror, 0, xlo, fx, false, false);
+                        InvrAction::Converged(xlo)
+                    }
                 }
             }
         }
@@ -218,6 +254,7 @@ impl InvrState {
 
     #[inline]
     fn start_zror(&mut self) -> InvrAction {
+        trace::record_dstzr(self.xlb, self.xub, self.cfg.abs_tol, self.cfg.rel_tol);
         let mut z = ZrorState::new(ZrorConfig {
             xlo: self.xlb,
             xhi: self.xub,
@@ -230,11 +267,46 @@ impl InvrState {
         self.stage = Stage::InZror;
         match first {
             ZrorAction::NeedEval(x) => InvrAction::NeedEval(x),
-            ZrorAction::Converged { xlo, .. } => InvrAction::Converged(xlo),
+            ZrorAction::Converged { xlo, .. } => {
+                self.trace(2, Stage::InZror, 0, xlo, 0.0, false, false);
+                InvrAction::Converged(xlo)
+            }
             // Same F90 silent-success-at-xlo behavior as the InZror handler
             // above (cdflib.f90:8233-8237).
-            ZrorAction::Failed { xlo, .. } => InvrAction::Converged(xlo),
+            ZrorAction::Failed { xlo, .. } => {
+                self.trace(2, Stage::InZror, 0, xlo, 0.0, false, false);
+                InvrAction::Converged(xlo)
+            }
         }
+    }
+
+    #[inline]
+    fn trace(
+        &self,
+        event: i32,
+        stage: Stage,
+        status: i32,
+        x: f64,
+        fx: f64,
+        qleft: bool,
+        qhi: bool,
+    ) {
+        trace::record_dinvr(
+            event,
+            stage.code(),
+            status,
+            x,
+            fx,
+            qleft,
+            qhi,
+            self.xsave,
+            self.fsmall,
+            self.fbig,
+            self.qincr,
+            self.step,
+            self.xlb,
+            self.xub,
+        );
     }
 }
 

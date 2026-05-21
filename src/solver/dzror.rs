@@ -11,6 +11,8 @@
 //! `fdb`, `m`, `mb`, `p`, `q`, `w`, `tol`, `ext`, `first`) for
 //! line-by-line cross-referencing.
 
+use super::trace;
+
 /// Configuration mirroring CDFLIB's `dstzr`.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ZrorConfig {
@@ -30,6 +32,18 @@ enum Stage {
     AwaitFa,
     /// Awaiting F(b) after an interpolation step.
     AwaitFbStep,
+}
+
+impl Stage {
+    #[inline]
+    fn code(self) -> i32 {
+        match self {
+            Stage::Start => 0,
+            Stage::AwaitFb => 1,
+            Stage::AwaitFa => 2,
+            Stage::AwaitFbStep => 3,
+        }
+    }
 }
 
 /// One step of the [`ZrorState`] machine.
@@ -110,6 +124,7 @@ impl ZrorState {
                     self.xhi = self.cfg.xhi;
                     self.b = self.xlo;
                     self.stage = Stage::AwaitFb;
+                    self.trace(1, Stage::AwaitFb, 1, self.b, fx, false, false);
                     return ZrorAction::NeedEval(self.b);
                 }
                 Stage::AwaitFb => {
@@ -117,12 +132,14 @@ impl ZrorState {
                     self.xlo = self.xhi;
                     self.a = self.xlo;
                     self.stage = Stage::AwaitFa;
+                    self.trace(1, Stage::AwaitFa, 1, self.a, fx, false, false);
                     return ZrorAction::NeedEval(self.a);
                 }
                 Stage::AwaitFa => {
                     // Validate sign change.
                     if self.fb < 0.0 {
                         if fx < 0.0 {
+                            self.trace(3, Stage::AwaitFa, -1, self.xlo, fx, fx < self.fb, false);
                             return ZrorAction::Failed {
                                 xlo: self.xlo,
                                 qleft: fx < self.fb,
@@ -130,6 +147,7 @@ impl ZrorState {
                             };
                         }
                     } else if self.fb > 0.0 && fx > 0.0 {
+                        self.trace(3, Stage::AwaitFa, -1, self.xlo, fx, fx > self.fb, true);
                         return ZrorAction::Failed {
                             xlo: self.xlo,
                             qleft: fx > self.fb,
@@ -200,11 +218,13 @@ impl ZrorState {
             self.xhi = self.c;
             let qrzero = (self.fc >= 0.0 && self.fb <= 0.0) || (self.fc < 0.0 && self.fb >= 0.0);
             if qrzero {
+                self.trace(2, Stage::AwaitFbStep, 0, self.xlo, self.fb, false, false);
                 return Some(ZrorAction::Converged {
                     xlo: self.xlo,
                     xhi: self.xhi,
                 });
             }
+            self.trace(3, Stage::AwaitFbStep, -1, self.xlo, self.fb, false, false);
             return Some(ZrorAction::Failed {
                 xlo: self.xlo,
                 qleft: false,
@@ -259,7 +279,44 @@ impl ZrorState {
         self.b += w;
         self.xlo = self.b;
         self.stage = Stage::AwaitFbStep;
+        self.trace(1, Stage::AwaitFbStep, 1, self.b, self.fb, false, false);
         Some(ZrorAction::NeedEval(self.b))
+    }
+
+    #[inline]
+    fn trace(
+        &self,
+        event: i32,
+        stage: Stage,
+        status: i32,
+        x: f64,
+        fx: f64,
+        qleft: bool,
+        qhi: bool,
+    ) {
+        trace::record_dzror(
+            event,
+            stage.code(),
+            status,
+            x,
+            fx,
+            qleft,
+            qhi,
+            self.xlo,
+            self.xhi,
+            self.a,
+            self.b,
+            self.c,
+            self.d,
+            self.fa,
+            self.fb,
+            self.fc,
+            self.fd,
+            self.w,
+            self.mb,
+            self.ext,
+            self.first,
+        );
     }
 }
 
