@@ -356,14 +356,12 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
         // |a| < 15: shift to [0..1] and use rational approximation.
         let mut t = 1.0;
         let m = (a as i64) - 1;
-        if m > 0 {
-            // a >= 2: peel off factors a-1, a-2, ..., a-m.
+        if m >= 0 {
+            // a >= 1: peel off factors a-1, a-2, ..., a-m (loop empty when m == 0).
             for _ in 1..=m {
                 x -= 1.0;
                 t *= x;
             }
-            x -= 1.0;
-        } else if m == 0 {
             x -= 1.0;
         } else {
             // a < 1: shift up.
@@ -628,9 +626,9 @@ pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
                 if z == 0.0 {
                     return Err(PsiError::Pole(xx));
                 }
-                aug = sgn * (z.cos() / z.sin() * 4.0);
+                aug = 4.0 * sgn * (z.cos() / z.sin());
             } else {
-                aug = sgn * (z.sin() / z.cos() * 4.0);
+                aug = 4.0 * sgn * (z.sin() / z.cos());
             }
         }
         x = 1.0 - x;

@@ -18,18 +18,16 @@ const POS_EXPARG: f64 = 709.775_615_066_259_888_4;
 /// double. Splits into pieces to avoid intermediate overflow.
 #[inline]
 pub fn esum(mu: i32, x: f64) -> f64 {
-    if x > 0.0 {
-        if mu <= 0 {
+    if x <= 0.0 {
+        if mu >= 0 {
             let w = mu as f64 + x;
-            if w < 0.0 {
-                // fall through
-            } else {
+            if w <= 0.0 {
                 return w.exp();
             }
         }
-    } else if mu >= 0 {
+    } else if mu <= 0 {
         let w = mu as f64 + x;
-        if w <= 0.0 {
+        if w >= 0.0 {
             return w.exp();
         }
     }
@@ -46,7 +44,7 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
     const C4: f64 = 0.837308034031215e-3;
     const C5: f64 = -0.165322962780713e-2;
 
-    let (c, x, d) = if b <= a {
+    let (c, x, d) = if b < a {
         let h = b / a;
         let c = 1.0 / (1.0 + h);
         let x = h / (1.0 + h);
