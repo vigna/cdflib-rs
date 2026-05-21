@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::{solve_monotone_with_atol, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_monotone_with_atol, SEARCH_BOUND};
 use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
@@ -27,8 +27,8 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 /// // Probability of observing a value ≤ 15.0
 /// let p = d.cdf(15.0);
 ///
-/// // Solve for noncentrality *λ* given Pr[X ≤ 15] = 0.5 and df = 5
-/// let ncp = ChiSquaredNoncentral::solve_ncp(0.5, 15.0, 5.0).unwrap();
+/// // Compute noncentrality *λ* given Pr[X ≤ 15] = 0.5 and df = 5
+/// let ncp = ChiSquaredNoncentral::search_ncp(0.5, 15.0, 5.0).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquaredNoncentral {
@@ -37,7 +37,7 @@ pub struct ChiSquaredNoncentral {
 }
 
 /// Errors arising from constructing a [`ChiSquaredNoncentral`] or from its
-/// parameter solvers.
+/// parameter searches.
 ///
 /// [`ChiSquaredNoncentral`]: crate::ChiSquaredNoncentral
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -66,11 +66,11 @@ pub enum ChiSquaredNoncentralError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl ChiSquaredNoncentral {
@@ -130,12 +130,12 @@ impl ChiSquaredNoncentral {
     /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*
     /// given *λ*. Mirrors CDFLIB's `cdfchn` with `which = 3`.
     ///
-    /// Unlike most `cdf*` solvers, this one does not take *q*: CDFLIB
+    /// Unlike most `cdf*` searchs, this one does not take *q*: CDFLIB
     /// (cdflib.f90:3685) documents *q* as "generally not used by this
     /// subroutine and is only included for similarity with other routines",
     /// so it is dropped from the Rust surface.
     #[inline]
-    pub fn solve_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
+    pub fn search_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_p(p)?;
         if !x.is_finite() {
             return Err(ChiSquaredNoncentralError::XNotFinite(x));
@@ -151,8 +151,8 @@ impl ChiSquaredNoncentral {
         }
         let f = |df: f64| cumchn(x, df, ncp).0 - p;
         // Match cdfchn's which=3: range (zero, inf), start = 5.0, atol = 1e-50.
-        Ok(solve_monotone_with_atol(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone_with_atol(
+            0.0, SEARCH_BOUND, 5.0,
             1.0e-50,
             f,
         )?)
@@ -162,9 +162,9 @@ impl ChiSquaredNoncentral {
     ///
     /// Mirrors CDFLIB's `cdfchn` with `which = 4`. The search runs over
     /// (0, 10⁴] because `cumchn`'s iteration cost grows with *λ*. As in
-    /// [`solve_df`](Self::solve_df), *q* is dropped from the Rust surface.
+    /// [`search_df`](Self::search_df), *q* is dropped from the Rust surface.
     #[inline]
-    pub fn solve_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
+    pub fn search_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_p(p)?;
         if !x.is_finite() {
             return Err(ChiSquaredNoncentralError::XNotFinite(x));
@@ -183,7 +183,7 @@ impl ChiSquaredNoncentral {
         // matches CDFLIB's hard cap; cumchn's iteration cost grows
         // with ncp so unbounded searches are intentionally avoided.
         // atol = 1e-50 per cdfchn (cdflib.f90:3719).
-        Ok(solve_monotone_with_atol(
+        Ok(search_monotone_with_atol(
             0.0, 1.0e4, 5.0,
             1.0e-50,
             f,
@@ -307,8 +307,8 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         let ncp = self.ncp;
         let f = |x: f64| cumchn(x, df, ncp).0 - p;
         // Match cdfchn's which=2: range (0, inf), start = 5.0, atol = 1e-50.
-        Ok(solve_monotone_with_atol(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone_with_atol(
+            0.0, SEARCH_BOUND, 5.0,
             1.0e-50,
             f,
         )?)
@@ -344,7 +344,7 @@ mod tests {
             Err(ChiSquaredNoncentralError::NcpNegative(-1.0))
         ));
         assert!(matches!(
-            ChiSquaredNoncentral::solve_df(-0.1, 1.0, 2.0),
+            ChiSquaredNoncentral::search_df(-0.1, 1.0, 2.0),
             Err(ChiSquaredNoncentralError::PNotInRange(-0.1))
         ));
     }

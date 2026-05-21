@@ -1,7 +1,7 @@
 //! Root finders for the distribution-parameter inverters.
 //!
 //! CDFLIB's `dinvr` / `dzror` reverse-communication state machines plus
-//! a closure-driven convenience wrapper ([`solve_monotone`]) that drives
+//! a closure-driven convenience wrapper ([`search_monotone`]) that drives
 //! them with an internal loop.
 //!
 //! The state machines live in [`dinvr`] and [`dzror`]; see those modules
@@ -11,14 +11,14 @@
 //!
 //! # Constants
 //!
-//! The F90 cdf* dispatchers each declare their own local solver-setup
+//! The F90 cdf* dispatchers each declare their own local search-setup
 //! constants: `abs_step = rel_step = 0.5`, `stp_mul = 5.0`, `tol = 1e-8`,
 //! `atol = 1e-10`. The values are identical across ten of the eleven
 //! routines; the eleventh, `cdfchn`, uses a tighter `atol = 1e-50`.
 //! Rather than restate the duplicated values in eleven Rust callsites,
 //! this module centralizes them in the [`ABS_STEP`], [`REL_STEP`],
 //! [`STP_MUL`], [`ABS_TOL`], [`REL_TOL`] constants below, and exposes
-//! [`solve_monotone_with_atol`] for the one case that needs the tighter
+//! [`search_monotone_with_atol`] for the one case that needs the tighter
 //! tolerance. Any future audit against the F90 needs to verify only
 //! these two locations.
 //!
@@ -27,16 +27,16 @@
 //! [`STP_MUL`]: self::STP_MUL
 //! [`ABS_TOL`]: self::ABS_TOL
 //! [`REL_TOL`]: self::REL_TOL
-//! [`solve_monotone_with_atol`]: self::solve_monotone_with_atol
+//! [`search_monotone_with_atol`]: self::search_monotone_with_atol
 
 mod dinvr;
 mod dzror;
 
-use crate::error::SolverError;
+use crate::error::SearchError;
 use dinvr::{InvrAction, InvrConfig, InvrState};
 use dzror::{ZrorAction, ZrorConfig, ZrorState};
 
-pub(crate) const SOLVER_BOUND: f64 = 1.0e300;
+pub(crate) const SEARCH_BOUND: f64 = 1.0e300;
 
 // CDFLIB's cdf* dispatchers all set up dstinv with the same K-block
 // constants: abs_step = rel_step = 0.5 (its K3/K4/K8), stp_mul = 5.0
@@ -47,7 +47,7 @@ pub(crate) const SOLVER_BOUND: f64 = 1.0e300;
 //
 // The default abs_tol = 1e-10 matches every F90 cdf* dispatcher
 // EXCEPT cdfchn, which uses 1.0D-50 (cdflib.f90:3719). Callers in
-// that regime use [solve_monotone_with_atol] to override the default.
+// that regime use [search_monotone_with_atol] to override the default.
 const ABS_STEP: f64 = 0.5;
 const REL_STEP: f64 = 0.5;
 const STP_MUL: f64 = 5.0;
@@ -62,40 +62,40 @@ const REL_TOL: f64 = 1.0e-8;
 ///
 /// Uses the default absolute tolerance [`ABS_TOL`] = 1e-10, matching every
 /// CDFLIB `cdf*` dispatcher except `cdfchn`; that one wants a tighter
-/// `atol` and uses [`solve_monotone_with_atol`] instead.
+/// `atol` and uses [`search_monotone_with_atol`] instead.
 #[inline]
-pub(crate) fn solve_monotone(
+pub(crate) fn search_monotone(
     small: f64,
     big: f64,
     start: f64,
     f: impl FnMut(f64) -> f64,
-) -> Result<f64, SolverError> {
-    solve_monotone_with_atol(small, big, start, ABS_TOL, f)
+) -> Result<f64, SearchError> {
+    search_monotone_with_atol(small, big, start, ABS_TOL, f)
 }
 
-/// Returns *x* such that *f*(*x*) = 0, like [`solve_monotone`] but with a
+/// Returns *x* such that *f*(*x*) = 0, like [`search_monotone`] but with a
 /// caller-supplied `abs_tol`. Used by the noncentral-χ² dispatchers to
 /// match `cdfchn`'s `atol = 1e-50`.
 #[inline]
-pub(crate) fn solve_monotone_with_atol(
+pub(crate) fn search_monotone_with_atol(
     small: f64,
     big: f64,
     start: f64,
     abs_tol: f64,
     mut f: impl FnMut(f64) -> f64,
-) -> Result<f64, SolverError> {
+) -> Result<f64, SearchError> {
     // Cap the upper bound at 1e300 the way CDFLIB's cdf* callers do:
     // f64::MAX causes many cdflib::special::* evaluators (e.g.
     // gamma_inc(a, MAX)) to NaN due to Inf-Inf cancellation in their
     // tail formulas. 1e300 is several orders of magnitude beyond any
     // realistic distribution argument.
-    let big = big.min(SOLVER_BOUND);
-    let small = small.max(-SOLVER_BOUND);
+    let big = big.min(SEARCH_BOUND);
+    let small = small.max(-SEARCH_BOUND);
 
     // CDFLIB's dinvr aborts (ftnstop) if start ∉ [small . . big]
     // (cdflib.f90:8020-8024). Return a typed error instead.
     if !(small <= start && start <= big) {
-        return Err(SolverError::StartOutOfRange { start, small, big });
+        return Err(SearchError::StartOutOfRange { start, small, big });
     }
 
     let cfg = InvrConfig {
@@ -120,9 +120,9 @@ pub(crate) fn solve_monotone_with_atol(
             InvrAction::Converged(x) => return Ok(x),
             InvrAction::Failed { qleft, .. } => {
                 return Err(if qleft {
-                    SolverError::AnswerBelowLowerBound { bound: small }
+                    SearchError::AnswerBelowLowerBound { bound: small }
                 } else {
-                    SolverError::AnswerAboveUpperBound { bound: big }
+                    SearchError::AnswerAboveUpperBound { bound: big }
                 });
             }
         }
@@ -132,22 +132,22 @@ pub(crate) fn solve_monotone_with_atol(
 /// Returns *x* such that *f*(*x*) = 0 on a a range [xlo, xhi], driving
 /// CDFLIB's `dzror` state machine directly.
 #[inline]
-pub(crate) fn solve_bounded_zero(
+pub(crate) fn search_bounded_zero(
     xlo: f64,
     xhi: f64,
     mut f: impl FnMut(f64) -> f64,
-) -> Result<f64, SolverError> {
-    solve_bounded_zero_with_tol(xlo, xhi, ABS_TOL, REL_TOL, &mut f)
+) -> Result<f64, SearchError> {
+    search_bounded_zero_with_tol(xlo, xhi, ABS_TOL, REL_TOL, &mut f)
 }
 
 #[inline]
-pub(crate) fn solve_bounded_zero_with_tol(
+pub(crate) fn search_bounded_zero_with_tol(
     xlo: f64,
     xhi: f64,
     abs_tol: f64,
     rel_tol: f64,
     f: &mut impl FnMut(f64) -> f64,
-) -> Result<f64, SolverError> {
+) -> Result<f64, SearchError> {
     let cfg = ZrorConfig {
         xlo,
         xhi,
@@ -162,9 +162,9 @@ pub(crate) fn solve_bounded_zero_with_tol(
             ZrorAction::Converged { xlo, .. } => return Ok(xlo),
             ZrorAction::Failed { qleft, .. } => {
                 return Err(if qleft {
-                    SolverError::AnswerBelowLowerBound { bound: cfg.xlo }
+                    SearchError::AnswerBelowLowerBound { bound: cfg.xlo }
                 } else {
-                    SolverError::AnswerAboveUpperBound { bound: cfg.xhi }
+                    SearchError::AnswerAboveUpperBound { bound: cfg.xhi }
                 })
             }
         }
@@ -178,21 +178,21 @@ mod tests {
     #[test]
     fn solves_increasing_function() {
         // f(x) = x³ - 8; root at x = 2.
-        let r = solve_monotone(0.0, 100.0, 1.0, |x| x.powi(3) - 8.0).unwrap();
+        let r = search_monotone(0.0, 100.0, 1.0, |x| x.powi(3) - 8.0).unwrap();
         assert!((r - 2.0).abs() < 1e-10, "r = {r}");
     }
 
     #[test]
     fn solves_decreasing_function() {
         // f(x) = 1/x - 0.25; root at x = 4.
-        let r = solve_monotone(0.01, 1000.0, 10.0, |x| 1.0 / x - 0.25).unwrap();
+        let r = search_monotone(0.01, 1000.0, 10.0, |x| 1.0 / x - 0.25).unwrap();
         assert!((r - 4.0).abs() < 1e-10, "r = {r}");
     }
 
     #[test]
     fn solves_root_at_moderate_value() {
         // f(x) = ln(x) - 1 → root at x = e.
-        let r = solve_monotone(1e-10, 1000.0, 1.0, |x| x.ln() - 1.0).unwrap();
+        let r = search_monotone(1e-10, 1000.0, 1.0, |x| x.ln() - 1.0).unwrap();
         let e = std::f64::consts::E;
         assert!((r - e).abs() / e < 1e-8, "r = {r}, e = {e}");
     }
@@ -206,47 +206,47 @@ mod tests {
     #[test]
     fn increasing_fsmall_positive_fails_at_small() {
         // f is monotone increasing but already positive at small.
-        let r = solve_monotone(1.0, 10.0, 5.0, |x| x + 1.0);
+        let r = search_monotone(1.0, 10.0, 5.0, |x| x + 1.0);
         assert!(matches!(
             r,
-            Err(SolverError::AnswerBelowLowerBound { bound }) if bound == 1.0
+            Err(SearchError::AnswerBelowLowerBound { bound }) if bound == 1.0
         ));
     }
 
     #[test]
     fn increasing_fbig_negative_fails_at_big() {
         // Monotone increasing but f(big) still negative.
-        let r = solve_monotone(1.0, 10.0, 5.0, |x| x - 100.0);
+        let r = search_monotone(1.0, 10.0, 5.0, |x| x - 100.0);
         assert!(matches!(
             r,
-            Err(SolverError::AnswerAboveUpperBound { bound }) if bound == 10.0
+            Err(SearchError::AnswerAboveUpperBound { bound }) if bound == 10.0
         ));
     }
 
     #[test]
     fn decreasing_fsmall_negative_fails_at_small() {
         // Monotone decreasing but f(small) already negative.
-        let r = solve_monotone(1.0, 10.0, 5.0, |x| -x - 1.0);
+        let r = search_monotone(1.0, 10.0, 5.0, |x| -x - 1.0);
         assert!(matches!(
             r,
-            Err(SolverError::AnswerBelowLowerBound { bound }) if bound == 1.0
+            Err(SearchError::AnswerBelowLowerBound { bound }) if bound == 1.0
         ));
     }
 
     #[test]
     fn decreasing_fbig_positive_fails_at_big() {
         // Monotone decreasing but f(big) still positive.
-        let r = solve_monotone(1.0, 10.0, 5.0, |x| 100.0 - x);
+        let r = search_monotone(1.0, 10.0, 5.0, |x| 100.0 - x);
         assert!(matches!(
             r,
-            Err(SolverError::AnswerAboveUpperBound { bound }) if bound == 10.0
+            Err(SearchError::AnswerAboveUpperBound { bound }) if bound == 10.0
         ));
     }
 
     #[test]
     fn converges_immediately_when_fstart_zero() {
         // start happens to be the root → AwaitInitial returns Converged.
-        let r = solve_monotone(0.0, 10.0, 3.0, |x| x - 3.0).unwrap();
+        let r = search_monotone(0.0, 10.0, 3.0, |x| x - 3.0).unwrap();
         assert!((r - 3.0).abs() < 1e-15);
     }
 
@@ -255,10 +255,10 @@ mod tests {
         // A NaN-returning objective surfaces as AnswerBelowLowerBound
         // (the initial NaN at `start` is neither < 0 nor > 0, so the
         // range-expansion logic falls through).
-        let err = solve_monotone(0.0, 1.0, 0.5, |_| f64::NAN).unwrap_err();
+        let err = search_monotone(0.0, 1.0, 0.5, |_| f64::NAN).unwrap_err();
         assert!(matches!(
             err,
-            SolverError::AnswerBelowLowerBound { bound: 0.0 }
+            SearchError::AnswerBelowLowerBound { bound: 0.0 }
         ));
     }
 }

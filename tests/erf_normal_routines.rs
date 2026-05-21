@@ -1,6 +1,6 @@
 #![cfg(not(miri))]
 
-//! Reference-table tests for the erf and standard-normal kernels.
+//! Reference-table tests for the erf and standard-normal routines.
 //! Each row is compared against the Fortran reference output produced
 //! by `tests/regenerate/gen_erf_normal_kernels.f90`.
 

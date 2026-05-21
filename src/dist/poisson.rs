@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::{solve_monotone, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -34,15 +34,15 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// // Probability of observing 2 or fewer events
 /// let cdf = p.cdf(2);
 ///
-/// // Solve for lambda given Pr[X ≤ 3] = 0.5
-/// let lambda = Poisson::solve_lambda(0.5, 0.5, 3).unwrap();
+/// // Compute lambda given Pr[X ≤ 3] = 0.5
+/// let lambda = Poisson::search_lambda(0.5, 0.5, 3).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Poisson {
     lambda: f64,
 }
 
-/// Errors arising from constructing a [`Poisson`] or from its parameter solver.
+/// Errors arising from constructing a [`Poisson`] or from its parameter search.
 ///
 /// [`Poisson`]: crate::Poisson
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -67,11 +67,11 @@ pub enum PoissonError {
     /// Mirrors CDFLIB's `cdfpoi` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl Poisson {
@@ -118,7 +118,7 @@ impl Poisson {
     /// Mirrors CDFLIB's `cdfpoi` with `which = 3`. Caller passes both
     /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
+    pub fn search_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
         check_pq(p, q)?;
         let sf = s as f64;
         // CDF is decreasing in λ for fixed s (more mass shifts right).
@@ -132,8 +132,8 @@ impl Poisson {
             }
         };
         // Match cdfpoi's which=3: range (0, inf), start = 5.0.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         )?)
     }
@@ -191,7 +191,7 @@ impl DiscreteCdf for Poisson {
         if p == 1.0 {
             return Ok(u64::MAX);
         }
-        // Sample then bisect on integers; the CDF is monotone increasing in s.
+        // Sample then halve the integer range; the CDF is monotone increasing in s.
         // Start with mean ± 5σ.
         let mean = self.lambda;
         let sd = self.lambda.sqrt();
@@ -244,8 +244,8 @@ impl Poisson {
             }
         };
         // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         )?)
     }
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn inverse_sf_matches_integer_quantile_at_integer_boundary() {
-        // At the integer quantile boundary, the continuous solver should
+        // At the integer quantile boundary, the continuous search should
         // return the exact integer (because cumpoi(s_int, λ) for integer s
         // is the discrete CDF value at s_int).
         let p = Poisson::new(3.0);
@@ -324,17 +324,17 @@ mod tests {
     }
 
     #[test]
-    fn solve_lambda_rejects_bad_p() {
+    fn search_lambda_rejects_bad_p() {
         assert!(matches!(
-            Poisson::solve_lambda(-0.1, 1.1, 3),
+            Poisson::search_lambda(-0.1, 1.1, 3),
             Err(PoissonError::PNotInRange(_))
         ));
         assert!(matches!(
-            Poisson::solve_lambda(1.5, -0.5, 3),
+            Poisson::search_lambda(1.5, -0.5, 3),
             Err(PoissonError::PNotInRange(_))
         ));
         assert!(matches!(
-            Poisson::solve_lambda(f64::NAN, 0.5, 3),
+            Poisson::search_lambda(f64::NAN, 0.5, 3),
             Err(PoissonError::PNotInRange(_))
         ));
     }
@@ -358,14 +358,14 @@ mod tests {
         ));
     }
 
-    // Solver convergence in this regime depends on the host FPU's exact
+    // Search convergence in this regime depends on the host FPU's exact
     // ln/exp results; miri's soft-float libm shims accumulate enough drift
     // through gamma_inc that the range-and-refine step can no longer
     // certify a sign change. Skipped under miri.
     #[cfg(not(miri))]
     #[test]
-    fn solve_lambda_uses_precision_pivot_at_both_tails() {
-        // Solve for lambda when p is near 1 (i.e., q near 0). The cdfpoi
+    fn search_lambda_uses_precision_pivot_at_both_tails() {
+        // Compute lambda when p is near 1 (i.e., q near 0). The cdfpoi
         // precision pivot uses ccum-q in this regime so the residual
         // stays small. Round-trip should still recover the original.
         let lambda = 5.0_f64;
@@ -373,7 +373,7 @@ mod tests {
         let dist = Poisson::new(lambda);
         let p_target = dist.cdf(s);
         let q_target = dist.sf(s);
-        let recovered = Poisson::solve_lambda(p_target, q_target, s).unwrap();
+        let recovered = Poisson::search_lambda(p_target, q_target, s).unwrap();
         assert!(
             (recovered - lambda).abs() < 1e-5,
             "p_target={p_target}, recovered={recovered}"

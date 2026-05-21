@@ -123,7 +123,7 @@ impl Normal {
     ///
     /// [`PQSumNotOne`]: NormalError::PQSumNotOne
     #[inline]
-    pub fn solve_mean(p: f64, q: f64, x: f64, sd: f64) -> Result<f64, NormalError> {
+    pub fn search_mean(p: f64, q: f64, x: f64, sd: f64) -> Result<f64, NormalError> {
         check_pq(p, q)?;
         if !x.is_finite() {
             return Err(NormalError::XNotFinite(x));
@@ -141,16 +141,16 @@ impl Normal {
     /// Returns the standard deviation *σ* satisfying *p* = Pr[*X* ≤ *x*] given *μ*.
     ///
     /// CDFLIB's `cdfnor` with `which = 4` (cdflib.f90:5702). Caller passes
-    /// both *p* and *q*; see [`solve_mean`] for the (*p*, *q*) convention.
+    /// both *p* and *q*; see [`search_mean`] for the (*p*, *q*) convention.
     ///
     /// The case *p* = 1/2 with *x* = *μ* is underdetermined (every *σ* > 0
     /// satisfies the equation); the formula returns a meaningless value
     /// (typically 0 since the numerator is 0 and *dinvnr* converges to a
     /// tiny non-zero denominator). F90 produces the same value.
     ///
-    /// [`solve_mean`]: Self::solve_mean
+    /// [`search_mean`]: Self::search_mean
     #[inline]
-    pub fn solve_sd(p: f64, q: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
+    pub fn search_sd(p: f64, q: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
         check_pq(p, q)?;
         if !x.is_finite() {
             return Err(NormalError::XNotFinite(x));
@@ -361,91 +361,91 @@ mod tests {
     }
 
     #[test]
-    fn solve_mean_inverts_cdf_relation() {
+    fn search_mean_inverts_cdf_relation() {
         // If Pr[X ≤ 2] = 0.975 with sd = 1, mean should be 2 - 1.96 ≈ 0.04.
-        let mean = Normal::solve_mean(0.975, 0.025, 2.0, 1.0).unwrap();
+        let mean = Normal::search_mean(0.975, 0.025, 2.0, 1.0).unwrap();
         let expected = 2.0 - 1.9599639845400545;
         assert!((mean - expected).abs() < 1e-10, "mean = {mean}");
     }
 
     #[test]
-    fn solve_sd_inverts_cdf_relation() {
+    fn search_sd_inverts_cdf_relation() {
         // If Pr[X ≤ 2] = 0.975 with mean = 0, sd should be 2/1.96 ≈ 1.02.
-        let sd = Normal::solve_sd(0.975, 0.025, 2.0, 0.0).unwrap();
+        let sd = Normal::search_sd(0.975, 0.025, 2.0, 0.0).unwrap();
         let expected = 2.0 / 1.9599639845400545;
         assert!((sd - expected).abs() < 1e-10, "sd = {sd}");
     }
 
     #[test]
-    fn solve_sd_underdetermined_no_longer_typed_error() {
+    fn search_sd_underdetermined_no_longer_typed_error() {
         // p = 1/2 makes z ≈ 0 and x = mean makes the numerator zero, so
         // every sd > 0 satisfies the equation. F90 returns the meaningless
         // value (x - mean) / dinvnr(0.5, 0.5) ≈ 0/tiny ≈ 0; we let that
         // propagate rather than catching it with a typed error.
-        let r = Normal::solve_sd(0.5, 0.5, 3.0, 3.0).unwrap();
+        let r = Normal::search_sd(0.5, 0.5, 3.0, 3.0).unwrap();
         assert_eq!(r, 0.0, "expected the F90 underdetermined value 0; got {r}");
     }
 
     #[test]
-    fn solve_mean_rejects_bad_inputs() {
+    fn search_mean_rejects_bad_inputs() {
         // p out of range
         assert!(matches!(
-            Normal::solve_mean(-0.1, 1.1, 0.0, 1.0),
+            Normal::search_mean(-0.1, 1.1, 0.0, 1.0),
             Err(NormalError::PNotInRange(_))
         ));
         assert!(matches!(
-            Normal::solve_mean(1.1, -0.1, 0.0, 1.0),
+            Normal::search_mean(1.1, -0.1, 0.0, 1.0),
             Err(NormalError::PNotInRange(_))
         ));
         // p + q != 1
         assert!(matches!(
-            Normal::solve_mean(0.3, 0.3, 0.0, 1.0),
+            Normal::search_mean(0.3, 0.3, 0.0, 1.0),
             Err(NormalError::PQSumNotOne { .. })
         ));
         // sd not finite
         assert!(matches!(
-            Normal::solve_mean(0.5, 0.5, 0.0, f64::NAN),
+            Normal::search_mean(0.5, 0.5, 0.0, f64::NAN),
             Err(NormalError::SdNotFinite(_))
         ));
         // sd <= 0
         assert!(matches!(
-            Normal::solve_mean(0.5, 0.5, 0.0, -1.0),
+            Normal::search_mean(0.5, 0.5, 0.0, -1.0),
             Err(NormalError::SdNotPositive(_))
         ));
         assert!(matches!(
-            Normal::solve_mean(0.5, 0.5, 0.0, 0.0),
+            Normal::search_mean(0.5, 0.5, 0.0, 0.0),
             Err(NormalError::SdNotPositive(_))
         ));
     }
 
     #[test]
-    fn solve_sd_rejects_bad_inputs() {
+    fn search_sd_rejects_bad_inputs() {
         assert!(matches!(
-            Normal::solve_sd(-0.1, 1.1, 0.0, 0.0),
+            Normal::search_sd(-0.1, 1.1, 0.0, 0.0),
             Err(NormalError::PNotInRange(_))
         ));
         assert!(matches!(
-            Normal::solve_sd(1.5, -0.5, 0.0, 0.0),
+            Normal::search_sd(1.5, -0.5, 0.0, 0.0),
             Err(NormalError::PNotInRange(_))
         ));
         assert!(matches!(
-            Normal::solve_sd(0.5, 0.5, 0.0, f64::NAN),
+            Normal::search_sd(0.5, 0.5, 0.0, f64::NAN),
             Err(NormalError::MeanNotFinite(_))
         ));
         assert!(matches!(
-            Normal::solve_sd(0.5, 0.5, 0.0, f64::INFINITY),
+            Normal::search_sd(0.5, 0.5, 0.0, f64::INFINITY),
             Err(NormalError::MeanNotFinite(_))
         ));
     }
 
     #[test]
-    fn solve_mean_tail_precision_with_independent_q() {
+    fn search_mean_tail_precision_with_independent_q() {
         // The F90 (p, q) pair convention: when q is tiny and known
-        // precisely, deriving q' = 1 - p loses it. solve_mean should
+        // precisely, deriving q' = 1 - p loses it. search_mean should
         // use the precise q.
         let q = 1.0e-15;
         let p = 1.0 - q;
-        let mean_independent = Normal::solve_mean(p, q, 2.0, 1.0).unwrap();
+        let mean_independent = Normal::search_mean(p, q, 2.0, 1.0).unwrap();
         // For p ~ 1 - 1e-15, z ≈ +7.94, so mean ≈ 2 - 7.94 ≈ -5.94.
         assert!(mean_independent < 0.0);
     }

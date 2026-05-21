@@ -2,8 +2,8 @@ use std::f64::consts::PI;
 
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::solve_monotone;
+use crate::error::SearchError;
+use crate::search::search_monotone;
 use crate::special::beta_inc;
 use crate::special::{dt1, gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -29,7 +29,7 @@ pub struct StudentsT {
     df: f64,
 }
 
-/// Errors arising from constructing a [`StudentsT`] or from its parameter solver.
+/// Errors arising from constructing a [`StudentsT`] or from its parameter search.
 ///
 /// [`StudentsT`]: crate::StudentsT
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -53,11 +53,11 @@ pub enum StudentsTError {
     /// Mirrors CDFLIB's `cdft` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl StudentsT {
@@ -104,7 +104,7 @@ impl StudentsT {
     /// CDFLIB's `cdft` with `which = 3`. Caller passes both *p* and
     /// *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_df(p: f64, q: f64, t: f64) -> Result<f64, StudentsTError> {
+    pub fn search_df(p: f64, q: f64, t: f64) -> Result<f64, StudentsTError> {
         check_pq(p, q)?;
         if !t.is_finite() {
             return Err(StudentsTError::TNotFinite(t));
@@ -120,7 +120,7 @@ impl StudentsT {
         };
         // cdflib.f90:6251 `dstinv(1.0D+00, maxdf, 0.5D+00, 0.5D+00,
         // 5.0D+00, atol, tol)` with maxdf = 1.0D+10.
-        Ok(solve_monotone(
+        Ok(search_monotone(
             1.0, 1.0e10, 5.0,
             f,
         )?)
@@ -211,7 +211,7 @@ impl ContinuousCdf for StudentsT {
         // atol, tol)` with inf = 1.0D+30, and cdflib.f90:6210 starting
         // guess `t = dt1(p, q, df)`.
         let start = dt1(p, q, df);
-        Ok(solve_monotone(-1.0e30, 1.0e30, start, f)?)
+        Ok(search_monotone(-1.0e30, 1.0e30, start, f)?)
     }
 }
 
@@ -243,7 +243,7 @@ impl StudentsT {
             }
         };
         let start = dt1(p, q, df);
-        Ok(solve_monotone(-1.0e30, 1.0e30, start, f)?)
+        Ok(search_monotone(-1.0e30, 1.0e30, start, f)?)
     }
 }
 
@@ -255,9 +255,9 @@ impl Continuous for StudentsT {
     #[inline]
     fn ln_pdf(&self, t: f64) -> f64 {
         let df = self.df;
-        let log_norm = gamma_log((df + 1.0) / 2.0) - gamma_log(df / 2.0) - 0.5 * (PI * df).ln();
-        let log_kernel = -((df + 1.0) / 2.0) * (1.0 + t * t / df).ln();
-        log_norm + log_kernel
+        gamma_log((df + 1.0) / 2.0) - gamma_log(df / 2.0)
+            - 0.5 * (PI * df).ln()
+            - ((df + 1.0) / 2.0) * (1.0 + t * t / df).ln()
     }
 }
 

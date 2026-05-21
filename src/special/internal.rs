@@ -1,9 +1,9 @@
-//! CDFLIB-style helper routines that the user-facing kernels build on.
+//! CDFLIB-style helper routines that the user-facing routines build on.
 //!
 //! Every function here is part of the public API and is documented with
 //! its CDFLIB role; they live in a separate module so the user-facing
 //! [`cdflib::special`](crate::special) namespace stays focused on the
-//! kernels a statistical user is likely to call directly ([`beta_inc`],
+//! routines a statistical user is likely to call directly ([`beta_inc`],
 //! [`gamma_inc`], [`error_f`], [`cumnor`], etc.).
 //!
 //! Users porting C/Fortran code that calls these helpers by name (for

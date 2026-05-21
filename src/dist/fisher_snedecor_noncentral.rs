@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::solve_monotone;
+use crate::error::SearchError;
+use crate::search::search_monotone;
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
@@ -24,8 +24,8 @@ use crate::traits::{ContinuousCdf, Mean, Variance};
 /// // Pr[X ≤ 4.0]
 /// let p = d.cdf(4.0);
 ///
-/// // Solve for noncentrality *λ* given Pr[X ≤ 4.0] = 0.5, dfn = 5, dfd = 10
-/// let ncp = FisherSnedecorNoncentral::solve_ncp(0.5, 4.0, 5.0, 10.0).unwrap();
+/// // Compute noncentrality *λ* given Pr[X ≤ 4.0] = 0.5, dfn = 5, dfd = 10
+/// let ncp = FisherSnedecorNoncentral::search_ncp(0.5, 4.0, 5.0, 10.0).unwrap();
 /// ```
 ///
 /// [`Continuous`]: crate::traits::Continuous
@@ -38,7 +38,7 @@ pub struct FisherSnedecorNoncentral {
 }
 
 /// Errors arising from constructing a [`FisherSnedecorNoncentral`] or from
-/// its parameter solvers.
+/// its parameter searches.
 ///
 /// [`FisherSnedecorNoncentral`]: crate::FisherSnedecorNoncentral
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -75,11 +75,11 @@ pub enum FisherSnedecorNoncentralError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl FisherSnedecorNoncentral {
@@ -145,12 +145,12 @@ impl FisherSnedecorNoncentral {
     /// Pr[*X* ≤ *f*] = *p* given *dfd* and *λ*. Mirrors CDFLIB's `cdffnc`
     /// with `which = 3`. The search runs over [1 . . 10³⁰].
     ///
-    /// Unlike most `cdf*` solvers, this one does not take *q*: CDFLIB
+    /// Unlike most `cdf*` searchs, this one does not take *q*: CDFLIB
     /// (cdflib.f90:3766) documents *q* as "not used by this subroutine,
     /// and is only included for similarity with the other routines", so
     /// it is dropped from the Rust surface.
     #[inline]
-    pub fn solve_dfn(
+    pub fn search_dfn(
         p: f64,
         f: f64,
         dfd: f64,
@@ -180,7 +180,7 @@ impl FisherSnedecorNoncentral {
         // (Fortran cdflib.f90:4460, :4619: cdffnc caps inf at 1e30 and
         // explicitly lifts the lower bound from 0 to 1, since dfn < 1
         // makes cumfnc's beta_inc call diverge).
-        Ok(solve_monotone(
+        Ok(search_monotone(
             1.0, 1.0e30, 5.0,
             func,
         )?)
@@ -188,10 +188,10 @@ impl FisherSnedecorNoncentral {
 
     /// Returns the denominator degrees of freedom *dfd* satisfying
     /// Pr[*X* ≤ *f*] = *p* given *dfn* and *λ*. Mirrors CDFLIB's `cdffnc`
-    /// with `which = 4`. As in [`solve_dfn`](Self::solve_dfn), *q* is
+    /// with `which = 4`. As in [`search_dfn`](Self::search_dfn), *q* is
     /// dropped from the Rust surface.
     #[inline]
-    pub fn solve_dfd(
+    pub fn search_dfd(
         p: f64,
         f: f64,
         dfn: f64,
@@ -219,8 +219,8 @@ impl FisherSnedecorNoncentral {
         let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // CDF is increasing in dfd for fixed f, dfn, ncp.
         // Match cdffnc's which=4: range (1.0, inf) with inf = 1.0D+30
-        // (Fortran cdflib.f90:4460, :4658: same rationale as solve_dfn).
-        Ok(solve_monotone(
+        // (Fortran cdflib.f90:4460, :4658: same rationale as search_dfn).
+        Ok(search_monotone(
             1.0, 1.0e30, 5.0,
             func,
         )?)
@@ -229,10 +229,10 @@ impl FisherSnedecorNoncentral {
     /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *f*] = *p* given
     /// *dfn* and *dfd*. Mirrors CDFLIB's `cdffnc` with `which = 5`. The
     /// search is capped at 10⁴ above to avoid overflow inside `cumfnc`.
-    /// As in [`solve_dfn`](Self::solve_dfn), *q* is dropped from the Rust
+    /// As in [`search_dfn`](Self::search_dfn), *q* is dropped from the Rust
     /// surface.
     #[inline]
-    pub fn solve_ncp(
+    pub fn search_ncp(
         p: f64,
         f: f64,
         dfn: f64,
@@ -260,7 +260,7 @@ impl FisherSnedecorNoncentral {
         let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // Upper bound 1e4 matches CDFLIB's hard cap; larger bounds (e.g.
         // 1e300) overflow inside cumfnc's function evaluations.
-        Ok(solve_monotone(
+        Ok(search_monotone(
             0.0, 1.0e4, 5.0,
             func,
         )?)
@@ -408,7 +408,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         // Match cdffnc's which=2: range (0, inf) with inf = 1.0D+30
         // (Fortran cdflib.f90:4460, :4579: cdffnc caps inf at 1e30
         // because cumfnc's series overflows further out).
-        Ok(solve_monotone(
+        Ok(search_monotone(
             0.0, 1.0e30, 5.0,
             func,
         )?)
@@ -460,7 +460,7 @@ mod tests {
             Err(FisherSnedecorNoncentralError::NcpNegative(-1.0))
         ));
         assert!(matches!(
-            FisherSnedecorNoncentral::solve_ncp(-0.1, 1.0, 5.0, 10.0),
+            FisherSnedecorNoncentral::search_ncp(-0.1, 1.0, 5.0, 10.0),
             Err(FisherSnedecorNoncentralError::PNotInRange(-0.1))
         ));
     }

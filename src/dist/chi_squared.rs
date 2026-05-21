@@ -2,8 +2,8 @@ use thiserror::Error;
 
 use std::cell::Cell;
 
-use crate::error::SolverError;
-use crate::solver::{solve_monotone, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::{gamma_inc, try_gamma_inc, GammaIncError};
 use crate::special::{gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -25,15 +25,15 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// // Pr[X ≤ 11.07] ≈ 0.95
 /// let p = c.cdf(11.07);
 ///
-/// // Solve for df given Pr[X ≤ 3.84] = 0.95
-/// let df = ChiSquared::solve_df(0.95, 0.05, 3.84).unwrap();
+/// // Compute df given Pr[X ≤ 3.84] = 0.95
+/// let df = ChiSquared::search_df(0.95, 0.05, 3.84).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquared {
     df: f64,
 }
 
-/// Errors arising from constructing a [`ChiSquared`] or from its parameter solver.
+/// Errors arising from constructing a [`ChiSquared`] or from its parameter search.
 ///
 /// [`ChiSquared`]: crate::ChiSquared
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -60,13 +60,13 @@ pub enum ChiSquaredError {
     /// Mirrors CDFLIB's `cdfchi` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
-    /// The Γ-incomplete kernel failed during the search (CDFLIB `cdfchi`
-    /// status 10, cdflib.f90:5260). Triggered when the kernel returns its
+    Search(#[from] SearchError),
+    /// The incomplete gamma function failed during the search (CDFLIB `cdfchi`
+    /// status 10, cdflib.f90:5260). Triggered when the routine returns its
     /// indeterminate sentinel (equivalent to F90's `1.5 < fx + porq`).
     #[error(transparent)]
     GammaInc(#[from] GammaIncError),
@@ -114,7 +114,7 @@ impl ChiSquared {
     /// CDFLIB's `cdfchi` with `which = 3`. Caller passes both *p* and *q*
     /// = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_df(p: f64, q: f64, x: f64) -> Result<f64, ChiSquaredError> {
+    pub fn search_df(p: f64, q: f64, x: f64) -> Result<f64, ChiSquaredError> {
         check_pq(p, q)?;
         if !x.is_finite() {
             return Err(ChiSquaredError::XNotFinite(x));
@@ -124,17 +124,17 @@ impl ChiSquared {
         }
         // F(x; df) = P(df/2, x/2) is decreasing in df for fixed x > 0.
         // Mirror cdfchi's cum-p if p<=q else ccum-q precision pivot so
-        // the residual stays small near both tails of p. If the kernel
+        // the residual stays small near both tails of p. If the routine
         // returns its indeterminate sentinel (F90 cdfchi status 10,
         // cdflib.f90:5301), stash and propagate the error.
-        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
+        let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |df: f64| {
-            if kernel_err.get().is_some() {
+            if gamma_inc_err.get().is_some() {
                 return 0.0;
             }
             match try_gamma_inc(df / 2.0, x / 2.0) {
                 Err(e) => {
-                    kernel_err.set(Some(e));
+                    gamma_inc_err.set(Some(e));
                     0.0
                 }
                 Ok((cum, ccum)) => {
@@ -147,11 +147,11 @@ impl ChiSquared {
             }
         };
         // Match cdfchi's which=3 dstinv setup: range (0, inf), start = 5.0.
-        let result = solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        let result = search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         );
-        if let Some(e) = kernel_err.into_inner() {
+        if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }
         Ok(result?)
@@ -219,17 +219,17 @@ impl ContinuousCdf for ChiSquared {
         let df = self.df;
         // F(x; df) = P(df/2, x/2) is strictly increasing in x.
         // Mirror cdfchi's which=2 precision pivot: cum-p if p<=q else
-        // ccum-q (cdflib.f90:5305), with q = 1 - p. Propagate kernel
+        // ccum-q (cdflib.f90:5305), with q = 1 - p. Propagate routine
         // indeterminate sentinel as F90 status 10 (cdflib.f90:5251).
         let q = 1.0 - p;
-        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
+        let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |x: f64| {
-            if kernel_err.get().is_some() {
+            if gamma_inc_err.get().is_some() {
                 return 0.0;
             }
             match try_gamma_inc(df / 2.0, x / 2.0) {
                 Err(e) => {
-                    kernel_err.set(Some(e));
+                    gamma_inc_err.set(Some(e));
                     0.0
                 }
                 Ok((cum, ccum)) => {
@@ -242,11 +242,11 @@ impl ContinuousCdf for ChiSquared {
             }
         };
         // Match cdfchi's which=2: range (0, inf), start = 5.0.
-        let result = solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        let result = search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         );
-        if let Some(e) = kernel_err.into_inner() {
+        if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }
         Ok(result?)
@@ -271,14 +271,14 @@ impl ChiSquared {
         }
         let df = self.df;
         let p = 1.0 - q;
-        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
+        let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |x: f64| {
-            if kernel_err.get().is_some() {
+            if gamma_inc_err.get().is_some() {
                 return 0.0;
             }
             match try_gamma_inc(df / 2.0, x / 2.0) {
                 Err(e) => {
-                    kernel_err.set(Some(e));
+                    gamma_inc_err.set(Some(e));
                     0.0
                 }
                 Ok((cum, ccum)) => {
@@ -290,11 +290,11 @@ impl ChiSquared {
                 }
             }
         };
-        let result = solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        let result = search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         );
-        if let Some(e) = kernel_err.into_inner() {
+        if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }
         Ok(result?)
@@ -407,36 +407,36 @@ mod tests {
     }
 
     #[test]
-    fn solve_df_rejects_bad_inputs() {
+    fn search_df_rejects_bad_inputs() {
         assert!(matches!(
-            ChiSquared::solve_df(-0.1, 1.1, 3.0),
+            ChiSquared::search_df(-0.1, 1.1, 3.0),
             Err(ChiSquaredError::PNotInRange(_))
         ));
         assert!(matches!(
-            ChiSquared::solve_df(1.5, -0.5, 3.0),
+            ChiSquared::search_df(1.5, -0.5, 3.0),
             Err(ChiSquaredError::PNotInRange(_))
         ));
         assert!(matches!(
-            ChiSquared::solve_df(0.3, 0.3, 3.0),
+            ChiSquared::search_df(0.3, 0.3, 3.0),
             Err(ChiSquaredError::PQSumNotOne { .. })
         ));
         assert!(matches!(
-            ChiSquared::solve_df(0.5, 0.5, 0.0),
+            ChiSquared::search_df(0.5, 0.5, 0.0),
             Err(ChiSquaredError::XNotPositive(0.0))
         ));
         assert!(matches!(
-            ChiSquared::solve_df(0.5, 0.5, -1.0),
+            ChiSquared::search_df(0.5, 0.5, -1.0),
             Err(ChiSquaredError::XNotPositive(-1.0))
         ));
     }
 
     #[test]
-    fn solve_df_precision_pivot_at_upper_tail() {
+    fn search_df_precision_pivot_at_upper_tail() {
         // For x near the upper tail (p close to 1), the cum-p residual is
         // dominated by 1-cum-eps; the ccum-q form is numerically better.
         // Verify round-trip works in both halves.
         for (p_target, x) in [(0.99, 6.63), (0.999, 10.83), (0.95, 3.84), (0.5, 0.455)] {
-            let df = ChiSquared::solve_df(p_target, 1.0 - p_target, x).unwrap();
+            let df = ChiSquared::search_df(p_target, 1.0 - p_target, x).unwrap();
             let cdf_back = ChiSquared::new(df).cdf(x);
             assert!(
                 (cdf_back - p_target).abs() < 1e-6,

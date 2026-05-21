@@ -1,7 +1,7 @@
 //! CDFLIB's `dzror` / `E0001` zero-finder.
 //!
-//! Algorithm R of Bus & Dekker (ACM TOMS 1975): combined inverse
-//! quadratic interpolation and bisection. CDFLIB uses a
+//! Algorithm R of Bus & Dekker (ACM TOMS 1975): a hybrid of linear
+//! and inverse quadratic interpolation. CDFLIB uses a
 //! reverse-communication idiom driven by a `static`-local switch on a
 //! “where to resume” integer `i99999`; this module uses an explicit
 //! `Stage` enum carried inside [`ZrorState`] instead.
@@ -38,7 +38,7 @@ pub(crate) enum ZrorAction {
     /// Caller must evaluate *f*(*x*) and pass the result to the next `step` call.
     NeedEval(f64),
     /// Successful convergence: a root lies in [`xlo`, `xhi`]. The current
-    /// `solve_monotone` driver returns `xlo`; advanced callers wanting
+    /// `search_monotone` driver returns `xlo`; advanced callers wanting
     /// the full interval can drive `ZrorState` directly.
     Converged {
         xlo: f64,

@@ -28,7 +28,7 @@ pub const DEFAULT_REL_TOL: f64 = 1e-14;
 /// relative criterion is meaningless (e.g. `cdf(x) = 0.0`).
 pub const DEFAULT_ABS_TOL: f64 = 1e-300;
 
-/// Direct math kernels (`error_f`, `cumnor`, `gamma_log`, `gamma`,
+/// Direct math routines (`error_f`, `cumnor`, `gamma_log`, `gamma`,
 /// `beta_log`, …). Compared against fixtures generated from the
 /// Fortran `cdflib.f90` via `tests/regenerate/gen_*.f90`.
 /// Measured max is about `2.9e-13` on saturated `error_f` / `error_fc`
@@ -36,7 +36,7 @@ pub const DEFAULT_ABS_TOL: f64 = 1e-300;
 /// larger discrepancies.
 pub const KERNEL_REL_TOL: f64 = 5e-13;
 
-/// Iterative or regime-aware kernels (`gamma_inc`, `beta_inc`). These
+/// Iterative or regime-aware routines (`gamma_inc`, `beta_inc`). These
 /// dispatch across multiple computational regimes (power series,
 /// continued fraction, Tricomi–Temme-style asymptotic expansion); the last few
 /// ULPs can shift between Rust and the committed Fortran fixtures in the
@@ -45,7 +45,7 @@ pub const KERNEL_REL_TOL: f64 = 5e-13;
 /// `1e-14`, so `5e-14` remains tight for the scale-aware part.
 pub const ITERATIVE_KERNEL_REL_TOL: f64 = 5e-14;
 
-/// Iterative-kernel fixtures can still disagree by a few `1e-13` in the
+/// Iterative-routine fixtures can still disagree by a few `1e-13` in the
 /// extreme tails even when the Rust answer matches high-precision
 /// arithmetic more closely than the Fortran table does. Use this absolute
 /// floor so near-zero `Q` values do not spuriously fail on relative error
@@ -53,7 +53,7 @@ pub const ITERATIVE_KERNEL_REL_TOL: f64 = 5e-14;
 pub const ITERATIVE_KERNEL_ABS_TOL: f64 = 5e-13;
 
 /// Distribution-layer methods whose CDF chains through an iterative
-/// kernel (Beta, ChiSquared, Gamma, StudentsT, FisherSnedecor, plus
+/// routine (Beta, ChiSquared, Gamma, StudentsT, FisherSnedecor, plus
 /// the three discrete distributions that reduce to `beta_inc` or
 /// `gamma_inc`). Measured max: 2.3e-13 (Poisson, NegBin). Tolerance
 /// 3e-13 leaves ~1.3x margin, tight but still stable on the committed grid.
@@ -70,15 +70,15 @@ pub const DISTRIBUTION_ABS_TOL: f64 = 1e-12;
 pub const DINVNR_REL_TOL: f64 = 5e-15;
 
 /// `dinvr`-driven inverses and round-trip tests where the forward CDF
-/// is computed by a direct or iterative kernel. The solver matches
+/// is computed by a direct or iterative routine. The search matches
 /// CDFLIB's `dstinv` configuration with rel_tol = 1e-8; round-trip
-/// residuals are bounded by that solver tolerance plus the CDF's
+/// residuals are bounded by that search tolerance plus the CDF's
 /// Lipschitz factor near the queried quantile. 5e-8 leaves ~5x margin.
 pub const INVERSE_REL_TOL: f64 = 5e-8;
 
 /// `dinvr`-driven inverses where the forward CDF chains through an
-/// iterative kernel (`StudentsT::inverse_cdf`, `Beta::inverse_cdf`,
-/// `ChiSquared::inverse_cdf`, …). With the solver matching CDFLIB's
+/// iterative routine (`StudentsT::inverse_cdf`, `Beta::inverse_cdf`,
+/// `ChiSquared::inverse_cdf`, …). With the search matching CDFLIB's
 /// rel_tol = 1e-8, the worst-case projection through `1/|f'(x)|` near
 /// low-pdf quantiles (e.g., t(df=4) at 0.975) reaches ~5e-7.
 pub const CHAINED_INVERSE_REL_TOL: f64 = 5e-7;

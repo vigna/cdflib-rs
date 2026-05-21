@@ -1,6 +1,6 @@
 #![cfg(not(miri))]
 
-//! Reference-table tests for the beta kernels.
+//! Reference-table tests for the beta routines.
 
 mod common;
 

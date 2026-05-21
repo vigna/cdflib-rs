@@ -5,11 +5,11 @@
 //! Each `tests/data/cdf<dist>_<solved-var>.csv` file is the output of
 //! calling the corresponding Fortran dispatcher in `gen_dispatchers.f90`. The
 //! columns are the inputs followed by the C-computed answer. These
-//! tests assert that the corresponding Rust `solve_*` /
+//! tests assert that the corresponding Rust `search_*` /
 //! `inverse_cdf` method returns the same value.
 //!
 //! Tolerance: both sides drive `dinvr` with CDFLIB's `tol = 1e-8`
-//! (see `src/solver/mod.rs`). Converged values therefore agree at the
+//! (see `src/search/mod.rs`). Converged values therefore agree at the
 //! 1e-8 floor of the algorithm, not to machine precision. We use
 //! `5e-8` here for ~5x margin over that floor.
 
@@ -22,11 +22,11 @@ use cdflib::{
 };
 use common::{assert_close_eps, read_csv};
 
-// Solver converges at 1e-8 relative; tail quantiles inflate that by
+// Search converges at 1e-8 relative; tail quantiles inflate that by
 // ~1/pdf, giving ~1e-5 for the most amplifying cases on this grid.
 const REL: f64 = 1e-5;
 // Some cdf* dispatchers compute parameters that are exactly 0 (e.g.,
-// cdfnor's solve_mean recovering mean=0). Rust converges to a denormal
+// cdfnor's search_mean recovering mean=0). Rust converges to a denormal
 // near-zero. 1e-14 absorbs that without masking real divergences.
 const ABS: f64 = 1e-14;
 
@@ -49,7 +49,7 @@ fn cdfbet_a_matches_beta_solve_a() {
         let [p, q, x, b, a_ref] = row[..] else {
             panic!("width")
         };
-        let got = Beta::solve_a(p, q, x, b).unwrap();
+        let got = Beta::search_a(p, q, x, b).unwrap();
         assert_close_eps(got, a_ref, REL, ABS);
     }
 }
@@ -60,7 +60,7 @@ fn cdfbet_b_matches_beta_solve_b() {
         let [p, q, x, a, b_ref] = row[..] else {
             panic!("width")
         };
-        let got = Beta::solve_b(p, q, x, a).unwrap();
+        let got = Beta::search_b(p, q, x, a).unwrap();
         assert_close_eps(got, b_ref, REL, ABS);
     }
 }
@@ -73,7 +73,7 @@ fn cdfbin_xn_matches_binomial_solve_trials() {
         let [p, q, s, pr, xn_ref] = row[..] else {
             panic!("width")
         };
-        let got = Binomial::solve_trials(p, q, pr, s as u64).unwrap();
+        let got = Binomial::search_trials(p, q, pr, s as u64).unwrap();
         assert_close_eps(got, xn_ref, REL, ABS);
     }
 }
@@ -84,7 +84,7 @@ fn cdfbin_pr_matches_binomial_solve_pr() {
         let [p, q, s, xn, pr_ref] = row[..] else {
             panic!("width")
         };
-        let got = Binomial::solve_pr(p, q, xn as u64, s as u64).unwrap();
+        let got = Binomial::search_pr(p, q, xn as u64, s as u64).unwrap();
         assert_close_eps(got, pr_ref, REL, ABS);
     }
 }
@@ -108,7 +108,7 @@ fn cdfchi_df_matches_chi_squared_solve_df() {
         let [p, q, x, df_ref] = row[..] else {
             panic!("width")
         };
-        let got = ChiSquared::solve_df(p, q, x).unwrap();
+        let got = ChiSquared::search_df(p, q, x).unwrap();
         assert_close_eps(got, df_ref, REL, ABS);
     }
 }
@@ -132,7 +132,7 @@ fn cdfchn_df_matches_chi_squared_noncentral_solve_df() {
         let [p, _q, x, pnonc, df_ref] = row[..] else {
             panic!("width")
         };
-        let got = ChiSquaredNoncentral::solve_df(p, x, pnonc).unwrap();
+        let got = ChiSquaredNoncentral::search_df(p, x, pnonc).unwrap();
         assert_close_eps(got, df_ref, REL, ABS);
     }
 }
@@ -143,7 +143,7 @@ fn cdfchn_pnonc_matches_chi_squared_noncentral_solve_ncp() {
         let [p, _q, x, df, ncp_ref] = row[..] else {
             panic!("width")
         };
-        let got = ChiSquaredNoncentral::solve_ncp(p, x, df).unwrap();
+        let got = ChiSquaredNoncentral::search_ncp(p, x, df).unwrap();
         assert_close_eps(got, ncp_ref, REL, ABS);
     }
 }
@@ -167,7 +167,7 @@ fn cdff_dfn_matches_fisher_snedecor_solve_dfn() {
         let [p, q, f, dfd, dfn_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecor::solve_dfn(p, q, f, dfd).unwrap();
+        let got = FisherSnedecor::search_dfn(p, q, f, dfd).unwrap();
         assert_close_eps(got, dfn_ref, REL, ABS);
     }
 }
@@ -178,7 +178,7 @@ fn cdff_dfd_matches_fisher_snedecor_solve_dfd() {
         let [p, q, f, dfn, dfd_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecor::solve_dfd(p, q, f, dfn).unwrap();
+        let got = FisherSnedecor::search_dfd(p, q, f, dfn).unwrap();
         assert_close_eps(got, dfd_ref, REL, ABS);
     }
 }
@@ -204,7 +204,7 @@ fn cdffnc_dfn_matches_fisher_snedecor_noncentral_solve_dfn() {
         let [p, _q, f, dfd, phonc, dfn_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecorNoncentral::solve_dfn(p, f, dfd, phonc).unwrap();
+        let got = FisherSnedecorNoncentral::search_dfn(p, f, dfd, phonc).unwrap();
         assert_close_eps(got, dfn_ref, REL, ABS);
     }
 }
@@ -215,7 +215,7 @@ fn cdffnc_dfd_matches_fisher_snedecor_noncentral_solve_dfd() {
         let [p, _q, f, dfn, phonc, dfd_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecorNoncentral::solve_dfd(p, f, dfn, phonc).unwrap();
+        let got = FisherSnedecorNoncentral::search_dfd(p, f, dfn, phonc).unwrap();
         assert_close_eps(got, dfd_ref, REL, ABS);
     }
 }
@@ -226,7 +226,7 @@ fn cdffnc_phonc_matches_fisher_snedecor_noncentral_solve_ncp() {
         let [p, _q, f, dfn, dfd, ncp_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecorNoncentral::solve_ncp(p, f, dfn, dfd).unwrap();
+        let got = FisherSnedecorNoncentral::search_ncp(p, f, dfn, dfd).unwrap();
         assert_close_eps(got, ncp_ref, REL, ABS);
     }
 }
@@ -255,7 +255,7 @@ fn cdfgam_shape_matches_gamma_solve_shape() {
         let [p, q, x, rate, shape_ref] = row[..] else {
             panic!("width")
         };
-        let got = Gamma::solve_shape(p, q, x, rate).unwrap();
+        let got = Gamma::search_shape(p, q, x, rate).unwrap();
         assert_close_eps(got, shape_ref, REL, ABS);
     }
 }
@@ -266,7 +266,7 @@ fn cdfgam_scale_matches_gamma_solve_rate() {
         let [p, q, x, shape, rate_ref] = row[..] else {
             panic!("width")
         };
-        let got = Gamma::solve_rate(p, q, x, shape).unwrap();
+        let got = Gamma::search_rate(p, q, x, shape).unwrap();
         assert_close_eps(got, rate_ref, REL, ABS);
     }
 }
@@ -279,7 +279,7 @@ fn cdfnbn_xn_matches_negative_binomial_solve_r() {
         let [p, q, s, pr, xn_ref] = row[..] else {
             panic!("width")
         };
-        let got = NegativeBinomial::solve_r(p, q, pr, s as u64).unwrap();
+        let got = NegativeBinomial::search_r(p, q, pr, s as u64).unwrap();
         assert_close_eps(got, xn_ref, REL, ABS);
     }
 }
@@ -290,7 +290,7 @@ fn cdfnbn_pr_matches_negative_binomial_solve_pr() {
         let [p, q, s, xn, pr_ref] = row[..] else {
             panic!("width")
         };
-        let got = NegativeBinomial::solve_pr(p, q, xn as u64, s as u64).unwrap();
+        let got = NegativeBinomial::search_pr(p, q, xn as u64, s as u64).unwrap();
         assert_close_eps(got, pr_ref, REL, ABS);
     }
 }
@@ -314,7 +314,7 @@ fn cdfnor_mean_matches_normal_solve_mean() {
         let [p, q, x, sd, mean_ref] = row[..] else {
             panic!("width")
         };
-        let got = Normal::solve_mean(p, q, x, sd).unwrap();
+        let got = Normal::search_mean(p, q, x, sd).unwrap();
         assert_close_eps(got, mean_ref, REL, ABS);
     }
 }
@@ -325,7 +325,7 @@ fn cdfnor_sd_matches_normal_solve_sd() {
         let [p, q, x, mean, sd_ref] = row[..] else {
             panic!("width")
         };
-        let got = Normal::solve_sd(p, q, x, mean).unwrap();
+        let got = Normal::search_sd(p, q, x, mean).unwrap();
         assert_close_eps(got, sd_ref, REL, ABS);
     }
 }
@@ -338,7 +338,7 @@ fn cdfpoi_xlam_matches_poisson_solve_lambda() {
         let [p, q, s, xlam_ref] = row[..] else {
             panic!("width")
         };
-        let got = Poisson::solve_lambda(p, q, s as u64).unwrap();
+        let got = Poisson::search_lambda(p, q, s as u64).unwrap();
         assert_close_eps(got, xlam_ref, REL, ABS);
     }
 }
@@ -362,7 +362,7 @@ fn cdft_df_matches_students_t_solve_df() {
         let [p, q, t, df_ref] = row[..] else {
             panic!("width")
         };
-        let got = StudentsT::solve_df(p, q, t).unwrap();
+        let got = StudentsT::search_df(p, q, t).unwrap();
         assert_close_eps(got, df_ref, REL, ABS);
     }
 }

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::{solve_monotone, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -30,8 +30,8 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// // Probability of 3 or fewer failures before 5th success
 /// let cdf = nb.cdf(3);
 ///
-/// // Solve for success probability given Pr[F ≤ 5] = 0.9 and r = 10
-/// let pr = NegativeBinomial::solve_pr(0.9, 0.1, 10, 5).unwrap();
+/// // Compute success probability given Pr[F ≤ 5] = 0.9 and r = 10
+/// let pr = NegativeBinomial::search_pr(0.9, 0.1, 10, 5).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NegativeBinomial {
@@ -40,7 +40,7 @@ pub struct NegativeBinomial {
 }
 
 /// Errors arising from constructing a [`NegativeBinomial`] or from its
-/// parameter solvers.
+/// parameter searches.
 ///
 /// [`NegativeBinomial`]: crate::NegativeBinomial
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -63,11 +63,11 @@ pub enum NegativeBinomialError {
     /// Mirrors CDFLIB's `cdfnbn` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl NegativeBinomial {
@@ -116,7 +116,7 @@ impl NegativeBinomial {
     /// Mirrors CDFLIB's `cdfnbn` with `which = 3`. Caller passes both
     /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_r(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
+    pub fn search_r(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_pq(p, q)?;
         if !(pr > 0.0 && pr <= 1.0) {
             return Err(NegativeBinomialError::PrOutOfRange(pr));
@@ -133,8 +133,8 @@ impl NegativeBinomial {
             }
         };
         // Match cdfnbn's which=3: range (0, inf), start = 5.0.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         )?)
     }
@@ -143,10 +143,10 @@ impl NegativeBinomial {
     ///
     /// Mirrors CDFLIB's `cdfnbn` with `which = 4` (cdflib.f90:5400-5430).
     /// Caller passes both *p* and *q* = 1 − *p*; consistency is enforced
-    /// within 3 ε. When *p* > *q* the solver searches on *ompr* = 1 − *pr*
+    /// within 3 ε. When *p* > *q* the search runs on *ompr* = 1 − *pr*
     /// (F90's variable-switch precision strategy) and returns *pr* = 1 − *ompr*.
     #[inline]
-    pub fn solve_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
+    pub fn search_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_pq(p, q)?;
         let rf = r as f64;
         let sf = s as f64;
@@ -158,7 +158,7 @@ impl NegativeBinomial {
                 let (cum, _ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
                 cum - p
             };
-            Ok(solve_monotone(
+            Ok(search_monotone(
                 0.0, 1.0, 0.5,
                 f,
             )?)
@@ -167,7 +167,7 @@ impl NegativeBinomial {
                 let (_cum, ccum) = beta_inc(rf, sf + 1.0, 1.0 - ompr, ompr);
                 ccum - q
             };
-            let ompr = solve_monotone(
+            let ompr = search_monotone(
                 0.0, 1.0, 0.5,
                 f,
             )?;
@@ -230,7 +230,7 @@ impl DiscreteCdf for NegativeBinomial {
         }
         let pr = self.pr;
         let r = self.r as f64;
-        // Smallest s with cdf(s) >= p; sample then bisect.
+        // Smallest s with cdf(s) >= p; sample then halve the integer range.
         let mean = r * (1.0 - pr) / pr;
         let sd = (mean / pr).sqrt();
         let mut hi = (mean + 10.0 * sd + 10.0).ceil() as u64;
@@ -282,8 +282,8 @@ impl NegativeBinomial {
             }
         };
         // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         )?)
     }
@@ -345,13 +345,13 @@ mod tests {
     }
 
     #[test]
-    fn solve_helpers_reject_invalid_inputs() {
+    fn search_helpers_reject_invalid_inputs() {
         assert!(matches!(
-            NegativeBinomial::solve_r(-0.1, 1.1, 0.5, 3),
+            NegativeBinomial::search_r(-0.1, 1.1, 0.5, 3),
             Err(NegativeBinomialError::PNotInRange(-0.1))
         ));
         assert!(matches!(
-            NegativeBinomial::solve_r(0.5, 0.5, 0.0, 3),
+            NegativeBinomial::search_r(0.5, 0.5, 0.0, 3),
             Err(NegativeBinomialError::PrOutOfRange(0.0))
         ));
     }

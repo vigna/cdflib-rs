@@ -26,7 +26,7 @@ distributions:
 
 The goal of this crate is to provide CDFLIB in pure Rust. The underlying special
 functions ([`gamma_inc`], [`beta_inc`], [`error_f`], [`cumnor`], etc.) are
-exposed publicly in a [`cdflib::special`] module for users who want the kernels
+exposed publicly in a [`cdflib::special`] module for users who want the routines
 without the distribution wrappers.
 
 The API is designed to be ergonomic and idiomatic for Rust users, with [traits]
@@ -56,7 +56,7 @@ them independently rather than deriving one from the other by subtraction. This
 is what lets the small tail keep its precision deep into the tails, where `1.0 -
 cdf(x)` would lose digits to cancellation.
 
-The incomplete-Γ and incomplete-Β kernels follow the same convention:
+The incomplete-Γ and incomplete-Β routines follow the same convention:
 [`gamma_inc`] returns the pair (_P_, _Q_), [`beta_inc`] returns
 (_Iₓ_(_a_, _b_), 1 − _Iₓ_(_a_, _b_)).
 
@@ -67,7 +67,7 @@ Many libraries compute CDFs. CDFLIB is distinguished by two design choices:
 ### 1. Stays accurate in the tails and at large parameter values
 
 The numerical heart of CDFLIB is the pair of regularized incomplete-function
-kernels [`gamma_inc`] (≈ [ACM Algorithm 654]) and [`beta_inc`] (≈ [ACM Algorithm
+routines [`gamma_inc`] (≈ [ACM Algorithm 654]) and [`beta_inc`] (≈ [ACM Algorithm
 708]). Both dispatch across five computational regimes depending on the location
 in parameter space (power series, continued fraction, Tricomi–Temme-style asymptotic
 expansion, near-integer specialization, and ratio-extreme handling) and they
@@ -81,7 +81,7 @@ digits to subtractive cancellation or stall on convergence.
 
 The Rust statistical ecosystem already has [`statrs`], which covers most of
 CDFLIB's distributions. However, at the time of this writing [`statrs`] does
-not offer parameter solvers, [noncentral χ²], or [noncentral _F_], and its
+not offer parameter searches, [noncentral χ²], or [noncentral _F_], and its
 special functions are not as precise as CDFLIB's:
 
 |                                    | True value | CDFLIB   | [`statrs`] |
@@ -119,7 +119,7 @@ large samples.
 
 Given a CDF identity _p_ = _F_(_x_; *θ*₁, *θ*₂, …), most libraries can give you _p_
 from _x_ (the CDF) or _x_ from _p_ (the inverse CDF, also called the quantile function).
-CDFLIB can additionally solve for any _θᵢ_ when you know _p_, _x_, and the
+CDFLIB can additionally compute for any _θᵢ_ when you know _p_, _x_, and the
 other parameters. For example:
 
 - “What standard deviation places probability 0.975 below _x_ = 1.96, given a mean of 0?”
@@ -144,9 +144,9 @@ let mu  = n.mean();                 // 0.0
 # Ok::<(), cdflib::NormalError>(())
 ```
 
-### Parameter solvers
+### Parameter searches
 
-Given _p_ = _F_(_x_; *θ*₁, *θ*₂, …), you can solve for any parameter when the others are
+Given _p_ = _F_(_x_; *θ*₁, *θ*₂, …), you can compute any parameter when the others are
 known. Two practical uses:
 
 ```rust
@@ -154,12 +154,12 @@ use cdflib::{ChiSquared, Poisson};
 
 // Upper 95% confidence bound on λ after observing 3 Poisson events
 // (the Garwood / exact-Poisson interval).
-let lambda_hi = Poisson::solve_lambda(0.05, 0.95, 3)?;
+let lambda_hi = Poisson::search_lambda(0.05, 0.95, 3)?;
 // 7.7537
 
 // Degrees of freedom that put 95% of a χ² distribution below x = 3.84
 // (recovers df = 1, the classic likelihood-ratio test critical value).
-let df = ChiSquared::solve_df(0.95, 0.05, 3.84)?;
+let df = ChiSquared::search_df(0.95, 0.05, 3.84)?;
 // 0.9994
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
@@ -182,7 +182,7 @@ let power = ChiSquaredNoncentral::try_new(5.0, 10.0)?.sf(crit);
 
 ### Special functions directly
 
-The kernels are public for users who want the numerics without a distribution wrapper:
+These routines are public for users who want the numerics without a distribution wrapper:
 
 ```rust
 use cdflib::special::{cumnor, error_f, gamma_inc};
@@ -242,17 +242,17 @@ digit. The intentional structural divergences are:
   [`error_fc_scaled`]. Same numerics, no flag argument.
 - The Fortran `cum*` and `cdf*` dispatcher families are folded into the
   corresponding distribution module's [`cdf`] / [`sf`] / [`inverse_cdf`] /
-  [`inverse_sf`] / `solve_*` methods rather than exposed as bare functions.
+  [`inverse_sf`] / `search_*` methods rather than exposed as bare functions.
 - `dinvr` and `dzror` (the reverse-communication root finders) live as internal
-  state machines in `crate::solver`. They are not part of the public surface.
-- The solver setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
+  state machines in `crate::search`. They are not part of the public surface.
+- The search setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
   `rel_tol`) that the Fortran `cdf*` routines declare locally are centralized in
-  `src/solver/mod.rs`; the one routine that needs a different absolute tolerance
-  (`cdfchn`) uses an explicit `solve_monotone_with_atol` call.
+  `src/search/mod.rs`; the one routine that needs a different absolute tolerance
+  (`cdfchn`) uses an explicit `search_monotone_with_atol` call.
 
 The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing
-[`cdflib::special`] surface stays focused on the kernels a statistical
+[`cdflib::special`] surface stays focused on the routines a statistical
 user is likely to call. Both surfaces are public and documented; a port
 from C/Fortran can find each CDFLIB algorithmic routine under its original
 name in one or the other, modulo the renames and splits enumerated above.

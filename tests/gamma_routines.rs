@@ -1,6 +1,6 @@
 #![cfg(not(miri))]
 
-//! Reference-table tests for the gamma kernels.
+//! Reference-table tests for the gamma routines.
 
 mod common;
 
@@ -54,7 +54,7 @@ fn gamma_inc_matches_reference() {
 
 // Truncation-depth fidelity at Digits6 and Digits3: both Rust and the F90
 // reference use the same shallower expansion at these accuracy levels, so the
-// per-row agreement should still be at iterative-kernel precision (the
+// per-row agreement should still be at iterative-routine precision (the
 // regimes are nominally "6 digits" and "3 digits", but each implementation
 // rounds the same way on the same expansion).
 #[test]

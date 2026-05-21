@@ -1,7 +1,7 @@
 #![cfg(not(miri))]
 
 //! Round-trip integration tests for ChiSquared and Gamma: invoke
-//! `inverse_cdf` / `inverse_sf` / solver, then verify by re-evaluating
+//! `inverse_cdf` / `inverse_sf` / search, then verify by re-evaluating
 //! `cdf` at the answer. All assertions go through `INVERSE_REL_TOL`.
 
 mod common;
@@ -34,7 +34,7 @@ fn chi_squared_inverse_sf_round_trip() {
 #[test]
 fn chi_squared_solve_df_round_trip() {
     for &(p_target, x) in &[(0.95, 3.84), (0.99, 6.63), (0.5, 2.0)] {
-        let df = ChiSquared::solve_df(p_target, 1.0 - p_target, x).unwrap();
+        let df = ChiSquared::search_df(p_target, 1.0 - p_target, x).unwrap();
         let p_back = ChiSquared::new(df).cdf(x);
         assert_close_eps(p_back, p_target, INVERSE_REL_TOL, INVERSE_REL_TOL);
     }
@@ -53,11 +53,11 @@ fn gamma_inverse_cdf_round_trip() {
 
 #[test]
 fn gamma_solve_round_trip() {
-    let shape = Gamma::solve_shape(0.95, 0.05, 5.0, 2.0).unwrap();
+    let shape = Gamma::search_shape(0.95, 0.05, 5.0, 2.0).unwrap();
     let back = Gamma::new(shape, 2.0).cdf(5.0);
     assert_close_eps(back, 0.95, INVERSE_REL_TOL, INVERSE_REL_TOL);
 
-    let rate = Gamma::solve_rate(0.5, 0.5, 4.0, 2.0).unwrap();
+    let rate = Gamma::search_rate(0.5, 0.5, 4.0, 2.0).unwrap();
     let back = Gamma::new(2.0, rate).cdf(4.0);
     assert_close_eps(back, 0.5, INVERSE_REL_TOL, INVERSE_REL_TOL);
 }

@@ -14,7 +14,7 @@ fn cdf_and_sf_match_cdfnor_reference() {
             panic!("width");
         };
         let n = Normal::new(mean, sd);
-        // Normal::cdf is a direct cumnor wrapper; no iterative kernel.
+        // Normal::cdf is a direct cumnor wrapper; no iterative routine.
         assert_close_eps(n.cdf(x), expected_cdf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
         assert_close_eps(n.sf(x), expected_sf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }

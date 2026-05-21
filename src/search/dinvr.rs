@@ -38,7 +38,7 @@ pub(crate) enum InvrAction {
     /// CDFLIB-style failure flags. `qleft` is true if the stepping
     /// search terminated unsuccessfully at the lower bound `small`.
     /// `qhi` and `x` mirror CDFLIB's interface; only `qleft` is consulted
-    /// by the current solve_monotone driver, but the others are retained
+    /// by the current search_monotone driver, but the others are retained
     /// for callers that drive `InvrState` directly.
     #[allow(dead_code)]
     Failed {

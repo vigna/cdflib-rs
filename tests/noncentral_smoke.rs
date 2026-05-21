@@ -33,10 +33,10 @@ fn noncentral_chi_squared_round_trip() {
     let d = ChiSquaredNoncentral::new(10.0, 5.0);
     for &p in &[0.1, 0.5, 0.9] {
         let x = d.inverse_cdf(p).unwrap();
-        // Round-trip tolerance is bounded by the solver's rel_tol = 1e-8
+        // Round-trip tolerance is bounded by the search's rel_tol = 1e-8
         // (matches CDFLIB's `dstinv` setup), not by the cumchn series
         // tolerance; the forward `cdf` is fine, the inverse converges
-        // only to solver precision.
+        // only to search precision.
         assert_close_eps(d.cdf(x), p, INVERSE_REL_TOL, INVERSE_REL_TOL);
     }
 }

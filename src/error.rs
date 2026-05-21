@@ -2,19 +2,19 @@
 //!
 //! Each distribution module declares its own narrow error enum (so `match`
 //! arms stay meaningful). The enums for distributions whose inverse routines
-//! go through the reverse-communication root-finder carry a [`SolverError`]
+//! go through the reverse-communication root-finder carry a [`SearchError`]
 //! variant; distributions that are closed-form everywhere (e.g. [`Normal`])
-//! do not. A few distributions whose kernels bubble up their own structured
+//! do not. A few distributions whose routines bubble up their own structured
 //! errors carry additional pass-through variants (see [`GammaError`] for an
 //! example).
 //!
-//! [`SolverError`]: crate::error::SolverError
+//! [`SearchError`]: crate::error::SearchError
 //! [`Normal`]: crate::Normal
 //! [`GammaError`]: crate::GammaError
 
 use thiserror::Error;
 
-/// Errors of the internal root-finder used by parameter solvers and
+/// Errors of the internal root-finder used by parameter searches and
 /// non-closed-form inverse CDFs.
 ///
 /// The two out-of-bounds variants mirror CDFLIB's `status = 1` and `status = 2`
@@ -22,7 +22,7 @@ use thiserror::Error;
 /// the highest, respectively. `bound` carries the violated endpoint (CDFLIB's
 /// `bound` output).
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
-pub enum SolverError {
+pub enum SearchError {
     /// The solution lay below the lower search bound (CDFLIB `status = 1`).
     #[error("answer fell below lower search bound {bound}")]
     AnswerBelowLowerBound { bound: f64 },

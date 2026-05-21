@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::{solve_bounded_zero, solve_monotone, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_bounded_zero, search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -22,8 +22,8 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// // Pr[X ≤ 0.3]
 /// let p = b.cdf(0.3);
 ///
-/// // Solve for parameter a given Pr[X ≤ 0.5] = 0.9 and b = 2.0
-/// let a = Beta::solve_a(0.9, 0.1, 0.5, 2.0).unwrap();
+/// // Compute parameter a given Pr[X ≤ 0.5] = 0.9 and b = 2.0
+/// let a = Beta::search_a(0.9, 0.1, 0.5, 2.0).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Beta {
@@ -31,7 +31,7 @@ pub struct Beta {
     b: f64,
 }
 
-/// Errors arising from constructing a [`Beta`] or from its parameter solvers.
+/// Errors arising from constructing a [`Beta`] or from its parameter searches.
 ///
 /// [`Beta`]: crate::Beta
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -61,11 +61,11 @@ pub enum BetaError {
     /// Mirrors CDFLIB's `cdfbet` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl Beta {
@@ -126,7 +126,7 @@ impl Beta {
     /// CDFLIB's `cdfbet` with `which = 3`. Caller passes both *p* and
     /// *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_a(p: f64, q: f64, x: f64, b: f64) -> Result<f64, BetaError> {
+    pub fn search_a(p: f64, q: f64, x: f64, b: f64) -> Result<f64, BetaError> {
         check_pq(p, q)?;
         if !(0.0..=1.0).contains(&x) {
             return Err(BetaError::XOutOfRange(x));
@@ -148,8 +148,8 @@ impl Beta {
         // I_x(a, b) is decreasing in a (more weight near 1 when a grows).
         // Match cdfbet's which=3: range (zero, inf), start = 5.0;
         // mirror Fortran's cum-p if p<=q else ccum-q precision pivot.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         )?)
     }
@@ -159,7 +159,7 @@ impl Beta {
     /// CDFLIB's `cdfbet` with `which = 4`. Caller passes both *p* and
     /// *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_b(p: f64, q: f64, x: f64, a: f64) -> Result<f64, BetaError> {
+    pub fn search_b(p: f64, q: f64, x: f64, a: f64) -> Result<f64, BetaError> {
         check_pq(p, q)?;
         if !(0.0..=1.0).contains(&x) {
             return Err(BetaError::XOutOfRange(x));
@@ -180,8 +180,8 @@ impl Beta {
         };
         // I_x(a, b) is increasing in b. Match cdfbet's which=4 setup and
         // precision pivot.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         )?)
     }
@@ -261,13 +261,13 @@ impl ContinuousCdf for Beta {
                 let (cum, _) = beta_inc(a, b, x, 1.0 - x);
                 cum - p
             };
-            Ok(solve_bounded_zero(0.0, 1.0, f)?)
+            Ok(search_bounded_zero(0.0, 1.0, f)?)
         } else {
             let f = |y: f64| {
                 let (_, ccum) = beta_inc(a, b, 1.0 - y, y);
                 ccum - q
             };
-            let y = solve_bounded_zero(0.0, 1.0, f)?;
+            let y = search_bounded_zero(0.0, 1.0, f)?;
             Ok(1.0 - y)
         }
     }
@@ -302,13 +302,13 @@ impl Beta {
                 let (cum, _) = beta_inc(a, b, x, 1.0 - x);
                 cum - p
             };
-            Ok(solve_bounded_zero(0.0, 1.0, f)?)
+            Ok(search_bounded_zero(0.0, 1.0, f)?)
         } else {
             let f = |y: f64| {
                 let (_, ccum) = beta_inc(a, b, 1.0 - y, y);
                 ccum - q
             };
-            let y = solve_bounded_zero(0.0, 1.0, f)?;
+            let y = search_bounded_zero(0.0, 1.0, f)?;
             Ok(1.0 - y)
         }
     }
@@ -403,25 +403,25 @@ mod tests {
     }
 
     #[test]
-    fn solve_parameter_rejects_invalid_inputs() {
+    fn search_parameter_rejects_invalid_inputs() {
         assert!(matches!(
-            Beta::solve_a(-0.1, 1.1, 0.5, 2.0),
+            Beta::search_a(-0.1, 1.1, 0.5, 2.0),
             Err(BetaError::PNotInRange(-0.1))
         ));
         assert!(matches!(
-            Beta::solve_a(0.5, 0.5, 0.5, 0.0),
+            Beta::search_a(0.5, 0.5, 0.5, 0.0),
             Err(BetaError::BNotPositive(0.0))
         ));
         assert!(matches!(
-            Beta::solve_b(0.5, 0.5, 0.5, 0.0),
+            Beta::search_b(0.5, 0.5, 0.5, 0.0),
             Err(BetaError::ANotPositive(0.0))
         ));
         assert!(matches!(
-            Beta::solve_a(0.5, 0.5, 1.5, 2.0),
+            Beta::search_a(0.5, 0.5, 1.5, 2.0),
             Err(BetaError::XOutOfRange(1.5))
         ));
         assert!(matches!(
-            Beta::solve_b(0.5, 0.5, -0.1, 2.0),
+            Beta::search_b(0.5, 0.5, -0.1, 2.0),
             Err(BetaError::XOutOfRange(x)) if x == -0.1
         ));
     }

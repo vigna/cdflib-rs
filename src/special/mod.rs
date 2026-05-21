@@ -9,7 +9,7 @@
 //! [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`], and [`dt1`].
 //!
 //! The companion [`internal`] submodule exposes the CDFLIB-style helper
-//! routines used inside the kernels above (`algdiv`, `bcorr`, `gam1`, `rlog`,
+//! routines used inside the routines above (`algdiv`, `bcorr`, `gam1`, `rlog`,
 //! etc.). They are public so users porting C/Fortran code that calls these
 //! directly can find each routine under its CDFLIB name, but they are not part
 //! of the user-facing statistical API.

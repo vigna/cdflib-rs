@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::{solve_monotone, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -30,8 +30,8 @@ use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 /// // Probability of 3 or fewer successes in 10 trials
 /// let cdf = b.cdf(3);
 ///
-/// // Solve for success probability given Pr[S ≤ 2] = 0.5 and n = 10
-/// let pr = Binomial::solve_pr(0.5, 0.5, 10, 2).unwrap();
+/// // Compute success probability given Pr[S ≤ 2] = 0.5 and n = 10
+/// let pr = Binomial::search_pr(0.5, 0.5, 10, 2).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Binomial {
@@ -39,7 +39,7 @@ pub struct Binomial {
     pr: f64,
 }
 
-/// Errors arising from constructing a [`Binomial`] or from its parameter solvers.
+/// Errors arising from constructing a [`Binomial`] or from its parameter searches.
 ///
 /// [`Binomial`]: crate::Binomial
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -60,11 +60,11 @@ pub enum BinomialError {
     /// Mirrors CDFLIB's `cdfbin` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl Binomial {
@@ -109,13 +109,13 @@ impl Binomial {
     }
 
     /// Returns the (continuous) number of trials *n* satisfying
-    /// Pr[*S* ≤ *s*] = *p* given the success probability. The solver
+    /// Pr[*S* ≤ *s*] = *p* given the success probability. The search
     /// works on the continuous extension of the CDF.
     ///
     /// Mirrors CDFLIB's `cdfbin` with `which = 3`. Caller passes both
     /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_trials(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
+    pub fn search_trials(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
         check_pq(p, q)?;
         if !(0.0..=1.0).contains(&pr) || !pr.is_finite() {
             return Err(BinomialError::PrOutOfRange(pr));
@@ -135,8 +135,8 @@ impl Binomial {
             }
         };
         // Match cdfbin's which=3: range (zero, inf), start = 5.0.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         )?)
     }
@@ -145,10 +145,10 @@ impl Binomial {
     ///
     /// Mirrors CDFLIB's `cdfbin` with `which = 4` (cdflib.f90:3232-3265).
     /// Caller passes both *p* and *q* = 1 − *p*; consistency is enforced
-    /// within 3 ε. When *p* > *q* the solver searches on *ompr* = 1 − *pr*
+    /// within 3 ε. When *p* > *q* the search runs on *ompr* = 1 − *pr*
     /// (F90's variable-switch precision strategy) and returns *pr* = 1 − *ompr*.
     #[inline]
-    pub fn solve_pr(p: f64, q: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
+    pub fn search_pr(p: f64, q: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
         check_pq(p, q)?;
         if s > n {
             return Err(BinomialError::SuccessesExceedTrials { s, n });
@@ -163,7 +163,7 @@ impl Binomial {
                 let (_sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
                 cdf_bin - p
             };
-            Ok(solve_monotone(
+            Ok(search_monotone(
                 0.0, 1.0, 0.5,
                 f,
             )?)
@@ -172,7 +172,7 @@ impl Binomial {
                 let (sf_bin, _cdf_bin) = beta_inc(sf + 1.0, nf - sf, 1.0 - ompr, ompr);
                 sf_bin - q
             };
-            let ompr = solve_monotone(
+            let ompr = search_monotone(
                 0.0, 1.0, 0.5,
                 f,
             )?;
@@ -290,7 +290,7 @@ impl Binomial {
             }
         };
         // F90 dstinv(0.0, xn, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
-        Ok(solve_monotone(
+        Ok(search_monotone(
             0.0, nf, 5.0,
             f,
         )?)
@@ -362,15 +362,15 @@ mod tests {
             Err(BinomialError::PrOutOfRange(-0.1))
         ));
         assert!(matches!(
-            Binomial::solve_trials(-0.1, 1.1, 0.5, 3),
+            Binomial::search_trials(-0.1, 1.1, 0.5, 3),
             Err(BinomialError::PNotInRange(-0.1))
         ));
         assert!(matches!(
-            Binomial::solve_trials(0.5, 0.5, f64::NAN, 3),
+            Binomial::search_trials(0.5, 0.5, f64::NAN, 3),
             Err(BinomialError::PrOutOfRange(x)) if x.is_nan()
         ));
         assert!(matches!(
-            Binomial::solve_pr(0.5, 0.5, 3, 4),
+            Binomial::search_pr(0.5, 0.5, 3, 4),
             Err(BinomialError::SuccessesExceedTrials { s: 4, n: 3 })
         ));
     }

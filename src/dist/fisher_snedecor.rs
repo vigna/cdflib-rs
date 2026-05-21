@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::{solve_monotone, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -22,8 +22,8 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// // Pr[X ≤ 3.33]
 /// let p = f.cdf(3.33);
 ///
-/// // Solve for numerator df given Pr[X ≤ 3.33] = 0.95 and dfd = 10
-/// let dfn = FisherSnedecor::solve_dfn(0.95, 0.05, 3.33, 10.0).unwrap();
+/// // Compute numerator df given Pr[X ≤ 3.33] = 0.95 and dfd = 10
+/// let dfn = FisherSnedecor::search_dfn(0.95, 0.05, 3.33, 10.0).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FisherSnedecor {
@@ -32,7 +32,7 @@ pub struct FisherSnedecor {
 }
 
 /// Errors arising from constructing a [`FisherSnedecor`] or from its
-/// parameter solvers.
+/// parameter searches.
 ///
 /// [`FisherSnedecor`]: crate::FisherSnedecor
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -66,11 +66,11 @@ pub enum FisherSnedecorError {
     /// Mirrors CDFLIB's `cdff` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
 }
 
 impl FisherSnedecor {
@@ -127,7 +127,7 @@ impl FisherSnedecor {
     /// has lower bound 1, since *dfn* < 1 makes `cumf`'s
     /// `beta_inc` call diverge.
     #[inline]
-    pub fn solve_dfn(p: f64, q: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
+    pub fn search_dfn(p: f64, q: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
         check_pq(p, q)?;
         if !f.is_finite() {
             return Err(FisherSnedecorError::FNotFinite(f));
@@ -152,8 +152,8 @@ impl FisherSnedecor {
                 ccum - q
             }
         };
-        Ok(solve_monotone(
-            1.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            1.0, SEARCH_BOUND, 5.0,
             func,
         )?)
     }
@@ -164,9 +164,9 @@ impl FisherSnedecor {
     /// Mirrors CDFLIB's `cdff` with `which = 4`. Caller passes both *p*
     /// and *q* = 1 − *p*; consistency is enforced within 3 ε. Lower-bounded
     /// below by 1 for the same convergence reason as
-    /// [`solve_dfn`](Self::solve_dfn).
+    /// [`search_dfn`](Self::search_dfn).
     #[inline]
-    pub fn solve_dfd(p: f64, q: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
+    pub fn search_dfd(p: f64, q: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
         check_pq(p, q)?;
         if !f.is_finite() {
             return Err(FisherSnedecorError::FNotFinite(f));
@@ -191,8 +191,8 @@ impl FisherSnedecor {
                 ccum - q
             }
         };
-        Ok(solve_monotone(
-            1.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            1.0, SEARCH_BOUND, 5.0,
             func,
         )?)
     }
@@ -284,8 +284,8 @@ impl ContinuousCdf for FisherSnedecor {
             }
         };
         // Match cdff's which=2: range (0, inf), start = 5.0.
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             func,
         )?)
     }
@@ -318,8 +318,8 @@ impl FisherSnedecor {
                 ccum - q
             }
         };
-        Ok(solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        Ok(search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             func,
         )?)
     }
@@ -425,23 +425,23 @@ mod tests {
         assert!(FisherSnedecor::new(5.0, 10.0).mean().is_finite());
         assert!(FisherSnedecor::new(5.0, 10.0).variance().is_finite());
         assert!(matches!(
-            FisherSnedecor::solve_dfn(-0.1, 1.1, 1.0, 5.0),
+            FisherSnedecor::search_dfn(-0.1, 1.1, 1.0, 5.0),
             Err(FisherSnedecorError::PNotInRange(-0.1))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfn(0.5, 0.5, 0.0, 5.0),
+            FisherSnedecor::search_dfn(0.5, 0.5, 0.0, 5.0),
             Err(FisherSnedecorError::FNotPositive(0.0))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfn(0.5, 0.5, 1.0, 0.0),
+            FisherSnedecor::search_dfn(0.5, 0.5, 1.0, 0.0),
             Err(FisherSnedecorError::DfdNotPositive(0.0))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfd(0.5, 0.5, 0.0, 5.0),
+            FisherSnedecor::search_dfd(0.5, 0.5, 0.0, 5.0),
             Err(FisherSnedecorError::FNotPositive(0.0))
         ));
         assert!(matches!(
-            FisherSnedecor::solve_dfd(0.5, 0.5, 1.0, 0.0),
+            FisherSnedecor::search_dfd(0.5, 0.5, 1.0, 0.0),
             Err(FisherSnedecorError::DfnNotPositive(0.0))
         ));
     }

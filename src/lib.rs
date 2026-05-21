@@ -5,7 +5,7 @@
 
 mod dist;
 pub mod error;
-pub(crate) mod solver;
+pub(crate) mod search;
 pub mod special;
 pub mod traits;
 
@@ -15,5 +15,5 @@ pub use dist::{
     FisherSnedecorNoncentralError, Gamma, GammaError, NegativeBinomial, NegativeBinomialError,
     Normal, NormalError, Poisson, PoissonError, StudentsT, StudentsTError,
 };
-pub use error::SolverError;
+pub use error::SearchError;
 pub use traits::{Continuous, ContinuousCdf, Discrete, DiscreteCdf, Entropy, Mean, Variance};

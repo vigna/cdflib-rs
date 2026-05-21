@@ -1,5 +1,5 @@
 // Regression tests for the boundary-input contract: inverse_cdf/inverse_sf at
-// p ∈ {0, 1} return the support endpoints, solve_* reject NaN/Inf with typed
+// p ∈ {0, 1} return the support endpoints, search_* reject NaN/Inf with typed
 // errors instead of panicking or hanging, and cdf/sf propagate NaN without
 // panicking through beta_inc / gamma_inc.
 
@@ -89,13 +89,13 @@ fn binomial_endpoints() {
     assert_eq!(b.inverse_cdf(0.0).unwrap(), 0);
     assert_eq!(b.inverse_cdf(1.0).unwrap(), 10);
     // inverse_sf returns the real-valued F90 cdfbin which=2 quantile.
-    // At q=0 (p=1) the solver converges at s=n; at q=1 (p=0) it walks
+    // At q=0 (p=1) the search converges at s=n; at q=1 (p=0) it walks
     // to the lower bound and fails per F90's status=1.
     let s = b.inverse_sf(0.0).unwrap();
     assert!((s - 10.0).abs() < 1e-6, "got s={s}");
     assert!(matches!(
         b.inverse_sf(1.0),
-        Err(cdflib::BinomialError::Solver(_))
+        Err(cdflib::BinomialError::Search(_))
     ));
 }
 
@@ -105,14 +105,14 @@ fn poisson_endpoints() {
     assert_eq!(p.inverse_cdf(0.0).unwrap(), 0);
     assert_eq!(p.inverse_cdf(1.0).unwrap(), u64::MAX);
     // inverse_sf returns the real-valued F90 cdfpoi which=2 quantile.
-    // At q=0 the solver walks to a large s where sf < abs_tol (F90 dstinv
+    // At q=0 the search walks to a large s where sf < abs_tol (F90 dstinv
     // converges by absolute tolerance, not by sign change); at q=1 it
     // hits the lower search bound and reports F90 status=1.
     let s_zero = p.inverse_sf(0.0).unwrap();
     assert!(s_zero > 10.0 && s_zero.is_finite(), "got {s_zero}");
     assert!(matches!(
         p.inverse_sf(1.0),
-        Err(cdflib::PoissonError::Solver(_))
+        Err(cdflib::PoissonError::Search(_))
     ));
 }
 
@@ -127,21 +127,21 @@ fn negative_binomial_endpoints() {
     assert!(s_zero > 10.0 && s_zero.is_finite(), "got {s_zero}");
     assert!(matches!(
         nb.inverse_sf(1.0),
-        Err(cdflib::NegativeBinomialError::Solver(_))
+        Err(cdflib::NegativeBinomialError::Search(_))
     ));
 }
 
-// ---- solve_* NaN rejection (must produce typed errors, not hang or panic) ----
+// ---- search_* NaN rejection (must produce typed errors, not hang or panic) ----
 
 #[test]
 fn normal_solve_rejects_nan_x() {
     use cdflib::NormalError;
     assert!(matches!(
-        Normal::solve_mean(0.5, 0.5, f64::NAN, 1.0),
+        Normal::search_mean(0.5, 0.5, f64::NAN, 1.0),
         Err(NormalError::XNotFinite(_))
     ));
     assert!(matches!(
-        Normal::solve_sd(0.5, 0.5, f64::NAN, 0.0),
+        Normal::search_sd(0.5, 0.5, f64::NAN, 0.0),
         Err(NormalError::XNotFinite(_))
     ));
 }
@@ -150,15 +150,15 @@ fn normal_solve_rejects_nan_x() {
 fn gamma_solve_rejects_nan_x() {
     use cdflib::GammaError;
     assert!(matches!(
-        Gamma::solve_shape(0.5, 0.5, f64::NAN, 2.0),
+        Gamma::search_shape(0.5, 0.5, f64::NAN, 2.0),
         Err(GammaError::XNotFinite(_))
     ));
     assert!(matches!(
-        Gamma::solve_rate(0.5, 0.5, f64::NAN, 2.0),
+        Gamma::search_rate(0.5, 0.5, f64::NAN, 2.0),
         Err(GammaError::XNotFinite(_))
     ));
     assert!(matches!(
-        Gamma::solve_shape(0.5, 0.5, 1.0, f64::NAN),
+        Gamma::search_shape(0.5, 0.5, 1.0, f64::NAN),
         Err(GammaError::RateNotFinite(_))
     ));
 }
@@ -167,7 +167,7 @@ fn gamma_solve_rejects_nan_x() {
 fn chi_squared_solve_rejects_nan_x() {
     use cdflib::ChiSquaredError;
     assert!(matches!(
-        ChiSquared::solve_df(0.5, 0.5, f64::NAN),
+        ChiSquared::search_df(0.5, 0.5, f64::NAN),
         Err(ChiSquaredError::XNotFinite(_))
     ));
 }
@@ -176,15 +176,15 @@ fn chi_squared_solve_rejects_nan_x() {
 fn chi_squared_noncentral_solve_rejects_nan() {
     use cdflib::ChiSquaredNoncentralError;
     assert!(matches!(
-        ChiSquaredNoncentral::solve_df(0.5, f64::NAN, 2.0),
+        ChiSquaredNoncentral::search_df(0.5, f64::NAN, 2.0),
         Err(ChiSquaredNoncentralError::XNotFinite(_))
     ));
     assert!(matches!(
-        ChiSquaredNoncentral::solve_ncp(0.5, f64::NAN, 5.0),
+        ChiSquaredNoncentral::search_ncp(0.5, f64::NAN, 5.0),
         Err(ChiSquaredNoncentralError::XNotFinite(_))
     ));
     assert!(matches!(
-        ChiSquaredNoncentral::solve_df(0.5, 1.0, f64::NAN),
+        ChiSquaredNoncentral::search_df(0.5, 1.0, f64::NAN),
         Err(ChiSquaredNoncentralError::NcpNotFinite(_))
     ));
 }
@@ -193,7 +193,7 @@ fn chi_squared_noncentral_solve_rejects_nan() {
 fn students_t_solve_rejects_nan_t() {
     use cdflib::StudentsTError;
     assert!(matches!(
-        StudentsT::solve_df(0.5, 0.5, f64::NAN),
+        StudentsT::search_df(0.5, 0.5, f64::NAN),
         Err(StudentsTError::TNotFinite(_))
     ));
 }
@@ -202,15 +202,15 @@ fn students_t_solve_rejects_nan_t() {
 fn fisher_snedecor_noncentral_solve_rejects_nan() {
     use cdflib::FisherSnedecorNoncentralError;
     assert!(matches!(
-        FisherSnedecorNoncentral::solve_dfn(0.5, f64::NAN, 5.0, 1.0),
+        FisherSnedecorNoncentral::search_dfn(0.5, f64::NAN, 5.0, 1.0),
         Err(FisherSnedecorNoncentralError::FNotFinite(_))
     ));
     assert!(matches!(
-        FisherSnedecorNoncentral::solve_dfd(0.5, 1.0, f64::NAN, 1.0),
+        FisherSnedecorNoncentral::search_dfd(0.5, 1.0, f64::NAN, 1.0),
         Err(FisherSnedecorNoncentralError::DfnNotFinite(_))
     ));
     assert!(matches!(
-        FisherSnedecorNoncentral::solve_ncp(0.5, 1.0, 5.0, f64::NAN),
+        FisherSnedecorNoncentral::search_ncp(0.5, 1.0, 5.0, f64::NAN),
         Err(FisherSnedecorNoncentralError::DfdNotFinite(_))
     ));
 }

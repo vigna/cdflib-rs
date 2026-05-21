@@ -5,7 +5,7 @@
 
 mod common;
 
-use cdflib::{ContinuousCdf, DiscreteCdf, SolverError};
+use cdflib::{ContinuousCdf, DiscreteCdf, SearchError};
 use common::{assert_close, assert_close_eps, read_csv};
 use std::f64::consts::PI;
 
@@ -72,10 +72,10 @@ fn read_csv_parses_a_simple_table() {
 // --- error / trait shape sanity ------------------------------------------
 
 #[test]
-fn solver_error_displays_useful_messages() {
-    let e = SolverError::AnswerBelowLowerBound { bound: -1.0 };
+fn search_error_displays_useful_messages() {
+    let e = SearchError::AnswerBelowLowerBound { bound: -1.0 };
     assert!(e.to_string().contains("-1"), "got: {e}");
-    let e = SolverError::AnswerAboveUpperBound { bound: 1.0 };
+    let e = SearchError::AnswerAboveUpperBound { bound: 1.0 };
     assert!(e.to_string().contains('1'), "got: {e}");
 }
 
@@ -85,12 +85,12 @@ fn solver_error_displays_useful_messages() {
 struct StubContinuous;
 
 impl ContinuousCdf for StubContinuous {
-    type Error = SolverError;
+    type Error = SearchError;
     fn cdf(&self, x: f64) -> f64 {
         // Uniform on [0..1].
         x.clamp(0.0, 1.0)
     }
-    fn inverse_cdf(&self, p: f64) -> Result<f64, SolverError> {
+    fn inverse_cdf(&self, p: f64) -> Result<f64, SearchError> {
         Ok(p.clamp(0.0, 1.0))
     }
 
@@ -110,7 +110,7 @@ fn continuous_cdf_trait_shape_compiles() {
 struct StubDiscrete;
 
 impl DiscreteCdf for StubDiscrete {
-    type Error = SolverError;
+    type Error = SearchError;
     fn cdf(&self, x: u64) -> f64 {
         if x >= 1 {
             1.0
@@ -125,7 +125,7 @@ impl DiscreteCdf for StubDiscrete {
             1.0
         }
     }
-    fn inverse_cdf(&self, p: f64) -> Result<u64, SolverError> {
+    fn inverse_cdf(&self, p: f64) -> Result<u64, SearchError> {
         Ok(if p > 0.0 { 1 } else { 0 })
     }
 }

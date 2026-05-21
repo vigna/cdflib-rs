@@ -2,8 +2,8 @@ use std::cell::Cell;
 
 use thiserror::Error;
 
-use crate::error::SolverError;
-use crate::solver::{solve_monotone, SOLVER_BOUND};
+use crate::error::SearchError;
+use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::{
     gamma_inc, gamma_log, psi, try_gamma_inc, try_gamma_inc_inv, GammaIncError, GammaIncInvError,
 };
@@ -34,8 +34,8 @@ use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 /// // Pr[X ≤ 2.0]
 /// let p = g.cdf(2.0);
 ///
-/// // Solve for shape parameter given Pr[X ≤ 5.0] = 0.9 and rate = 2.0
-/// let shape = Gamma::solve_shape(0.9, 0.1, 5.0, 2.0).unwrap();
+/// // Compute shape parameter given Pr[X ≤ 5.0] = 0.9 and rate = 2.0
+/// let shape = Gamma::search_shape(0.9, 0.1, 5.0, 2.0).unwrap();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Gamma {
@@ -43,7 +43,7 @@ pub struct Gamma {
     rate: f64,
 }
 
-/// Errors arising from constructing a [`Gamma`] or from its parameter solvers.
+/// Errors arising from constructing a [`Gamma`] or from its parameter searches.
 ///
 /// [`Gamma`]: crate::Gamma
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
@@ -76,18 +76,18 @@ pub enum GammaError {
     /// Mirrors CDFLIB's `cdfgam` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SolverError`].
+    /// The internal root-finder failed; see [`SearchError`].
     ///
-    /// [`SolverError`]: crate::error::SolverError
+    /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
-    Solver(#[from] SolverError),
+    Search(#[from] SearchError),
     /// The incomplete-Γ inverse failed; see [`GammaIncInvError`].
     ///
     /// [`GammaIncInvError`]: crate::special::GammaIncInvError
     #[error(transparent)]
     GammaIncInv(#[from] GammaIncInvError),
-    /// The Γ-incomplete kernel failed during the search (CDFLIB `cdfgam`
-    /// status 10, cdflib.f90:5286). Triggered when the kernel returns its
+    /// The incomplete gamma function failed during the search (CDFLIB `cdfgam`
+    /// status 10, cdflib.f90:5286). Triggered when the routine returns its
     /// indeterminate sentinel.
     #[error(transparent)]
     GammaInc(#[from] GammaIncError),
@@ -152,7 +152,7 @@ impl Gamma {
     /// Mirrors CDFLIB's `cdfgam` with `which = 3`. Caller passes both
     /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_shape(p: f64, q: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
+    pub fn search_shape(p: f64, q: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
         check_pq(p, q)?;
         if !x.is_finite() {
             return Err(GammaError::XNotFinite(x));
@@ -168,17 +168,17 @@ impl Gamma {
         }
         // F(x; shape, rate) = P(shape, rate·x) is decreasing in shape
         // for fixed x > 0. Mirror Fortran cdfgam's precision pivot.
-        // Propagate kernel indeterminate sentinel as F90 status 10
+        // Propagate gamma_inc indeterminate sentinel as F90 status 10
         // (cdflib.f90:5286).
         let xr = x * rate;
-        let kernel_err: Cell<Option<GammaIncError>> = Cell::new(None);
+        let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |shape: f64| {
-            if kernel_err.get().is_some() {
+            if gamma_inc_err.get().is_some() {
                 return 0.0;
             }
             match try_gamma_inc(shape, xr) {
                 Err(e) => {
-                    kernel_err.set(Some(e));
+                    gamma_inc_err.set(Some(e));
                     0.0
                 }
                 Ok((cum, ccum)) => {
@@ -191,11 +191,11 @@ impl Gamma {
             }
         };
         // Match cdfgam's which=3: range (zero, inf), start = 5.0.
-        let result = solve_monotone(
-            0.0, SOLVER_BOUND, 5.0,
+        let result = search_monotone(
+            0.0, SEARCH_BOUND, 5.0,
             f,
         );
-        if let Some(e) = kernel_err.into_inner() {
+        if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }
         Ok(result?)
@@ -206,7 +206,7 @@ impl Gamma {
     /// Mirrors CDFLIB's `cdfgam` with `which = 4`. Caller passes both
     /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
     #[inline]
-    pub fn solve_rate(p: f64, q: f64, x: f64, shape: f64) -> Result<f64, GammaError> {
+    pub fn search_rate(p: f64, q: f64, x: f64, shape: f64) -> Result<f64, GammaError> {
         check_pq(p, q)?;
         if !x.is_finite() {
             return Err(GammaError::XNotFinite(x));
@@ -283,7 +283,7 @@ impl ContinuousCdf for Gamma {
         if p == 1.0 {
             return Ok(f64::INFINITY);
         }
-        // cdfgam's which=2 calls gamma_inc_inv directly: solve
+        // cdfgam's which=2 calls gamma_inc_inv directly: search
         // P(shape, xx) = p for xx, then divide out the rate.
         let q = 1.0 - p;
         let (xx, _iters) = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
@@ -406,7 +406,7 @@ mod tests {
             Err(GammaError::RateNotFinite(x)) if x.is_infinite()
         ));
         assert!(matches!(
-            Gamma::solve_shape(-0.1, 1.1, 1.0, 1.0),
+            Gamma::search_shape(-0.1, 1.1, 1.0, 1.0),
             Err(GammaError::PNotInRange(-0.1))
         ));
     }
@@ -426,21 +426,21 @@ mod tests {
     }
 
     #[test]
-    fn solve_parameter_rejects_nonpositive_inputs() {
+    fn search_parameter_rejects_nonpositive_inputs() {
         assert!(matches!(
-            Gamma::solve_shape(0.5, 0.5, 0.0, 1.0),
+            Gamma::search_shape(0.5, 0.5, 0.0, 1.0),
             Err(GammaError::XNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::solve_shape(0.5, 0.5, 1.0, 0.0),
+            Gamma::search_shape(0.5, 0.5, 1.0, 0.0),
             Err(GammaError::RateNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::solve_rate(0.5, 0.5, 1.0, 0.0),
+            Gamma::search_rate(0.5, 0.5, 1.0, 0.0),
             Err(GammaError::ShapeNotPositive(0.0))
         ));
         assert!(matches!(
-            Gamma::solve_rate(0.5, 0.5, -0.1, 2.0),
+            Gamma::search_rate(0.5, 0.5, -0.1, 2.0),
             Err(GammaError::XNotPositive(x)) if x == -0.1
         ));
     }
