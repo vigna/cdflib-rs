@@ -290,9 +290,7 @@ fn cdfnbn_s_matches_negative_binomial_inverse_ccdf() {
         let [_p, q, r, pr, s_ref] = row[..] else {
             panic!("width")
         };
-        let got = NegativeBinomial::new(r as u64, pr)
-            .inverse_ccdf(q)
-            .unwrap();
+        let got = NegativeBinomial::new(r as u64, pr).inverse_ccdf(q).unwrap();
         assert_close_eps(got, s_ref, REL, ABS);
     }
 }

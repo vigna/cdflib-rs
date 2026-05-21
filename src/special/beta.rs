@@ -337,7 +337,7 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
                 b0 -= 1.0;
                 c *= b0 / (a0 + b0);
             }
-            u = c.ln() + u;
+            u += c.ln();
             let z = a * x.ln() - u;
             b0 -= 1.0;
             let apb = a0 + b0;
@@ -422,7 +422,7 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
                 b0 -= 1.0;
                 c *= b0 / (a0 + b0);
             }
-            u = c.ln() + u;
+            u += c.ln();
             let z = z - u;
             b0 -= 1.0;
             let apb = a0 + b0;
@@ -523,7 +523,7 @@ pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
             b0 -= 1.0;
             c *= b0 / (a0 + b0);
         }
-        u = c.ln() + u;
+        u += c.ln();
         let z = z - u;
         b0 -= 1.0;
         let apb = a0 + b0;
@@ -591,7 +591,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
         // Add the increasing terms of the series.
         for i in 1..=k {
             let l = (i - 1) as f64;
-            d = ((apb + l) / (ap1 + l)) * x * d;
+            d *= ((apb + l) / (ap1 + l)) * x;
             w += d;
         }
     }

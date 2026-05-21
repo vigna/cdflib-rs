@@ -185,7 +185,11 @@ pub fn dinvnr(p: f64, q: f64) -> f64 {
         }
     }
     // Newton didn't converge; return the starting value (matches CDFLIB).
-    if p <= q { strtx } else { -strtx }
+    if p <= q {
+        strtx
+    } else {
+        -strtx
+    }
 }
 
 /// Kennedy–Gentle rational starting value for [`dinvnr`].
