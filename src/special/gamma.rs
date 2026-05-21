@@ -64,10 +64,10 @@ pub fn rexp(x: f64) -> f64 {
         x * (num / den)
     } else {
         let w = x.exp();
-        if x > 0.0 {
-            w * (0.5 + (0.5 - 1.0 / w))
+        if x <= 0.0 {
+            (w - 0.5) - 0.5
         } else {
-            w - 0.5 - 0.5
+            w * (0.5 + (0.5 - 1.0 / w))
         }
     }
 }
@@ -229,10 +229,10 @@ pub fn gam1(a: f64) -> f64 {
             ((((((P[6] * t + P[5]) * t + P[4]) * t + P[3]) * t + P[2]) * t + P[1]) * t) + P[0];
         let bot = (((Q[4] * t + Q[3]) * t + Q[2]) * t + Q[1]) * t + 1.0;
         let w = top / bot;
-        if d > 0.0 {
-            t / a * (w - 0.5 - 0.5)
-        } else {
+        if d <= 0.0 {
             a * w
+        } else {
+            (t / a) * ((w - 0.5) - 0.5)
         }
     } else {
         // t < 0
@@ -244,10 +244,10 @@ pub fn gam1(a: f64) -> f64 {
             + R[0];
         let bot = (S2 * t + S1) * t + 1.0;
         let w = top / bot;
-        if d > 0.0 {
-            t * w / a
+        if d <= 0.0 {
+            a * ((w + 0.5) + 0.5)
         } else {
-            a * (w + 0.5 + 0.5)
+            t * w / a
         }
     }
 }
@@ -409,14 +409,17 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
     if a <= -1e3 {
         return Err(GammaDomainError::Underflow(a));
     }
-    if a < 0.0 {
-        let x = -a;
+    // For negative a, build the reflection coefficient s and switch x = -a.
+    // F90 cdflib.f90:10166-10186.
+    let mut s = 0.0;
+    if a <= 0.0 {
+        x = -a;
         let n = x as i64;
         let mut t = x - n as f64;
         if t > 0.9 {
             t = 1.0 - t;
         }
-        let mut s = (PI * t).sin() / PI;
+        s = (PI * t).sin() / PI;
         if n % 2 == 0 {
             s = -s;
         }
@@ -424,36 +427,22 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
             // a is a negative integer of magnitude ≥ 15: pole.
             return Err(GammaDomainError::Pole(a));
         }
-        let t = 1.0 / (x * x);
-        let g = ((((R1 * t + R2) * t + R3) * t + R4) * t + R5) / x;
-        let lnx = x.ln();
-        let g = D + g + (x - 0.5) * (lnx - 1.0);
-        if g > 0.99999 * POS_EXPARG {
-            return Err(GammaDomainError::Overflow(a));
-        }
-        let w = g;
-        let t = g - w;
-        let result = w.exp() * (1.0 + t);
-        return Ok(1.0 / (result * s) / x);
     }
-    // a >= 15 positive branch
-    let t = 1.0 / (a * a);
-    let g = ((((R1 * t + R2) * t + R3) * t + R4) * t + R5) / a;
-    let lnx = a.ln();
-    let g = D + g + (a - 0.5) * (lnx - 1.0);
-    if g > 0.99999 * POS_EXPARG {
-        return Err(GammaDomainError::Overflow(a));
-    }
-    // F90 cdflib.f90:10201-10208 builds the result in three lines:
-    //   w = g
-    //   t = g - real(w, kind=rk)
-    //   gamma_user = exp(w) * (1.0 + t)
-    // Since g and w are both real(kind=rk), t is exactly 0.0 and the
-    // expression collapses to exp(g). The intermediate w/t pair below
-    // makes the F90 line-for-line correspondence explicit.
+    // Modified asymptotic sum, F90 cdflib.f90:10190-10208.
+    let t = 1.0 / (x * x);
+    let g = ((((R1 * t + R2) * t + R3) * t + R4) * t + R5) / x;
+    let lnx = x.ln();
+    let g = D + g + (x - 0.5) * (lnx - 1.0);
     let w = g;
     let t = g - w;
-    Ok(w.exp() * (1.0 + t))
+    if w > 0.99999 * POS_EXPARG {
+        return Err(GammaDomainError::Overflow(a));
+    }
+    let mut result = w.exp() * (1.0 + t);
+    if a < 0.0 {
+        result = (1.0 / (result * s)) / x;
+    }
+    Ok(result)
 }
 
 /// Returns ln Γ(1 + *a*) for −0.2 ≤ *a* ≤ 1.25.
@@ -601,12 +590,12 @@ pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
 
     let mut x = xx;
     let mut aug = 0.0;
+    if x == 0.0 {
+        return Err(PsiError::Pole(xx));
+    }
     if x < 0.5 {
         // Reflection: ψ(1-x) = ψ(x) + π cot(πx).
         if x.abs() <= xsmall {
-            if x == 0.0 {
-                return Err(PsiError::Pole(xx));
-            }
             aug = -1.0 / x;
         } else {
             // Argument reduction for cotan.
@@ -656,23 +645,22 @@ pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
             upper = (upper + P1[i]) * x;
         }
         let den = (upper + P1[6]) / (den + Q1[5]);
-        return Ok(den * (x - DX0) + aug);
+        Ok(den * (x - DX0) + aug)
+    } else if x < xmax1 {
+        // 3 < x < xmax1: asymptotic.
+        let w = (1.0 / x) / x;
+        let mut den = w;
+        let mut upper = P2[0] * w;
+        for i in 1..=3 {
+            den = (den + Q2[i - 1]) * w;
+            upper = (upper + P2[i]) * w;
+        }
+        let aug = upper / (den + Q2[3]) - 0.5 / x + aug;
+        Ok(aug + x.ln())
+    } else {
+        // xmax1 ≤ x
+        Ok(aug + x.ln())
     }
-
-    if x >= xmax1 {
-        return Ok(aug + x.ln());
-    }
-
-    // 3 < x < xmax1: asymptotic.
-    let w = (1.0 / x) / x;
-    let mut den = w;
-    let mut upper = P2[0] * w;
-    for i in 1..=3 {
-        den = (den + Q2[i - 1]) * w;
-        upper = (upper + P2[i]) * w;
-    }
-    let aug = upper / (den + Q2[3]) - 0.5 / x + aug;
-    Ok(aug + x.ln())
 }
 
 /// Returns ln Γ(*a*) for *a* > 0.
@@ -1102,8 +1090,8 @@ fn taylor_p_over_xa(a: f64, x: f64, acc: f64) -> (f64, f64) {
     let z = a * x.ln();
     let h = gam1(a);
     let g = 1.0 + h;
-    let use_main_form = if x < 0.25 { z > -0.13394 } else { a < x / 2.59 };
-    if use_main_form {
+    let use_label_200 = if x < 0.25 { z > -0.13394 } else { a < x / 2.59 };
+    if use_label_200 {
         let l = rexp(z);
         let w = 0.5 + (0.5 + l);
         let qans = (w * j - l) * g - h;

@@ -171,27 +171,21 @@ pub fn dinvnr(p: f64, q: f64) -> f64 {
     const EPS: f64 = 1.0e-13;
     const R2PI: f64 = 0.3989422804014326;
 
-    // Work with the smaller of the two tails; negate the result if needed.
-    let (pp, negate) = if p <= q { (p, false) } else { (q, true) };
-
+    let pp = p.min(q);
     let strtx = stvaln(pp);
     let mut xcur = strtx;
 
-    for _ in 0..MAXIT {
+    // Newton iterations.
+    for _ in 1..=MAXIT {
         let (cum, _ccum) = cumnor(xcur);
-        let dennor = R2PI * (-0.5 * xcur * xcur).exp();
-        let dx = (cum - pp) / dennor;
+        let dx = (cum - pp) / (R2PI * (-0.5 * xcur * xcur).exp());
         xcur -= dx;
         if (dx / xcur).abs() < EPS {
-            return if negate { -xcur } else { xcur };
+            return if p <= q { xcur } else { -xcur };
         }
     }
     // Newton didn't converge; return the starting value (matches CDFLIB).
-    if negate {
-        -strtx
-    } else {
-        strtx
-    }
+    if p <= q { strtx } else { -strtx }
 }
 
 /// Kennedy–Gentle rational starting value for [`dinvnr`].

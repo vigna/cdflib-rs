@@ -3,7 +3,7 @@
 
 #![allow(clippy::approx_constant, clippy::excessive_precision)]
 
-use super::erf::{error_fc, error_fc_scaled};
+use super::erf::error_fc_scaled;
 use super::gamma::{alnrel, gam1, gamma_ln1, gamma_log, gsumln, psi, rexp, rlog1};
 
 /// Largest negative argument to `exp` for which the result is nonzero in
@@ -106,19 +106,19 @@ pub fn beta_log(a0: f64, b0: f64) -> f64 {
         let c = h / (1.0 + h);
         let u = -((a - 0.5) * c.ln());
         let v = b * alnrel(h);
-        return if u <= v {
-            -(0.5 * b.ln()) + E + w - u - v
-        } else {
+        return if v < u {
             -(0.5 * b.ln()) + E + w - v - u
+        } else {
+            -(0.5 * b.ln()) + E + w - u - v
         };
     }
 
     if a < 1.0 {
         // a < 1
-        if b >= 8.0 {
-            return gamma_log(a) + algdiv(a, b);
+        if b < 8.0 {
+            return gamma_log(a) + (gamma_log(b) - gamma_log(a + b));
         }
-        return gamma_log(a) + (gamma_log(b) - gamma_log(a + b));
+        return gamma_log(a) + algdiv(a, b);
     }
 
     // 1 ≤ a < 8
@@ -313,48 +313,46 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
         result = z.exp() / a;
     } else {
         let mut b0 = a.max(b);
-        if b0 >= 8.0 {
-            // a < 1, b ≥ 8
-            let u = gamma_ln1(a0) + algdiv(a0, b0);
-            let z = a * x.ln() - u;
-            result = a0 / a * z.exp();
-        } else if b0 > 1.0 {
-            // a < 1, 1 < b < 8
-            let mut u = gamma_ln1(a0);
-            let m = (b0 - 1.0) as i64;
-            if m >= 1 {
-                let mut c = 1.0;
-                for _ in 0..m {
-                    b0 -= 1.0;
-                    c *= b0 / (a0 + b0);
-                }
-                u += c.ln();
-            }
-            let z = a * x.ln() - u;
-            b0 -= 1.0;
-            let apb = a0 + b0;
-            let t = if apb > 1.0 {
-                let u = a0 + b0 - 1.0;
-                (1.0 + gam1(u)) / apb
-            } else {
-                1.0 + gam1(apb)
-            };
-            result = z.exp() * (a0 / a) * (1.0 + gam1(b0)) / t;
-        } else {
+        if b0 <= 1.0 {
             // a < 1, b ≤ 1
             result = x.powf(a);
             if result == 0.0 {
                 return 0.0;
             }
             let apb = a + b;
-            let z = if apb > 1.0 {
+            let z = if apb <= 1.0 {
+                1.0 + gam1(apb)
+            } else {
                 let u = a + b - 1.0;
                 (1.0 + gam1(u)) / apb
-            } else {
-                1.0 + gam1(apb)
             };
             let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
             result *= c * (b / apb);
+        } else if b0 < 8.0 {
+            // a < 1, 1 < b < 8
+            let mut u = gamma_ln1(a0);
+            let m = (b0 - 1.0) as i64;
+            let mut c = 1.0;
+            for _ in 1..=m {
+                b0 -= 1.0;
+                c *= b0 / (a0 + b0);
+            }
+            u = c.ln() + u;
+            let z = a * x.ln() - u;
+            b0 -= 1.0;
+            let apb = a0 + b0;
+            let t = if apb <= 1.0 {
+                1.0 + gam1(apb)
+            } else {
+                let u = a0 + b0 - 1.0;
+                (1.0 + gam1(u)) / apb
+            };
+            result = z.exp() * (a0 / a) * (1.0 + gam1(b0)) / t;
+        } else {
+            // a < 1, b ≥ 8
+            let u = gamma_ln1(a0) + algdiv(a0, b0);
+            let z = a * x.ln() - u;
+            result = (a0 / a) * z.exp();
         }
     }
 
@@ -387,91 +385,85 @@ pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
         return 0.0;
     }
     let a0 = a.min(b);
-    if a0 >= 8.0 {
-        // a ≥ 8 and b ≥ 8
-        let (x0, y0, lambda) = if a <= b {
-            let h = a / b;
-            (h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
-        } else {
-            let h = b / a;
-            (1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
-        };
-        let e = -(lambda / a);
-        let u = if e.abs() <= 0.6 {
-            rlog1(e)
-        } else {
-            e - (x / x0).ln()
-        };
-        let e = lambda / b;
-        // Use y0 directly, not 1.0 - x0. The two are mathematically
-        // equal but 1.0 - x0 loses precision (down to exactly 0) when
-        // h = min(a,b)/max(a,b) is below f64 epsilon, while
-        // y0 = h/(1+h) preserves the small value. Matches C
-        // brcomp's use of log(y/y0).
-        let v = if e.abs() <= 0.6 {
-            rlog1(e)
-        } else {
-            e - (y / y0).ln()
-        };
-        let z = (-(a * u + b * v)).exp();
-        return CONST_VAL * (b * x0).sqrt() * z * (-bcorr(a, b)).exp();
-    }
-
-    let (lnx, lny) = if x > 0.375 {
-        if y > 0.375 {
-            (x.ln(), y.ln())
-        } else {
+    if a0 < 8.0 {
+        let (lnx, lny) = if x <= 0.375 {
+            (x.ln(), alnrel(-x))
+        } else if y <= 0.375 {
             (alnrel(-y), y.ln())
+        } else {
+            (x.ln(), y.ln())
+        };
+        let z = a * lnx + b * lny;
+        if a0 >= 1.0 {
+            return (z - beta_log(a, b)).exp();
         }
-    } else {
-        (x.ln(), alnrel(-x))
-    };
-    let z = a * lnx + b * lny;
-    if a0 >= 1.0 {
-        return (z - beta_log(a, b)).exp();
-    }
-
-    let mut b0 = a.max(b);
-    if b0 >= 8.0 {
-        let u = gamma_ln1(a0) + algdiv(a0, b0);
-        return a0 * (z - u).exp();
-    }
-    if b0 > 1.0 {
-        let mut u = gamma_ln1(a0);
-        let n = (b0 - 1.0) as i64;
-        if n >= 1 {
+        // Procedure for a < 1 or b < 1.
+        let mut b0 = a.max(b);
+        if b0 <= 1.0 {
+            let result = z.exp();
+            if result == 0.0 {
+                return 0.0;
+            }
+            let apb = a + b;
+            let z = if apb <= 1.0 {
+                1.0 + gam1(apb)
+            } else {
+                let u = a + b - 1.0;
+                (1.0 + gam1(u)) / apb
+            };
+            let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
+            return result * (a0 * c) / (1.0 + a0 / b0);
+        }
+        if b0 < 8.0 {
+            let mut u = gamma_ln1(a0);
+            let n = (b0 - 1.0) as i64;
             let mut c = 1.0;
-            for _ in 0..n {
+            for _ in 1..=n {
                 b0 -= 1.0;
                 c *= b0 / (a0 + b0);
             }
-            u += c.ln();
+            u = c.ln() + u;
+            let z = z - u;
+            b0 -= 1.0;
+            let apb = a0 + b0;
+            let t = if apb <= 1.0 {
+                1.0 + gam1(apb)
+            } else {
+                let u = a0 + b0 - 1.0;
+                (1.0 + gam1(u)) / apb
+            };
+            return a0 * z.exp() * (1.0 + gam1(b0)) / t;
         }
-        let z = z - u;
-        b0 -= 1.0;
-        let apb = a0 + b0;
-        let t = if apb > 1.0 {
-            let u = a0 + b0 - 1.0;
-            (1.0 + gam1(u)) / apb
-        } else {
-            1.0 + gam1(apb)
-        };
-        return a0 * z.exp() * (1.0 + gam1(b0)) / t;
+        // 8 <= b0
+        let u = gamma_ln1(a0) + algdiv(a0, b0);
+        return a0 * (z - u).exp();
     }
-    // b0 ≤ 1
-    let result = z.exp();
-    if result == 0.0 {
-        return 0.0;
-    }
-    let apb = a + b;
-    let z = if apb > 1.0 {
-        let u = a + b - 1.0;
-        (1.0 + gam1(u)) / apb
+    // a ≥ 8 and b ≥ 8.
+    let (x0, y0, lambda) = if a <= b {
+        let h = a / b;
+        (h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
     } else {
-        1.0 + gam1(apb)
+        let h = b / a;
+        (1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
     };
-    let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
-    result * (a0 * c) / (1.0 + a0 / b0)
+    let e = -(lambda / a);
+    let u = if e.abs() <= 0.6 {
+        rlog1(e)
+    } else {
+        e - (x / x0).ln()
+    };
+    let e = lambda / b;
+    // Use y0 directly, not 1.0 - x0. The two are mathematically equal but
+    // 1.0 - x0 loses precision (down to exactly 0) when
+    // h = min(a,b)/max(a,b) is below f64 epsilon, while y0 = h/(1+h)
+    // preserves the small value. Matches F90's use of log(y/y0).
+    let v = if e.abs() <= 0.6 {
+        rlog1(e)
+    } else {
+        e - (y / y0).ln()
+    };
+    let z = (-(a * u + b * v)).exp();
+    CONST_VAL * (b * x0).sqrt() * z * (-bcorr(a, b)).exp()
 }
 
 /// Returns exp(*μ*) · *xᵃ* · *yᵇ* / Β(*a*, *b*).
@@ -505,58 +497,55 @@ pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
         return CONST_VAL * (b * x0).sqrt() * z * (-bcorr(a, b)).exp();
     }
 
-    let (lnx, lny) = if x > 0.375 {
-        if y > 0.375 {
-            (x.ln(), y.ln())
-        } else {
-            (alnrel(-y), y.ln())
-        }
-    } else {
+    let (lnx, lny) = if x <= 0.375 {
         (x.ln(), alnrel(-x))
+    } else if y <= 0.375 {
+        (alnrel(-y), y.ln())
+    } else {
+        (x.ln(), y.ln())
     };
     let z = a * lnx + b * lny;
     if a0 >= 1.0 {
         return esum(mu, z - beta_log(a, b));
     }
-
+    // Procedure for a < 1 or b < 1.
     let mut b0 = a.max(b);
     if b0 >= 8.0 {
         let u = gamma_ln1(a0) + algdiv(a0, b0);
         return a0 * esum(mu, z - u);
     }
     if b0 > 1.0 {
+        // Algorithm for 1 < b0 < 8.
         let mut u = gamma_ln1(a0);
         let n = (b0 - 1.0) as i64;
-        if n >= 1 {
-            let mut c = 1.0;
-            for _ in 0..n {
-                b0 -= 1.0;
-                c *= b0 / (a0 + b0);
-            }
-            u += c.ln();
+        let mut c = 1.0;
+        for _ in 1..=n {
+            b0 -= 1.0;
+            c *= b0 / (a0 + b0);
         }
+        u = c.ln() + u;
         let z = z - u;
         b0 -= 1.0;
         let apb = a0 + b0;
-        let t = if apb > 1.0 {
+        let t = if apb <= 1.0 {
+            1.0 + gam1(apb)
+        } else {
             let u = a0 + b0 - 1.0;
             (1.0 + gam1(u)) / apb
-        } else {
-            1.0 + gam1(apb)
         };
         return a0 * esum(mu, z) * (1.0 + gam1(b0)) / t;
     }
-    // b0 ≤ 1
+    // Algorithm for b0 ≤ 1.
     let result = esum(mu, z);
     if result == 0.0 {
         return 0.0;
     }
     let apb = a + b;
-    let z = if apb > 1.0 {
+    let z = if apb <= 1.0 {
+        1.0 + gam1(apb)
+    } else {
         let u = a + b - 1.0;
         (1.0 + gam1(u)) / apb
-    } else {
-        1.0 + gam1(apb)
     };
     let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
     result * (a0 * c) / (1.0 + a0 / b0)
@@ -573,7 +562,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
         // F90 (cdflib.f90:2267-2273): mu = abs(exparg(1)), k = exparg(0).
         // NEG_EXPARG = exparg(1) (negative bound), POS_EXPARG = exparg(0).
         mu = NEG_EXPARG.abs() as i32;
-        let k = POS_EXPARG.abs() as i32;
+        let k = POS_EXPARG as i32;
         if k < mu {
             mu = k;
         }
@@ -587,7 +576,9 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
     let mut w = d;
     let mut k = 0_i32;
     if b > 1.0 {
-        if y > 1e-4 {
+        if y <= 1e-4 {
+            k = nm1;
+        } else {
             let r = (b - 1.0) * x / y - a;
             if r >= 1.0 {
                 let t = nm1 as f64;
@@ -596,13 +587,11 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
                     k = r as i32;
                 }
             }
-        } else {
-            k = nm1;
         }
-        // Add increasing terms.
+        // Add the increasing terms of the series.
         for i in 1..=k {
             let l = (i - 1) as f64;
-            d *= (apb + l) / (ap1 + l) * x;
+            d = ((apb + l) / (ap1 + l)) * x * d;
             w += d;
         }
     }
@@ -659,8 +648,8 @@ pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
         let z = a * x.ln();
         let h = gam1(a);
         let g = 1.0 + h;
-        let use_main = if x < 0.25 { z > -0.13394 } else { a < x / 2.59 };
-        return if use_main {
+        let use_label_50 = if x < 0.25 { z > -0.13394 } else { a < x / 2.59 };
+        return if use_label_50 {
             let l = rexp(z);
             let w = 0.5 + (0.5 + l);
             let q = (w * j - l) * g - h;
@@ -886,7 +875,6 @@ pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
     }
 
     let u = (-bcorr(a, b)).exp();
-    let _ = error_fc; // ensure linkage
     E0 * t * u * sum
 }
 
