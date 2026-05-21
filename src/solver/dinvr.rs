@@ -1,7 +1,7 @@
-//! CDFLIB's `dinvr` / `E0000` bracket-and-invert search.
+//! CDFLIB's `dinvr` / `E0000` range-and-invert search.
 //!
 //! Like [`super::dzror::ZrorState`] this is a state machine driven by
-//! reverse communication. The bracketing phase doubles the step until
+//! reverse communication. The expansion phase doubles the step until
 //! the search interval contains a sign change, then hands off to
 //! [`super::dzror::ZrorState`] for refinement.
 
@@ -99,7 +99,7 @@ impl InvrState {
             Stage::AwaitFbig => {
                 self.fbig = fx;
                 self.qincr = self.fbig > self.fsmall;
-                // Check that small and big bracket the zero. F90 dinvr
+                // Check that the zero lies in [small, big]. F90 dinvr
                 // (cdflib.f90:8054-8083) splits on fsmall <= fbig
                 // (inclusive) versus fbig < fsmall (strict). The tie
                 // case fsmall == fbig takes the <= branch. qincr above
@@ -166,7 +166,7 @@ impl InvrState {
                 let qbdd = (self.qincr && yy >= 0.0) || (!self.qincr && yy <= 0.0);
                 let qlim = self.xub >= self.cfg.big;
                 if qbdd {
-                    // Bracket found: start dzror on (xlb, xub).
+                    // Sign change found: start dzror on (xlb, xub).
                     return self.start_zror();
                 }
                 if qlim {
@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_increasing_bracket_when_small_is_already_positive() {
+    fn rejects_increasing_range_when_small_is_already_positive() {
         let mut state = InvrState::new(cfg(), 0.5);
         assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
         assert!(matches!(state.step(1.0), InvrAction::NeedEval(1.0)));
@@ -270,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_increasing_bracket_when_big_is_still_negative() {
+    fn rejects_increasing_range_when_big_is_still_negative() {
         let mut state = InvrState::new(cfg(), 0.5);
         assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
         assert!(matches!(state.step(-2.0), InvrAction::NeedEval(1.0)));
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_decreasing_bracket_when_small_is_already_negative() {
+    fn rejects_decreasing_range_when_small_is_already_negative() {
         let mut state = InvrState::new(cfg(), 0.5);
         assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
         assert!(matches!(state.step(-1.0), InvrAction::NeedEval(1.0)));
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_decreasing_bracket_when_big_is_still_positive() {
+    fn rejects_decreasing_range_when_big_is_still_positive() {
         let mut state = InvrState::new(cfg(), 0.5);
         assert!(matches!(state.step(0.0), InvrAction::NeedEval(0.0)));
         assert!(matches!(state.step(2.0), InvrAction::NeedEval(1.0)));

@@ -124,7 +124,7 @@ impl FisherSnedecor {
     ///
     /// Mirrors CDFLIB's `cdff` with `which = 3`. Caller passes both *p*
     /// and *q* = 1 − *p*; consistency is enforced within 3 ε. The search
-    /// is bracketed below by 1, since *dfn* < 1 makes `cumf`'s
+    /// has lower bound 1, since *dfn* < 1 makes `cumf`'s
     /// `beta_inc` call diverge.
     #[inline]
     pub fn solve_dfn(p: f64, q: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
@@ -162,7 +162,7 @@ impl FisherSnedecor {
     /// Pr[*X* ≤ *f*] = *p* given *dfn*.
     ///
     /// Mirrors CDFLIB's `cdff` with `which = 4`. Caller passes both *p*
-    /// and *q* = 1 − *p*; consistency is enforced within 3 ε. Bracketed
+    /// and *q* = 1 − *p*; consistency is enforced within 3 ε. Lower-bounded
     /// below by 1 for the same convergence reason as
     /// [`solve_dfn`](Self::solve_dfn).
     #[inline]
@@ -283,7 +283,7 @@ impl ContinuousCdf for FisherSnedecor {
                 ccum - q
             }
         };
-        // Match cdff's which=2: bracket (0, inf), start = 5.0.
+        // Match cdff's which=2: range (0, inf), start = 5.0.
         Ok(solve_monotone(
             0.0, SOLVER_BOUND, 5.0,
             func,

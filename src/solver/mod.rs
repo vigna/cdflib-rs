@@ -95,7 +95,7 @@ pub(crate) fn solve_monotone_with_atol(
     // CDFLIB's dinvr aborts (ftnstop) if start ∉ [small . . big]
     // (cdflib.f90:8020-8024). Return a typed error instead.
     if !(small <= start && start <= big) {
-        return Err(SolverError::StartOutOfBracket { start, small, big });
+        return Err(SolverError::StartOutOfRange { start, small, big });
     }
 
     let cfg = InvrConfig {
@@ -129,7 +129,7 @@ pub(crate) fn solve_monotone_with_atol(
     }
 }
 
-/// Returns *x* such that *f*(*x*) = 0 on a bracketed interval, driving
+/// Returns *x* such that *f*(*x*) = 0 on a a range [xlo, xhi], driving
 /// CDFLIB's `dzror` state machine directly.
 #[inline]
 pub(crate) fn solve_bounded_zero(
@@ -199,7 +199,7 @@ mod tests {
 
     // ============================ Failure paths in dinvr ============================
     //
-    // These cover the four bracket-validity branches and the qlim overshoot
+    // These cover the four range-validity branches and the qlim overshoot
     // failures. Each one constructs a function where the [small . . big] range
     // does NOT enclose a root, or the root lies outside even after expansion.
 
@@ -254,7 +254,7 @@ mod tests {
     fn nan_objective_surfaces_as_search_failure() {
         // A NaN-returning objective surfaces as AnswerBelowLowerBound
         // (the initial NaN at `start` is neither < 0 nor > 0, so the
-        // bracket-expansion logic falls through).
+        // range-expansion logic falls through).
         let err = solve_monotone(0.0, 1.0, 0.5, |_| f64::NAN).unwrap_err();
         assert!(matches!(
             err,

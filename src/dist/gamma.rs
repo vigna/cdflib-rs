@@ -190,7 +190,7 @@ impl Gamma {
                 }
             }
         };
-        // Match cdfgam's which=3: bracket (zero, inf), start = 5.0.
+        // Match cdfgam's which=3: range (zero, inf), start = 5.0.
         let result = solve_monotone(
             0.0, SOLVER_BOUND, 5.0,
             f,

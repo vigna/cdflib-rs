@@ -150,7 +150,7 @@ impl ChiSquaredNoncentral {
             return Err(ChiSquaredNoncentralError::NcpNegative(ncp));
         }
         let f = |df: f64| cumchn(x, df, ncp).0 - p;
-        // Match cdfchn's which=3: bracket (zero, inf), start = 5.0, atol = 1e-50.
+        // Match cdfchn's which=3: range (zero, inf), start = 5.0, atol = 1e-50.
         Ok(solve_monotone_with_atol(
             0.0, SOLVER_BOUND, 5.0,
             1.0e-50,
@@ -160,8 +160,8 @@ impl ChiSquaredNoncentral {
 
     /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *x*] = *p* given *df*.
     ///
-    /// Mirrors CDFLIB's `cdfchn` with `which = 4`. The search is bracketed
-    /// on (0, 10⁴] because `cumchn`'s iteration cost grows with *λ*. As in
+    /// Mirrors CDFLIB's `cdfchn` with `which = 4`. The search runs over
+    /// (0, 10⁴] because `cumchn`'s iteration cost grows with *λ*. As in
     /// [`solve_df`](Self::solve_df), *q* is dropped from the Rust surface.
     #[inline]
     pub fn solve_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
@@ -306,7 +306,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         let df = self.df;
         let ncp = self.ncp;
         let f = |x: f64| cumchn(x, df, ncp).0 - p;
-        // Match cdfchn's which=2: bracket (0, inf), start = 5.0, atol = 1e-50.
+        // Match cdfchn's which=2: range (0, inf), start = 5.0, atol = 1e-50.
         Ok(solve_monotone_with_atol(
             0.0, SOLVER_BOUND, 5.0,
             1.0e-50,

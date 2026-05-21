@@ -146,7 +146,7 @@ impl ChiSquared {
                 }
             }
         };
-        // Match cdfchi's which=3 dstinv setup: bracket (0, inf), start = 5.0.
+        // Match cdfchi's which=3 dstinv setup: range (0, inf), start = 5.0.
         let result = solve_monotone(
             0.0, SOLVER_BOUND, 5.0,
             f,
@@ -241,7 +241,7 @@ impl ContinuousCdf for ChiSquared {
                 }
             }
         };
-        // Match cdfchi's which=2: bracket (0, inf), start = 5.0.
+        // Match cdfchi's which=2: range (0, inf), start = 5.0.
         let result = solve_monotone(
             0.0, SOLVER_BOUND, 5.0,
             f,

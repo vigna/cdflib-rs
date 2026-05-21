@@ -132,7 +132,7 @@ impl NegativeBinomial {
                 ccum - q
             }
         };
-        // Match cdfnbn's which=3: bracket (0, inf), start = 5.0.
+        // Match cdfnbn's which=3: range (0, inf), start = 5.0.
         Ok(solve_monotone(
             0.0, SOLVER_BOUND, 5.0,
             f,
@@ -230,7 +230,7 @@ impl DiscreteCdf for NegativeBinomial {
         }
         let pr = self.pr;
         let r = self.r as f64;
-        // Smallest s with cdf(s) >= p; bracket then bisect.
+        // Smallest s with cdf(s) >= p; sample then bisect.
         let mean = r * (1.0 - pr) / pr;
         let sd = (mean / pr).sqrt();
         let mut hi = (mean + 10.0 * sd + 10.0).ceil() as u64;
@@ -238,7 +238,7 @@ impl DiscreteCdf for NegativeBinomial {
             hi *= 2;
         }
         // Saturate at u64::MAX rather than silently return a wrong answer if
-        // expansion exits without bracketing. Unreachable for realistic
+        // expansion exits without finding a sign change. Unreachable for realistic
         // parameters, but preserves the "smallest s with cdf(s) ≥ p" contract.
         if self.cdf(hi) < p {
             return Ok(u64::MAX);

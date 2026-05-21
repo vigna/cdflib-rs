@@ -29,8 +29,8 @@ pub enum SolverError {
     /// The solution lay above the upper search bound (CDFLIB `status = 2`).
     #[error("answer fell above upper search bound {bound}")]
     AnswerAboveUpperBound { bound: f64 },
-    /// The initial guess `start` fell outside the bracket `[small . . big]`.
+    /// The initial guess `start` fell outside the range `[small . . big]`.
     /// Mirrors CDFLIB's `DINVR` fatal-error abort at cdflib.f90:8020-8024.
-    #[error("start {start} fell outside the bracket [{small}, {big}]")]
-    StartOutOfBracket { start: f64, small: f64, big: f64 },
+    #[error("start {start} fell outside [{small}, {big}]")]
+    StartOutOfRange { start: f64, small: f64, big: f64 },
 }

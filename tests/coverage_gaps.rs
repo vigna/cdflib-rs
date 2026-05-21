@@ -344,7 +344,7 @@ fn poisson_inverse_cdf_high_quantile() {
     // heuristic comfortably covers any p representable as `f64 < 1`
     // (the inverse Normal at `nextDown(1.0)` is only ≈ 8σ), so this
     // expansion is structurally defensive, exercised only when the
-    // initial bracket undershoots. The test just confirms the
+    // initial range undershoots. The test just confirms the
     // surrounding inverse_cdf path returns a consistent result.
     let d = Poisson::new(4.0);
     let p = 1.0 - 1e-12;

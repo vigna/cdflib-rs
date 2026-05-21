@@ -143,7 +143,7 @@ impl FisherSnedecorNoncentral {
 
     /// Returns the numerator degrees of freedom *dfn* satisfying
     /// Pr[*X* ≤ *f*] = *p* given *dfd* and *λ*. Mirrors CDFLIB's `cdffnc`
-    /// with `which = 3`. The search is bracketed in [1 . . 10³⁰].
+    /// with `which = 3`. The search runs over [1 . . 10³⁰].
     ///
     /// Unlike most `cdf*` solvers, this one does not take *q*: CDFLIB
     /// (cdflib.f90:3766) documents *q* as "not used by this subroutine,
@@ -176,7 +176,7 @@ impl FisherSnedecorNoncentral {
             return Err(FisherSnedecorNoncentralError::NcpNegative(ncp));
         }
         let func = |dfn: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
-        // Match cdffnc's which=3: bracket (1.0, inf) with inf = 1.0D+30
+        // Match cdffnc's which=3: range (1.0, inf) with inf = 1.0D+30
         // (Fortran cdflib.f90:4460, :4619: cdffnc caps inf at 1e30 and
         // explicitly lifts the lower bound from 0 to 1, since dfn < 1
         // makes cumfnc's beta_inc call diverge).
@@ -218,7 +218,7 @@ impl FisherSnedecorNoncentral {
         }
         let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // CDF is increasing in dfd for fixed f, dfn, ncp.
-        // Match cdffnc's which=4: bracket (1.0, inf) with inf = 1.0D+30
+        // Match cdffnc's which=4: range (1.0, inf) with inf = 1.0D+30
         // (Fortran cdflib.f90:4460, :4658: same rationale as solve_dfn).
         Ok(solve_monotone(
             1.0, 1.0e30, 5.0,
@@ -228,7 +228,7 @@ impl FisherSnedecorNoncentral {
 
     /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *f*] = *p* given
     /// *dfn* and *dfd*. Mirrors CDFLIB's `cdffnc` with `which = 5`. The
-    /// search is bracketed at 10⁴ above to avoid overflow inside `cumfnc`.
+    /// search is capped at 10⁴ above to avoid overflow inside `cumfnc`.
     /// As in [`solve_dfn`](Self::solve_dfn), *q* is dropped from the Rust
     /// surface.
     #[inline]
@@ -405,7 +405,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         let dfd = self.dfd;
         let ncp = self.ncp;
         let func = |x: f64| cumfnc(x, dfn, dfd, ncp).0 - p;
-        // Match cdffnc's which=2: bracket (0, inf) with inf = 1.0D+30
+        // Match cdffnc's which=2: range (0, inf) with inf = 1.0D+30
         // (Fortran cdflib.f90:4460, :4579: cdffnc caps inf at 1e30
         // because cumfnc's series overflows further out).
         Ok(solve_monotone(

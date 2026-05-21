@@ -131,7 +131,7 @@ impl Poisson {
                 sf_upper - q
             }
         };
-        // Match cdfpoi's which=3: bracket (0, inf), start = 5.0.
+        // Match cdfpoi's which=3: range (0, inf), start = 5.0.
         Ok(solve_monotone(
             0.0, SOLVER_BOUND, 5.0,
             f,
@@ -191,7 +191,7 @@ impl DiscreteCdf for Poisson {
         if p == 1.0 {
             return Ok(u64::MAX);
         }
-        // Bracket then bisection on integers; the CDF is monotone increasing in s.
+        // Sample then bisect on integers; the CDF is monotone increasing in s.
         // Start with mean ± 5σ.
         let mean = self.lambda;
         let sd = self.lambda.sqrt();
@@ -201,7 +201,7 @@ impl DiscreteCdf for Poisson {
             hi *= 2;
         }
         // Unreachable for any f64-representable λ (Poisson tails decay much
-        // faster than 2⁶²), but if the expansion exits without bracketing,
+        // faster than 2⁶²), but if the expansion exits without finding a sign change,
         // saturate at u64::MAX so the contract "smallest x with cdf(x) ≥ p"
         // is never silently violated.
         if self.cdf(hi) < p {
@@ -360,7 +360,7 @@ mod tests {
 
     // Solver convergence in this regime depends on the host FPU's exact
     // ln/exp results; miri's soft-float libm shims accumulate enough drift
-    // through gamma_inc that the bracket-and-refine step can no longer
+    // through gamma_inc that the range-and-refine step can no longer
     // certify a sign change. Skipped under miri.
     #[cfg(not(miri))]
     #[test]
