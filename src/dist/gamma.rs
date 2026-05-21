@@ -3,7 +3,7 @@ use std::cell::Cell;
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::solver::{solve_monotone, SOLVER_BOUND};
 use crate::special::{
     gamma_inc, gamma_log, psi, try_gamma_inc, try_gamma_inc_inv, GammaIncError, GammaIncInvError,
 };
@@ -192,11 +192,7 @@ impl Gamma {
         };
         // Match cdfgam's which=3: bracket (zero, inf), start = 5.0.
         let result = solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             f,
         );
         if let Some(e) = kernel_err.into_inner() {

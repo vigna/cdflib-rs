@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::solver::{solve_monotone, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -153,11 +153,7 @@ impl FisherSnedecor {
             }
         };
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 1.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            1.0, SOLVER_BOUND, 5.0,
             func,
         )?)
     }
@@ -196,11 +192,7 @@ impl FisherSnedecor {
             }
         };
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 1.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            1.0, SOLVER_BOUND, 5.0,
             func,
         )?)
     }
@@ -293,11 +285,7 @@ impl ContinuousCdf for FisherSnedecor {
         };
         // Match cdff's which=2: bracket (0, inf), start = 5.0.
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             func,
         )?)
     }
@@ -331,11 +319,7 @@ impl FisherSnedecor {
             }
         };
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             func,
         )?)
     }

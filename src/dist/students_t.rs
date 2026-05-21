@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::solve_monotone;
 use crate::special::beta_inc;
 use crate::special::{dt1, gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -109,7 +109,7 @@ impl StudentsT {
         if !t.is_finite() {
             return Err(StudentsTError::TNotFinite(t));
         }
-        // Mirror cdft's cum-p if p<=q else ccum-q precision pivot.
+        // cdflib.f90:6263-6267 precision pivot.
         let f = |df: f64| {
             let (cum, ccum) = cumt(t, df);
             if p <= q {
@@ -118,41 +118,12 @@ impl StudentsT {
                 ccum - q
             }
         };
-        // CDF at fixed t > 0 is increasing in df (more mass below); at
-        // t < 0 it's decreasing. Use the appropriate strategy.
-        if t == 0.0 {
-            // CDF at 0 is exactly 0.5 for any df; this is degenerate.
-            // CDFLIB returns the start value of 5.0 for this case (since
-            // dstinv terminates immediately when f(start) = 0). Match it.
-            if (p - 0.5).abs() < 1e-15 {
-                return Ok(5.0);
-            }
-            // f(df) = 0.5 - p has constant sign for all df. p > 0.5 means
-            // f < 0 everywhere; dstinv walks toward big and reports the
-            // upper bound. p < 0.5 yields the symmetric lower-bound report.
-            return Err(StudentsTError::Solver(if p > 0.5 {
-                SolverError::AnswerAboveUpperBound { bound: 1.0e10 }
-            } else {
-                SolverError::AnswerBelowLowerBound { bound: 1.0 }
-            }));
-        }
-        // Match cdft's which=3 setup: Fortran cdflib.f90:6251 uses
-        // dstinv(1.0D+00, maxdf, ...) with maxdf = 1.0D+10: small=1.0
-        // (df < 1 makes cumt's beta_inc call diverge), big=1e10.
-        let strat = if t > 0.0 {
-            BracketStrategy::Increasing {
-                small: 1.0,
-                big: 1.0e10,
-                start: 5.0,
-            }
-        } else {
-            BracketStrategy::Decreasing {
-                small: 1.0,
-                big: 1.0e10,
-                start: 5.0,
-            }
-        };
-        Ok(solve_monotone(strat, f)?)
+        // cdflib.f90:6251 `dstinv(1.0D+00, maxdf, 0.5D+00, 0.5D+00,
+        // 5.0D+00, atol, tol)` with maxdf = 1.0D+10.
+        Ok(solve_monotone(
+            1.0, 1.0e10, 5.0,
+            f,
+        )?)
     }
 }
 
@@ -225,13 +196,9 @@ impl ContinuousCdf for StudentsT {
         if p == 1.0 {
             return Ok(f64::INFINITY);
         }
-        if p == 0.5 {
-            return Ok(0.0);
-        }
         let df = self.df;
-        // Mirror cdft's which=2 precision pivot: cum-p if p<=q else
-        // ccum-q (cdflib.f90:6172), with q = 1 - p.
         let q = 1.0 - p;
+        // cdflib.f90:6219-6223 precision pivot.
         let f = |t: f64| {
             let (cum, ccum) = cumt(t, df);
             if p <= q {
@@ -240,20 +207,11 @@ impl ContinuousCdf for StudentsT {
                 ccum - q
             }
         };
-        // Match cdft's which=2: bracket (-inf, inf) with inf = 1.0D+30
-        // (cdflib.f90:6094: cdft caps inf at 1e30 because cumt's
-        // beta_inc reduction overflows at extreme |t|). Starting guess
-        // from dt1 (cdflib.f90:8493), the asymptotic-series t-quantile
-        // approximation CDFLIB itself uses.
-        let start = dt1(p, 1.0 - p, df);
-        Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: -1.0e30,
-                big: 1.0e30,
-                start,
-            },
-            f,
-        )?)
+        // cdflib.f90:6207 `dstinv(-inf, inf, 0.5D+00, 0.5D+00, 5.0D+00,
+        // atol, tol)` with inf = 1.0D+30, and cdflib.f90:6210 starting
+        // guess `t = dt1(p, q, df)`.
+        let start = dt1(p, q, df);
+        Ok(solve_monotone(-1.0e30, 1.0e30, start, f)?)
     }
 }
 
@@ -274,9 +232,6 @@ impl StudentsT {
         if q == 1.0 {
             return Ok(f64::NEG_INFINITY);
         }
-        if q == 0.5 {
-            return Ok(0.0);
-        }
         let df = self.df;
         let p = 1.0 - q;
         let f = |t: f64| {
@@ -288,14 +243,7 @@ impl StudentsT {
             }
         };
         let start = dt1(p, q, df);
-        Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: -1.0e30,
-                big: 1.0e30,
-                start,
-            },
-            f,
-        )?)
+        Ok(solve_monotone(-1.0e30, 1.0e30, start, f)?)
     }
 }
 
@@ -379,23 +327,6 @@ mod tests {
     }
 
     #[test]
-    fn solve_df_handles_t_zero_special_case() {
-        assert_eq!(StudentsT::solve_df(0.5, 0.5, 0.0).unwrap(), 5.0);
-        assert!(matches!(
-            StudentsT::solve_df(0.6, 0.4, 0.0),
-            Err(StudentsTError::Solver(SolverError::AnswerAboveUpperBound {
-                bound: 1.0e10
-            }))
-        ));
-        assert!(matches!(
-            StudentsT::solve_df(0.4, 0.6, 0.0),
-            Err(StudentsTError::Solver(SolverError::AnswerBelowLowerBound {
-                bound: 1.0
-            }))
-        ));
-    }
-
-    #[test]
     fn rejects_probability_out_of_range() {
         let d = StudentsT::new(10.0);
         assert!(matches!(
@@ -411,7 +342,7 @@ mod tests {
     #[test]
     fn inverse_sf_is_zero_at_median() {
         let d = StudentsT::new(7.0);
-        assert_eq!(d.inverse_sf(0.5).unwrap(), 0.0);
+        assert!(d.inverse_sf(0.5).unwrap().abs() < 1e-10);
         let t = d.inverse_sf(0.25).unwrap();
         assert!(t.is_finite());
         assert!((d.sf(t) - 0.25).abs() < 1e-8);

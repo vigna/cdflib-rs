@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone_with_atol, BracketStrategy, SOLVER_BOUND};
+use crate::solver::{solve_monotone_with_atol, SOLVER_BOUND};
 use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
@@ -152,11 +152,7 @@ impl ChiSquaredNoncentral {
         let f = |df: f64| cumchn(x, df, ncp).0 - p;
         // Match cdfchn's which=3: bracket (zero, inf), start = 5.0, atol = 1e-50.
         Ok(solve_monotone_with_atol(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             1.0e-50,
             f,
         )?)
@@ -188,11 +184,7 @@ impl ChiSquaredNoncentral {
         // with ncp so unbounded searches are intentionally avoided.
         // atol = 1e-50 per cdfchn (cdflib.f90:3719).
         Ok(solve_monotone_with_atol(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: 1.0e4,
-                start: 5.0,
-            },
+            0.0, 1.0e4, 5.0,
             1.0e-50,
             f,
         )?)
@@ -316,11 +308,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         let f = |x: f64| cumchn(x, df, ncp).0 - p;
         // Match cdfchn's which=2: bracket (0, inf), start = 5.0, atol = 1e-50.
         Ok(solve_monotone_with_atol(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             1.0e-50,
             f,
         )?)

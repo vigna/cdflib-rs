@@ -3,7 +3,7 @@ use thiserror::Error;
 use std::cell::Cell;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::solver::{solve_monotone, SOLVER_BOUND};
 use crate::special::{gamma_inc, try_gamma_inc, GammaIncError};
 use crate::special::{gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -148,11 +148,7 @@ impl ChiSquared {
         };
         // Match cdfchi's which=3 dstinv setup: bracket (0, inf), start = 5.0.
         let result = solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             f,
         );
         if let Some(e) = kernel_err.into_inner() {
@@ -247,11 +243,7 @@ impl ContinuousCdf for ChiSquared {
         };
         // Match cdfchi's which=2: bracket (0, inf), start = 5.0.
         let result = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             f,
         );
         if let Some(e) = kernel_err.into_inner() {
@@ -299,11 +291,7 @@ impl ChiSquared {
             }
         };
         let result = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             f,
         );
         if let Some(e) = kernel_err.into_inner() {

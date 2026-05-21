@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy};
+use crate::solver::solve_monotone;
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
@@ -181,11 +181,7 @@ impl FisherSnedecorNoncentral {
         // explicitly lifts the lower bound from 0 to 1, since dfn < 1
         // makes cumfnc's beta_inc call diverge).
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 1.0,
-                big: 1.0e30,
-                start: 5.0,
-            },
+            1.0, 1.0e30, 5.0,
             func,
         )?)
     }
@@ -225,11 +221,7 @@ impl FisherSnedecorNoncentral {
         // Match cdffnc's which=4: bracket (1.0, inf) with inf = 1.0D+30
         // (Fortran cdflib.f90:4460, :4658: same rationale as solve_dfn).
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 1.0,
-                big: 1.0e30,
-                start: 5.0,
-            },
+            1.0, 1.0e30, 5.0,
             func,
         )?)
     }
@@ -269,11 +261,7 @@ impl FisherSnedecorNoncentral {
         // Upper bound 1e4 matches CDFLIB's hard cap; larger bounds (e.g.
         // 1e300) overflow inside cumfnc's function evaluations.
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: 1.0e4,
-                start: 5.0,
-            },
+            0.0, 1.0e4, 5.0,
             func,
         )?)
     }
@@ -421,11 +409,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         // (Fortran cdflib.f90:4460, :4579: cdffnc caps inf at 1e30
         // because cumfnc's series overflows further out).
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: 1.0e30,
-                start: 5.0,
-            },
+            0.0, 1.0e30, 5.0,
             func,
         )?)
     }

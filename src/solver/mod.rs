@@ -36,19 +36,6 @@ use crate::error::SolverError;
 use dinvr::{InvrAction, InvrConfig, InvrState};
 use dzror::{ZrorAction, ZrorConfig, ZrorState};
 
-/// How to expand the bracket starting from an initial guess.
-///
-/// [`solve_monotone`] interprets [`Increasing`] as “*f* is non-decreasing
-/// on [`small`, `big`]” and [`Decreasing`] as “*f* is non-increasing”.
-///
-/// [`Increasing`]: BracketStrategy::Increasing
-/// [`Decreasing`]: BracketStrategy::Decreasing
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum BracketStrategy {
-    Increasing { small: f64, big: f64, start: f64 },
-    Decreasing { small: f64, big: f64, start: f64 },
-}
-
 pub(crate) const SOLVER_BOUND: f64 = 1.0e300;
 
 // CDFLIB's cdf* dispatchers all set up dstinv with the same K-block
@@ -68,24 +55,22 @@ pub(crate) const ABS_TOL: f64 = 1.0e-10;
 const REL_TOL: f64 = 1.0e-8;
 
 /// Returns *x* such that *f*(*x*) = 0 on a monotone function, driving
-/// CDFLIB's `dinvr` state machine internally.
-///
-/// `strategy` provides the search bounds and initial guess. The wrapped
-/// CDFLIB `dinvr` state machine infers monotonicity from the endpoint
-/// evaluations, so both increasing and decreasing callsites pass the
-/// original residual unchanged.
+/// CDFLIB's `dinvr` state machine internally. `small` and `big` map onto
+/// F90 `dstinv`'s first two arguments (`zsmall`, `zbig`, cdflib.f90:8256);
+/// `start` is the initial `x` passed to `dinvr` itself. Monotonicity is
+/// inferred by `dinvr` from the endpoint evaluations.
 ///
 /// Uses the default absolute tolerance [`ABS_TOL`] = 1e-10, matching every
 /// CDFLIB `cdf*` dispatcher except `cdfchn`; that one wants a tighter
 /// `atol` and uses [`solve_monotone_with_atol`] instead.
-///
-/// [`Decreasing`]: BracketStrategy::Decreasing
 #[inline]
 pub(crate) fn solve_monotone(
-    strategy: BracketStrategy,
+    small: f64,
+    big: f64,
+    start: f64,
     f: impl FnMut(f64) -> f64,
 ) -> Result<f64, SolverError> {
-    solve_monotone_with_atol(strategy, ABS_TOL, f)
+    solve_monotone_with_atol(small, big, start, ABS_TOL, f)
 }
 
 /// Returns *x* such that *f*(*x*) = 0, like [`solve_monotone`] but with a
@@ -93,15 +78,12 @@ pub(crate) fn solve_monotone(
 /// match `cdfchn`'s `atol = 1e-50`.
 #[inline]
 pub(crate) fn solve_monotone_with_atol(
-    strategy: BracketStrategy,
+    small: f64,
+    big: f64,
+    start: f64,
     abs_tol: f64,
     mut f: impl FnMut(f64) -> f64,
 ) -> Result<f64, SolverError> {
-    let (small, big, start): (f64, f64, f64) = match strategy {
-        BracketStrategy::Increasing { small, big, start } => (small, big, start),
-        BracketStrategy::Decreasing { small, big, start } => (small, big, start),
-    };
-
     // Cap the upper bound at 1e300 the way CDFLIB's cdf* callers do:
     // f64::MAX causes many cdflib::special::* evaluators (e.g.
     // gamma_inc(a, MAX)) to NaN due to Inf-Inf cancellation in their
@@ -110,7 +92,7 @@ pub(crate) fn solve_monotone_with_atol(
     let big = big.min(SOLVER_BOUND);
     let small = small.max(-SOLVER_BOUND);
 
-    // CDFLIB's dinvr aborts (ftnstop) if start ∉ [small . . big]
+    // CDFLIB's dinvr aborts (ftnstop) if start ∉ [small . . big]
     // (cdflib.f90:8020-8024). Return a typed error instead.
     if !(small <= start && start <= big) {
         return Err(SolverError::StartOutOfBracket { start, small, big });
@@ -196,45 +178,21 @@ mod tests {
     #[test]
     fn solves_increasing_function() {
         // f(x) = x³ - 8; root at x = 2.
-        let r = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: 100.0,
-                start: 1.0,
-            },
-            |x| x.powi(3) - 8.0,
-        )
-        .unwrap();
+        let r = solve_monotone(0.0, 100.0, 1.0, |x| x.powi(3) - 8.0).unwrap();
         assert!((r - 2.0).abs() < 1e-10, "r = {r}");
     }
 
     #[test]
     fn solves_decreasing_function() {
         // f(x) = 1/x - 0.25; root at x = 4.
-        let r = solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.01,
-                big: 1000.0,
-                start: 10.0,
-            },
-            |x| 1.0 / x - 0.25,
-        )
-        .unwrap();
+        let r = solve_monotone(0.01, 1000.0, 10.0, |x| 1.0 / x - 0.25).unwrap();
         assert!((r - 4.0).abs() < 1e-10, "r = {r}");
     }
 
     #[test]
     fn solves_root_at_moderate_value() {
         // f(x) = ln(x) - 1 → root at x = e.
-        let r = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 1e-10,
-                big: 1000.0,
-                start: 1.0,
-            },
-            |x| x.ln() - 1.0,
-        )
-        .unwrap();
+        let r = solve_monotone(1e-10, 1000.0, 1.0, |x| x.ln() - 1.0).unwrap();
         let e = std::f64::consts::E;
         assert!((r - e).abs() / e < 1e-8, "r = {r}, e = {e}");
     }
@@ -242,20 +200,13 @@ mod tests {
     // ============================ Failure paths in dinvr ============================
     //
     // These cover the four bracket-validity branches and the qlim overshoot
-    // failures. Each one constructs a function where the bracket [small . . big]
+    // failures. Each one constructs a function where the [small . . big] range
     // does NOT enclose a root, or the root lies outside even after expansion.
 
     #[test]
     fn increasing_fsmall_positive_fails_at_small() {
         // f is monotone increasing but already positive at small.
-        let r = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 1.0,
-                big: 10.0,
-                start: 5.0,
-            },
-            |x| x + 1.0, // always positive on [1..10]
-        );
+        let r = solve_monotone(1.0, 10.0, 5.0, |x| x + 1.0);
         assert!(matches!(
             r,
             Err(SolverError::AnswerBelowLowerBound { bound }) if bound == 1.0
@@ -264,16 +215,8 @@ mod tests {
 
     #[test]
     fn increasing_fbig_negative_fails_at_big() {
-        // Monotone increasing but f(big) still negative, impossible for
-        // a truly increasing function reaching its target above big.
-        let r = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 1.0,
-                big: 10.0,
-                start: 5.0,
-            },
-            |x| x - 100.0, // f(10) = -90 < 0
-        );
+        // Monotone increasing but f(big) still negative.
+        let r = solve_monotone(1.0, 10.0, 5.0, |x| x - 100.0);
         assert!(matches!(
             r,
             Err(SolverError::AnswerAboveUpperBound { bound }) if bound == 10.0
@@ -283,14 +226,7 @@ mod tests {
     #[test]
     fn decreasing_fsmall_negative_fails_at_small() {
         // Monotone decreasing but f(small) already negative.
-        let r = solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 1.0,
-                big: 10.0,
-                start: 5.0,
-            },
-            |x| -x - 1.0, // always negative
-        );
+        let r = solve_monotone(1.0, 10.0, 5.0, |x| -x - 1.0);
         assert!(matches!(
             r,
             Err(SolverError::AnswerBelowLowerBound { bound }) if bound == 1.0
@@ -300,14 +236,7 @@ mod tests {
     #[test]
     fn decreasing_fbig_positive_fails_at_big() {
         // Monotone decreasing but f(big) still positive.
-        let r = solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 1.0,
-                big: 10.0,
-                start: 5.0,
-            },
-            |x| 100.0 - x, // f(10) = 90 > 0
-        );
+        let r = solve_monotone(1.0, 10.0, 5.0, |x| 100.0 - x);
         assert!(matches!(
             r,
             Err(SolverError::AnswerAboveUpperBound { bound }) if bound == 10.0
@@ -317,33 +246,16 @@ mod tests {
     #[test]
     fn converges_immediately_when_fstart_zero() {
         // start happens to be the root → AwaitInitial returns Converged.
-        let r = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: 10.0,
-                start: 3.0,
-            },
-            |x| x - 3.0,
-        )
-        .unwrap();
+        let r = solve_monotone(0.0, 10.0, 3.0, |x| x - 3.0).unwrap();
         assert!((r - 3.0).abs() < 1e-15);
     }
 
     #[test]
     fn nan_objective_surfaces_as_search_failure() {
-        // A NaN-returning objective should not panic; it should surface as
-        // AnswerBelowLowerBound (since the initial evaluation
-        // at start is NaN, which is not < 0 nor > 0,
-        // so the bracket-expansion logic falls through).
-        let err = solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: 1.0,
-                start: 0.5,
-            },
-            |_| f64::NAN,
-        )
-        .unwrap_err();
+        // A NaN-returning objective surfaces as AnswerBelowLowerBound
+        // (the initial NaN at `start` is neither < 0 nor > 0, so the
+        // bracket-expansion logic falls through).
+        let err = solve_monotone(0.0, 1.0, 0.5, |_| f64::NAN).unwrap_err();
         assert!(matches!(
             err,
             SolverError::AnswerBelowLowerBound { bound: 0.0 }

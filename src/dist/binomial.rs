@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::solver::{solve_monotone, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -136,11 +136,7 @@ impl Binomial {
         };
         // Match cdfbin's which=3: bracket (zero, inf), start = 5.0.
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             f,
         )?)
     }
@@ -160,20 +156,15 @@ impl Binomial {
         let nf = n as f64;
         let sf = s as f64;
         // Pr[S ≤ s] is decreasing in pr; its reflection in ompr (pr = 1 − ompr)
-        // gives a sf residual that's also decreasing in ompr. Use
-        // BracketStrategy::Decreasing in both branches; only the search
-        // variable differs (F90's dzror-on-pr versus dzror-on-ompr).
+        // gives a sf residual that's also decreasing in ompr. Only the
+        // search variable differs (F90's dzror-on-pr versus dzror-on-ompr).
         if p <= q {
             let f = |pr: f64| {
                 let (_sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
                 cdf_bin - p
             };
             Ok(solve_monotone(
-                BracketStrategy::Decreasing {
-                    small: 0.0,
-                    big: 1.0,
-                    start: 0.5,
-                },
+                0.0, 1.0, 0.5,
                 f,
             )?)
         } else {
@@ -182,11 +173,7 @@ impl Binomial {
                 sf_bin - q
             };
             let ompr = solve_monotone(
-                BracketStrategy::Decreasing {
-                    small: 0.0,
-                    big: 1.0,
-                    start: 0.5,
-                },
+                0.0, 1.0, 0.5,
                 f,
             )?;
             Ok(1.0 - ompr)
@@ -304,11 +291,7 @@ impl Binomial {
         };
         // F90 dstinv(0.0, xn, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: nf,
-                start: 5.0,
-            },
+            0.0, nf, 5.0,
             f,
         )?)
     }

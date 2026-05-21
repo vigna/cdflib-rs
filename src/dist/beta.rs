@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SolverError;
-use crate::solver::{solve_bounded_zero, solve_monotone, BracketStrategy, SOLVER_BOUND};
+use crate::solver::{solve_bounded_zero, solve_monotone, SOLVER_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
@@ -149,11 +149,7 @@ impl Beta {
         // Match cdfbet's which=3: bracket (zero, inf), start = 5.0;
         // mirror Fortran's cum-p if p<=q else ccum-q precision pivot.
         Ok(solve_monotone(
-            BracketStrategy::Decreasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             f,
         )?)
     }
@@ -185,11 +181,7 @@ impl Beta {
         // I_x(a, b) is increasing in b. Match cdfbet's which=4 setup and
         // precision pivot.
         Ok(solve_monotone(
-            BracketStrategy::Increasing {
-                small: 0.0,
-                big: SOLVER_BOUND,
-                start: 5.0,
-            },
+            0.0, SOLVER_BOUND, 5.0,
             f,
         )?)
     }
