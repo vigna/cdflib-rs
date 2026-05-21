@@ -22,7 +22,7 @@ use cdflib::{ContinuousCdf, DiscreteCdf, FisherSnedecorNoncentral, NegativeBinom
 
 #[test]
 fn rexp_large_positive_and_negative() {
-    // Drives `rexp`'s `x.exp()` fallback for |x| > 0.15, both the
+    // Drives rexp's x.exp() fallback for |x| > 0.15, both the
     // positive and negative branches.
     let pos = rexp(0.5); // exp(0.5) - 1
     assert!((pos - (0.5_f64.exp() - 1.0)).abs() < 1e-13);
@@ -54,7 +54,7 @@ fn gamma_negative_argument_and_overflow_paths() {
     use cdflib::special::{try_gamma, GammaDomainError};
 
     // |a| ≥ 15 reflection branch with t > 0.9. Γ(-15.95) routes through
-    // `t = 0.95` → `t = 1 - 0.95 = 0.05`.
+    // t = 0.95 → t = 1 - 0.95 = 0.05.
     let g_307 = gamma(-15.95);
     assert!(g_307.is_finite() && g_307 != 0.0, "g_307 = {g_307}");
 
@@ -119,7 +119,7 @@ fn psi_panics_on_pole() {
 
 #[test]
 fn rcomp_branches() {
-    // Exercise both `rcomp`'s a < 20 and a ≥ 20 paths. Values are
+    // Exercise both rcomp's a < 20 and a ≥ 20 paths. Values are
     // positive; just sanity-check finite.
     //
     // a < 1 branch: a · exp(t) · (1 + gam1(a))
@@ -144,8 +144,8 @@ fn rcomp_branches() {
 
 #[test]
 fn gamma_inc_taylor_qans_negative_branch() {
-    // `qans < 0` inside `taylor_p_over_xa`. Happens for `a < 1` and
-    // `x < 1.1` along the use_main_form path when the truncation gives
+    // qans < 0 inside taylor_p_over_xa. Happens for a < 1 and
+    // x < 1.1 along the use_main_form path when the truncation gives
     // a slightly negative Q; with a tiny x and a near 1 the truncated
     // series can dip below zero.
     let (p, q) = gamma_inc(0.99, 1.0e-8);
@@ -168,8 +168,8 @@ fn gamma_inc_temme_indeterminate_sentinel() {
     ));
 }
 
-// Several defensive sentinels inside `gamma_inc`'s a ≥ big and
-// Tricomi–Temme-general branches fire only in narrow regimes (`s` in a band of
+// Several defensive sentinels inside gamma_inc's a ≥ big and
+// Tricomi–Temme-general branches fire only in narrow regimes (s in a band of
 // width ~ε·√a, or the truncated Taylor series dipping below zero by a few
 // ULPs). These match defensive code in cdflib.f90 and aren't reached by any
 // fixture row; the Tricomi–Temme L=1 sentinel is the only one exercised above.
@@ -178,7 +178,7 @@ fn gamma_inc_temme_indeterminate_sentinel() {
 
 #[test]
 fn fpser_full_body() {
-    // fpser body past the early `t < NEG_EXPARG` exit. With a = 2.0 and
+    // fpser body past the early t < NEG_EXPARG exit. With a = 2.0 and
     // x = 0.1, t = 2·ln(0.1) ≈ -4.6 > NEG_EXPARG, so we fall through to
     // the series.
     let eps = f64::EPSILON.max(1e-15);
@@ -186,7 +186,7 @@ fn fpser_full_body() {
     // I_{0.1}(2, 0.1) is small but positive; sanity-check.
     assert!(r.is_finite() && r > 0.0, "fpser(2, 0.1, 0.1) = {r}");
 
-    // Also exercise the `a ≤ 1e-3 · eps` skip, with `a` so small the
+    // Also exercise the a ≤ 1e-3 · eps skip, with a so small the
     // exp(t) prefactor is left at 1.0.
     let r2 = fpser(1e-20, 1.0, 0.5, eps);
     assert!(r2.is_finite());
@@ -194,7 +194,7 @@ fn fpser_full_body() {
 
 #[test]
 fn apser_large_b_eps_else_branch() {
-    // apser's else branch: `b · eps > 0.02`. The eps argument here is
+    // apser's else branch: b · eps > 0.02. The eps argument here is
     // treated as a tolerance, not the machine epsilon, so we can pass a
     // "large" eps directly to force the else.
     let r = apser(1e-15, 5.0, 0.05, 0.1);
@@ -226,7 +226,7 @@ fn beta_rcomp_degenerate_and_small_branches() {
 
 #[test]
 fn gamma_rat1_branches() {
-    // `a · x == 0`: trivial short-circuit (caller would normally avoid
+    // a · x == 0: trivial short-circuit (caller would normally avoid
     // this, but the guard exists).
     let eps = f64::EPSILON.max(1e-15);
     // a == 0 and x == 1: x > a → (1.0, 0.0).
@@ -267,12 +267,12 @@ fn beta_rcomp1_branches() {
     let r2_ref = beta_rcomp(15.0, 10.0, 0.6, 0.4);
     assert!(r2.is_finite() && (r2 - r2_ref).abs() / r2_ref.abs() < 1e-12);
 
-    // `|e| > 0.6` branch in u. Needs |lambda/a| > 0.6 with a0 ≥ 8.
+    // |e| > 0.6 branch in u. Needs |lambda/a| > 0.6 with a0 ≥ 8.
     // lambda = a - (a+b)·x = 10 - 22·0.1 = 7.8, |7.8/10| = 0.78.
     let r_467 = beta_rcomp1(0, 10.0, 12.0, 0.1, 0.9);
     assert!(r_467.is_finite() && r_467 > 0.0);
 
-    // `|e| > 0.6` branch in v. Symmetric: a > b sub-branch makes
+    // |e| > 0.6 branch in v. Symmetric: a > b sub-branch makes
     // lambda = (a+b)y - b; |lambda/b| large for skewed y.
     let r_474 = beta_rcomp1(0, 15.0, 8.0, 0.95, 0.05);
     assert!(r_474.is_finite() && r_474 > 0.0);
@@ -283,7 +283,7 @@ fn beta_rcomp1_branches() {
     assert!(r3.is_finite() && (r3 - r3_ref).abs() / r3_ref.abs() < 1e-12);
 
     // b0 ≤ 1 path with apb > 1. a = 0.5, b = 0.7 → both ≤ 1,
-    // apb = 1.2 > 1, so the `(1 + gam1(u))/apb` branch fires.
+    // apb = 1.2 > 1, so the (1 + gam1(u))/apb branch fires.
     let r_528 = beta_rcomp1(0, 0.5, 0.7, 0.4, 0.6);
     assert!(r_528.is_finite() && r_528 > 0.0);
 
@@ -310,7 +310,7 @@ fn beta_up_b_gt_1_branches() {
 #[test]
 fn beta_grat_overflow_sentinel() {
     use cdflib::special::internal::BetaGratError;
-    // `b · z == 0.0` early-return. With b ≈ 0 and z finite, b·z is
+    // b · z == 0.0 early-return. With b ≈ 0 and z finite, b·z is
     // exactly 0 and beta_grat returns BzZero.
     let eps = f64::EPSILON.max(1e-15);
     assert_eq!(
@@ -326,12 +326,12 @@ fn beta_grat_overflow_sentinel() {
 #[test]
 fn beta_inc_fpser_apser_dispatch() {
     // fpser branch in beta_inc's small_branch dispatch. Needs
-    // `b0 < eps · min(1, a0)`, i.e. b strictly less than ~1e-15 with a
+    // b0 < eps · min(1, a0), i.e. b strictly less than ~1e-15 with a
     // moderate.
     let (w, w1) = beta_inc(5.0, 1e-17, 0.5, 0.5);
     assert!((w + w1 - 1.0).abs() < 1e-10);
 
-    // apser branch. Needs `a0 < eps · min(1, b0)` AND `b0 · x0 ≤ 1`.
+    // apser branch. Needs a0 < eps · min(1, b0) AND b0 · x0 ≤ 1.
     let (w, w1) = beta_inc(1e-17, 5.0, 0.05, 0.95);
     assert!((w + w1 - 1.0).abs() < 1e-10);
 }
@@ -340,9 +340,9 @@ fn beta_inc_fpser_apser_dispatch() {
 
 #[test]
 fn poisson_inverse_cdf_high_quantile() {
-    // `hi *= 2` expansion in Poisson::inverse_cdf. The `mean + 10σ + 10`
-    // heuristic comfortably covers any p representable as `f64 < 1`
-    // (the inverse Normal at `nextDown(1.0)` is only ≈ 8σ), so this
+    // hi *= 2 expansion in Poisson::inverse_cdf. The mean + 10σ + 10
+    // heuristic comfortably covers any p representable as f64 < 1
+    // (the inverse Normal at nextDown(1.0) is only ≈ 8σ), so this
     // expansion is structurally defensive, exercised only when the
     // initial range undershoots. The test just confirms the
     // surrounding inverse_cdf path returns a consistent result.
@@ -365,7 +365,7 @@ fn negative_binomial_inverse_cdf_high_quantile() {
 
 #[test]
 fn fisher_snedecor_noncentral_pdf_basic() {
-    // The degenerate `aup - 1 + b == 0` branch inside cumfnc's
+    // The degenerate aup - 1 + b == 0 branch inside cumfnc's
     // forward-summation loop. Achieving that exact equality from the
     // public API is impossible without intimate knowledge of the
     // dispatcher's internal counters; the branch is structurally
@@ -389,32 +389,32 @@ fn gamma_log_does_not_regress() {
 
 // ---------- gamma_inc_inv extreme-value paths ----------
 
-// The reference-table fixtures for `gamma_inc_inv` sample `a` and `p` on a
+// The reference-table fixtures for gamma_inc_inv sample a and p on a
 // moderate grid; the tests below drive branches that need genuinely extreme
 // inputs (subnormals, a ≥ 10²², caller-supplied bad initial approximations).
 // They are coverage-driven only: numerical correctness is tested elsewhere.
 
-// Several defensive paths in `gamma_inc_inv` are structurally unreachable
+// Several defensive paths in gamma_inc_inv are structurally unreachable
 // in IEEE 754 f64 yet are retained for strict F90 fidelity:
 //
-//   * `qg == 0` (qg = q · gamma(a+1) underflow). For a ∈ (0, 1),
+//   * qg == 0 (qg = q · gamma(a+1) underflow). For a ∈ (0, 1),
 //     gamma(a+1) attains its minimum ≈ 0.8856 near a ≈ 0.4616, so
 //     q · g ≥ 0.4428 · 2⁻¹⁰⁷⁴ for any positive f64 q. That rounds up to
 //     2⁻¹⁰⁷⁴, never to 0.
-//   * `b == 0` after the qg check (b = qg/a with a < 1 only magnifies qg).
-//   * the `xn == 0` early-return on the b ≥ 0.45 small-b path. b ≥ 0.45
+//   * b == 0 after the qg check (b = qg/a with a < 1 only magnifies qg).
+//   * the xn == 0 early-return on the b ≥ 0.45 small-b path. b ≥ 0.45
 //     together with NOT-go_to_40 (qg ≤ 0.6 a) forces q ∈ [0.45 a/g,
 //     0.6 a/g]; on the entire band the three formulas in
-//     `initial_approx_small_b` stay bounded well above 0.
-//   * `r == 0` in `schroder_p`/`schroder_q`. `rcomp` and the internal `r`
-//     in `gamma_inc` share the same dominant exp(a·ln x − x) factor and
-//     underflow at the same threshold; when that fires, `gamma_inc`
-//     returns (1, 0) or (0, 1) at S40, so the `pn == 0 || qn == 0` guard
+//     initial_approx_small_b stay bounded well above 0.
+//   * r == 0 in schroder_p/schroder_q. rcomp and the internal r
+//     in gamma_inc share the same dominant exp(a·ln x − x) factor and
+//     underflow at the same threshold; when that fires, gamma_inc
+//     returns (1, 0) or (0, 1) at S40, so the pn == 0 || qn == 0 guard
 //     trips first.
-//   * `x ≤ 0` in the 2nd-order Schröder branch. Entry requires |t| ≤ 0.1
+//   * x ≤ 0 in the 2nd-order Schröder branch. Entry requires |t| ≤ 0.1
 //     AND |w·t| ≤ 0.1, which bounds |h| = |t·(1 + w·t)| ≤ 0.11; hence
 //     x = xn·(1 − h) stays in [0.89 xn, 1.11 xn] > 0.
-//   * `iter >= 20` (NotConverged). Schröder's method has super-quadratic
+//   * iter >= 20 (NotConverged). Schröder's method has super-quadratic
 //     local convergence; once the iterate is close enough to enter the
 //     2nd-order branch its error squares each step. Stalling at |d| > eps
 //     for 20 deterministic iterations is not observed on any IEEE 754 f64
@@ -422,7 +422,7 @@ fn gamma_log_does_not_regress() {
 
 #[test]
 fn gamma_inc_inv_small_a_label_30_early_return() {
-    // The label-30 c1..c5 fallback path with `BMIN[iop] ≥ b` returns the
+    // The label-30 c1..c5 fallback path with BMIN[iop] ≥ b returns the
     // c1..c5 approximation directly. f64::EPSILON ≈ 2.22e-16 is *not* >
     // 1e-10, so iop = 0 and BMIN[0] = 1e-28. With a = 0.5 and q = 1e-29,
     // b = q · gamma(1.5) / 0.5 ≈ 1.8e-29 < 1e-28.
@@ -444,9 +444,9 @@ fn gamma_inc_inv_amin_early_return() {
 
 #[test]
 fn gamma_inc_inv_initial_approx_small_b_bq_branch() {
-    // Drives the `b·q ≤ 1e-8` branch of `initial_approx_small_b`. The
-    // small-b path (label 40) takes `qg > 0.6 a`, and on that path
-    // `b·q = q·qg/a`. With a = q = 1e-9: qg ≈ 1e-9, 0.6a = 6e-10 < qg,
+    // Drives the b·q ≤ 1e-8 branch of initial_approx_small_b. The
+    // small-b path (label 40) takes qg > 0.6 a, and on that path
+    // b·q = q·qg/a. With a = q = 1e-9: qg ≈ 1e-9, 0.6a = 6e-10 < qg,
     // b = 1, b·q = 1e-9 ≤ 1e-8.
     let r = try_gamma_inc_inv(1.0e-9, -1.0, 1.0 - 1.0e-9, 1.0e-9);
     // The routine may legitimately return Ok or a soft-failure error;
@@ -461,7 +461,7 @@ fn gamma_inc_inv_initial_approx_small_b_bq_branch() {
 }
 
 // ---- Schröder iteration give-up paths (use caller-supplied x0 to inject
-// pathological state). All of these correspond to F90 `ierr ∈ {-6,-7,-8}`
+// pathological state). All of these correspond to F90 ierr ∈ {-6,-7,-8}
 // outcomes that the original code reports and the port preserves.
 
 #[test]
@@ -486,7 +486,7 @@ fn gamma_inc_inv_schroder_q_subnormal_q() {
 
 #[test]
 fn gamma_inc_inv_schroder_p_amax_certify_fail() {
-    // schroder_p's `amax < a` block with `|1 - xn/a| ≤ 2·EPSILON`.
+    // schroder_p's amax < a block with |1 - xn/a| ≤ 2·EPSILON.
     // amax = 0.4e-10 / EPSILON² ≈ 8.1e21. Pick a = 1e25 and x0 = a.
     // Routes through schroder_p since p < 0.5.
     let a = 1.0e25;

@@ -25,10 +25,10 @@ fn beta_round_trip() {
 
 #[test]
 fn students_t_known_quantiles() {
-    // T(10) two-sided 95% critical value, computed by `qt(0.975, 10)`
+    // T(10) two-sided 95% critical value, computed by qt(0.975, 10)
     // in R to 15 digits. The Student's t has a particularly slow CDF
     // at this quantile (f' ≈ 0.05), so the inverse precision is
-    // function-noise-limited; see `CHAINED_INVERSE_REL_TOL`.
+    // function-noise-limited; see CHAINED_INVERSE_REL_TOL.
     const T10_INV_975: f64 = 2.2281388519649425;
     let d = StudentsT::new(10.0);
     let x = d.inverse_cdf(0.975).unwrap();

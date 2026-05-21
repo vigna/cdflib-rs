@@ -244,10 +244,10 @@ fn cdffnc_phonc_matches_fisher_snedecor_noncentral_solve_ncp() {
 
 // ============================================================== Gamma
 
-// CDFLIB's cdfgam names its second parameter `scale`, but the code
-// computes `P(shape, x * scale)`, so it's mathematically the rate.
-// This crate calls the parameter `rate` (see src/distribution/gamma.rs);
-// we pass the CSV's `scale` column directly to `Gamma::new` as `rate`.
+// CDFLIB's cdfgam names its second parameter scale, but the code
+// computes P(shape, x * scale), so it's mathematically the rate.
+// This crate calls the parameter rate (see src/distribution/gamma.rs);
+// we pass the CSV's scale column directly to Gamma::new as rate.
 
 #[test]
 fn cdfgam_x_matches_gamma_inverse_cdf() {

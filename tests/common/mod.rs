@@ -18,7 +18,7 @@ use std::path::Path;
 // Tolerance constants
 //
 // These bounds represent the empirical precision floor measured against
-// the F90 CSV fixtures under `tests/data/`.
+// the F90 CSV fixtures under tests/data/.
 // ---------------------------------------------------------------------
 
 /// Default relative tolerance: one digit shy of `f64::EPSILON`.

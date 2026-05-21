@@ -58,8 +58,8 @@ fn cumnor_matches_reference() {
 
 #[test]
 fn dinvnr_matches_reference() {
-    // dinvnr is iterative; its Newton stopping criterion is `1e-13` in
-    // CDFLIB, so we test at `INVERSE_REL_TOL` rather than `KERNEL_REL_TOL`.
+    // dinvnr is iterative; its Newton stopping criterion is 1e-13 in
+    // CDFLIB, so we test at INVERSE_REL_TOL rather than KERNEL_REL_TOL.
     for row in read_csv("tests/data/dinvnr.csv") {
         let [p, q, expected_x] = row[..] else {
             panic!("width");

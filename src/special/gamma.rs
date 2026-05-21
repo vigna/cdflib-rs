@@ -1124,10 +1124,13 @@ fn taylor_p_over_r(a: f64, x: f64, r: f64, acc: f64) -> (f64, f64) {
     }
     let mut sum = t;
     let tol = 0.5 * acc;
-    while t > tol {
+    loop {
         apn += 1.0;
         t *= x / apn;
         sum += t;
+        if t <= tol {
+            break;
+        }
     }
     // wk[0..n_filled-1] backfill (reverse).
     let max = n_filled - 1;
@@ -2660,7 +2663,7 @@ mod tests {
 
     #[test]
     fn gamma_at_large_positive() {
-        // a in [15, 1000] uses asymptotic.
+        // a in [15..1000] uses asymptotic.
         let ln_gamma_50 = gamma_log(50.0);
         let g_50 = gamma(50.0);
         // log(g_50) should match ln_gamma_50 to high precision.
