@@ -133,7 +133,11 @@ impl Poisson {
         };
         // Match cdfpoi's which=3: range (0, inf), start = 5.0.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
+            0.0,
+            SEARCH_BOUND,
+            5.0,
+            0.0,
+            SEARCH_BOUND,
             f,
         )?)
     }
@@ -245,7 +249,11 @@ impl Poisson {
         };
         // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
+            0.0,
+            SEARCH_BOUND,
+            5.0,
+            0.0,
+            SEARCH_BOUND,
             f,
         )?)
     }

@@ -50,6 +50,11 @@ fn f_noncentral_matches_cumfnc_reference() {
             NONCENTRAL_F_REL_TOL,
             DEFAULT_ABS_TOL,
         );
-        assert_close_eps(d.ccdf(fx), expected_sf, NONCENTRAL_F_REL_TOL, DEFAULT_ABS_TOL);
+        assert_close_eps(
+            d.ccdf(fx),
+            expected_sf,
+            NONCENTRAL_F_REL_TOL,
+            DEFAULT_ABS_TOL,
+        );
     }
 }

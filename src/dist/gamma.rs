@@ -191,10 +191,7 @@ impl Gamma {
             }
         };
         // Match cdfgam's which=3: range (zero, inf), start = 5.0.
-        let result = search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
-            f,
-        );
+        let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
         if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }

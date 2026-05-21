@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SearchError;
-use crate::search::{search_monotone, SEARCH_BOUND};
+use crate::search::{search_bounded_zero, search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -134,7 +134,11 @@ impl NegativeBinomial {
         };
         // Match cdfnbn's which=3: range (0, inf), start = 5.0.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
+            0.0,
+            SEARCH_BOUND,
+            5.0,
+            0.0,
+            SEARCH_BOUND,
             f,
         )?)
     }
@@ -150,27 +154,20 @@ impl NegativeBinomial {
         check_pq(p, q)?;
         let rf = r as f64;
         let sf = s as f64;
-        // I_pr(r, s+1) is increasing in pr; its reflection 1 − I_{1-ompr}
-        // is also increasing in ompr. Both branches use Increasing; only
-        // the search variable differs.
+        // Match cdfnbn's which=4 exactly: drive dzror directly on pr when
+        // p<=q, else on ompr = 1-pr with the upper-tail residual.
         if p <= q {
             let f = |pr: f64| {
                 let (cum, _ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
                 cum - p
             };
-            Ok(search_monotone(
-                0.0, 1.0, 0.5, 0.0, 1.0,
-                f,
-            )?)
+            Ok(search_bounded_zero(0.0, 1.0, f)?)
         } else {
             let f = |ompr: f64| {
                 let (_cum, ccum) = beta_inc(rf, sf + 1.0, 1.0 - ompr, ompr);
                 ccum - q
             };
-            let ompr = search_monotone(
-                0.0, 1.0, 0.5, 0.0, 1.0,
-                f,
-            )?;
+            let ompr = search_bounded_zero(0.0, 1.0, f)?;
             Ok(1.0 - ompr)
         }
     }
@@ -283,7 +280,11 @@ impl NegativeBinomial {
         };
         // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
+            0.0,
+            SEARCH_BOUND,
+            5.0,
+            0.0,
+            SEARCH_BOUND,
             f,
         )?)
     }

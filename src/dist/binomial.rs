@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::error::SearchError;
-use crate::search::{search_monotone, SEARCH_BOUND};
+use crate::search::{search_bounded_zero, search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
@@ -136,7 +136,11 @@ impl Binomial {
         };
         // Match cdfbin's which=3: range (zero, inf), start = 5.0.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
+            0.0,
+            SEARCH_BOUND,
+            5.0,
+            0.0,
+            SEARCH_BOUND,
             f,
         )?)
     }
@@ -155,27 +159,20 @@ impl Binomial {
         }
         let nf = n as f64;
         let sf = s as f64;
-        // Pr[S ≤ s] is decreasing in pr; its reflection in ompr (pr = 1 − ompr)
-        // gives a sf residual that's also decreasing in ompr. Only the
-        // search variable differs (F90's dzror-on-pr versus dzror-on-ompr).
+        // Match cdfbin's which=4 exactly: drive dzror directly on pr when
+        // p<=q, else on ompr = 1-pr with the upper-tail residual.
         if p <= q {
             let f = |pr: f64| {
                 let (_sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
                 cdf_bin - p
             };
-            Ok(search_monotone(
-                0.0, 1.0, 0.5, 0.0, 1.0,
-                f,
-            )?)
+            Ok(search_bounded_zero(0.0, 1.0, f)?)
         } else {
             let f = |ompr: f64| {
                 let (sf_bin, _cdf_bin) = beta_inc(sf + 1.0, nf - sf, 1.0 - ompr, ompr);
                 sf_bin - q
             };
-            let ompr = search_monotone(
-                0.0, 1.0, 0.5, 0.0, 1.0,
-                f,
-            )?;
+            let ompr = search_bounded_zero(0.0, 1.0, f)?;
             Ok(1.0 - ompr)
         }
     }
@@ -290,10 +287,7 @@ impl Binomial {
             }
         };
         // F90 dstinv(0.0, xn, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
-        Ok(search_monotone(
-            0.0, nf, 5.0, 0.0, nf,
-            f,
-        )?)
+        Ok(search_monotone(0.0, nf, 5.0, 0.0, nf, f)?)
     }
 }
 

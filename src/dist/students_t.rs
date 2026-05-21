@@ -123,10 +123,7 @@ impl StudentsT {
         // writes `bound = 0.0D+00` for the qleft failure (not the
         // search lower bound of 1.0); cdflib.f90:6283 writes
         // `bound = maxdf` for qhi.
-        Ok(search_monotone(
-            1.0, 1.0e10, 5.0, 0.0, 1.0e10,
-            f,
-        )?)
+        Ok(search_monotone(1.0, 1.0e10, 5.0, 0.0, 1.0e10, f)?)
     }
 }
 
@@ -258,7 +255,8 @@ impl Continuous for StudentsT {
     #[inline]
     fn ln_pdf(&self, t: f64) -> f64 {
         let df = self.df;
-        gamma_log((df + 1.0) / 2.0) - gamma_log(df / 2.0)
+        gamma_log((df + 1.0) / 2.0)
+            - gamma_log(df / 2.0)
             - 0.5 * (PI * df).ln()
             - ((df + 1.0) / 2.0) * (1.0 + t * t / df).ln()
     }

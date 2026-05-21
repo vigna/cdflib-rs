@@ -47,6 +47,9 @@ pub enum FisherSnedecorNoncentralError {
     /// Mirrors CDFLIB's `cdffnc` status -5.
     #[error("numerator df must be > 0, got {0}")]
     DfnNotPositive(f64),
+    /// The numerator degrees of freedom *dfn* was below `cumfnc`'s valid range.
+    #[error("numerator df must be >= 1, got {0}")]
+    DfnTooSmall(f64),
     /// The numerator degrees of freedom *dfn* was not finite.
     #[error("numerator df must be finite, got {0}")]
     DfnNotFinite(f64),
@@ -54,6 +57,9 @@ pub enum FisherSnedecorNoncentralError {
     /// Mirrors CDFLIB's `cdffnc` status -6.
     #[error("denominator df must be > 0, got {0}")]
     DfdNotPositive(f64),
+    /// The denominator degrees of freedom *dfd* was below `cumfnc`'s valid range.
+    #[error("denominator df must be >= 1, got {0}")]
+    DfdTooSmall(f64),
     /// The denominator degrees of freedom *dfd* was not finite.
     #[error("denominator df must be finite, got {0}")]
     DfdNotFinite(f64),
@@ -84,8 +90,9 @@ pub enum FisherSnedecorNoncentralError {
 
 impl FisherSnedecorNoncentral {
     /// Construct a noncentral *F*(*dfn*, *dfd*, *λ*) distribution with
-    /// *dfn* > 0, *dfd* > 0, and *λ* ≥ 0. Matches CDFLIB's `cdffnc`
-    /// validation (cdflib.f90:3818, :3823).
+    /// *dfn* ≥ 1, *dfd* ≥ 1, and *λ* ≥ 0. This matches `cumfnc`'s domain:
+    /// the F90 reference stops for `dfn < 1` or `dfd < 1`
+    /// (cdflib.f90:7098-7110).
     ///
     /// # Panics
     ///
@@ -108,11 +115,17 @@ impl FisherSnedecorNoncentral {
         if dfn <= 0.0 {
             return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
         }
+        if dfn < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfnTooSmall(dfn));
+        }
         if !dfd.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
         }
         if dfd <= 0.0 {
             return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
+        }
+        if dfd < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfdTooSmall(dfd));
         }
         if !ncp.is_finite() {
             return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
@@ -169,6 +182,9 @@ impl FisherSnedecorNoncentral {
         if dfd <= 0.0 {
             return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
         }
+        if dfd < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfdTooSmall(dfd));
+        }
         if !ncp.is_finite() {
             return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
         }
@@ -208,6 +224,9 @@ impl FisherSnedecorNoncentral {
         }
         if dfn <= 0.0 {
             return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
+        }
+        if dfn < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfnTooSmall(dfn));
         }
         if !ncp.is_finite() {
             return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
@@ -249,11 +268,17 @@ impl FisherSnedecorNoncentral {
         if dfn <= 0.0 {
             return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
         }
+        if dfn < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfnTooSmall(dfn));
+        }
         if !dfd.is_finite() {
             return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
         }
         if dfd <= 0.0 {
             return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
+        }
+        if dfd < 1.0 {
+            return Err(FisherSnedecorNoncentralError::DfdTooSmall(dfd));
         }
         let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
         // Upper bound 1e4 matches CDFLIB's hard cap; larger bounds (e.g.
@@ -444,8 +469,16 @@ mod tests {
             Err(FisherSnedecorNoncentralError::DfnNotPositive(0.0))
         ));
         assert!(matches!(
+            FisherSnedecorNoncentral::try_new(0.5, 5.0, 1.0),
+            Err(FisherSnedecorNoncentralError::DfnTooSmall(0.5))
+        ));
+        assert!(matches!(
             FisherSnedecorNoncentral::try_new(5.0, 0.0, 1.0),
             Err(FisherSnedecorNoncentralError::DfdNotPositive(0.0))
+        ));
+        assert!(matches!(
+            FisherSnedecorNoncentral::try_new(5.0, 0.5, 1.0),
+            Err(FisherSnedecorNoncentralError::DfdTooSmall(0.5))
         ));
         assert!(matches!(
             FisherSnedecorNoncentral::try_new(5.0, 5.0, -1.0),
@@ -454,6 +487,14 @@ mod tests {
         assert!(matches!(
             FisherSnedecorNoncentral::search_ncp(-0.1, 1.0, 5.0, 10.0),
             Err(FisherSnedecorNoncentralError::PNotInRange(-0.1))
+        ));
+        assert!(matches!(
+            FisherSnedecorNoncentral::search_dfd(0.5, 1.0, 0.5, 1.0),
+            Err(FisherSnedecorNoncentralError::DfnTooSmall(0.5))
+        ));
+        assert!(matches!(
+            FisherSnedecorNoncentral::search_ncp(0.5, 1.0, 5.0, 0.5),
+            Err(FisherSnedecorNoncentralError::DfdTooSmall(0.5))
         ));
     }
 

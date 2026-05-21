@@ -147,10 +147,7 @@ impl ChiSquared {
             }
         };
         // Match cdfchi's which=3 dstinv setup: range (0, inf), start = 5.0.
-        let result = search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
-            f,
-        );
+        let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
         if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }
@@ -242,10 +239,7 @@ impl ContinuousCdf for ChiSquared {
             }
         };
         // Match cdfchi's which=2: range (0, inf), start = 5.0.
-        let result = search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
-            f,
-        );
+        let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
         if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }
@@ -290,10 +284,7 @@ impl ChiSquared {
                 }
             }
         };
-        let result = search_monotone(
-            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
-            f,
-        );
+        let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
         if let Some(e) = gamma_inc_err.into_inner() {
             return Err(e.into());
         }
