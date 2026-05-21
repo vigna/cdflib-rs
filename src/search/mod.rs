@@ -60,17 +60,29 @@ const REL_TOL: f64 = 1.0e-8;
 /// `start` is the initial `x` passed to `dinvr` itself. Monotonicity is
 /// inferred by `dinvr` from the endpoint evaluations.
 ///
+/// `qleft_bound` and `qhi_bound` are the literal values each F90 `cdf*`
+/// dispatcher writes into the `bound` output for `status = 1` and
+/// `status = 2`, respectively (the values reported in
+/// [`SearchError::AnswerBelowLowerBound`] / [`AnswerAboveUpperBound`]).
+/// Most dispatchers pass `small` and `big`; a few (`cdft which=3`,
+/// `cdffnc which=3`, `cdffnc which=4`) write `0.0` for qleft even when
+/// `small > 0`, so the bound is explicit here per F90 site.
+///
 /// Uses the default absolute tolerance [`ABS_TOL`] = 1e-10, matching every
 /// CDFLIB `cdf*` dispatcher except `cdfchn`; that one wants a tighter
 /// `atol` and uses [`search_monotone_with_atol`] instead.
+///
+/// [`AnswerAboveUpperBound`]: SearchError::AnswerAboveUpperBound
 #[inline]
 pub(crate) fn search_monotone(
     small: f64,
     big: f64,
     start: f64,
+    qleft_bound: f64,
+    qhi_bound: f64,
     f: impl FnMut(f64) -> f64,
 ) -> Result<f64, SearchError> {
-    search_monotone_with_atol(small, big, start, ABS_TOL, f)
+    search_monotone_with_atol(small, big, start, qleft_bound, qhi_bound, ABS_TOL, f)
 }
 
 /// Returns *x* such that *f*(*x*) = 0, like [`search_monotone`] but with a
@@ -81,6 +93,8 @@ pub(crate) fn search_monotone_with_atol(
     small: f64,
     big: f64,
     start: f64,
+    qleft_bound: f64,
+    qhi_bound: f64,
     abs_tol: f64,
     mut f: impl FnMut(f64) -> f64,
 ) -> Result<f64, SearchError> {
@@ -120,9 +134,9 @@ pub(crate) fn search_monotone_with_atol(
             InvrAction::Converged(x) => return Ok(x),
             InvrAction::Failed { qleft, .. } => {
                 return Err(if qleft {
-                    SearchError::AnswerBelowLowerBound { bound: small }
+                    SearchError::AnswerBelowLowerBound { bound: qleft_bound }
                 } else {
-                    SearchError::AnswerAboveUpperBound { bound: big }
+                    SearchError::AnswerAboveUpperBound { bound: qhi_bound }
                 });
             }
         }
@@ -178,21 +192,21 @@ mod tests {
     #[test]
     fn solves_increasing_function() {
         // f(x) = x³ - 8; root at x = 2.
-        let r = search_monotone(0.0, 100.0, 1.0, |x| x.powi(3) - 8.0).unwrap();
+        let r = search_monotone(0.0, 100.0, 1.0, 0.0, 100.0, |x| x.powi(3) - 8.0).unwrap();
         assert!((r - 2.0).abs() < 1e-10, "r = {r}");
     }
 
     #[test]
     fn solves_decreasing_function() {
         // f(x) = 1/x - 0.25; root at x = 4.
-        let r = search_monotone(0.01, 1000.0, 10.0, |x| 1.0 / x - 0.25).unwrap();
+        let r = search_monotone(0.01, 1000.0, 10.0, 0.01, 1000.0, |x| 1.0 / x - 0.25).unwrap();
         assert!((r - 4.0).abs() < 1e-10, "r = {r}");
     }
 
     #[test]
     fn solves_root_at_moderate_value() {
         // f(x) = ln(x) - 1 → root at x = e.
-        let r = search_monotone(1e-10, 1000.0, 1.0, |x| x.ln() - 1.0).unwrap();
+        let r = search_monotone(1e-10, 1000.0, 1.0, 1e-10, 1000.0, |x| x.ln() - 1.0).unwrap();
         let e = std::f64::consts::E;
         assert!((r - e).abs() / e < 1e-8, "r = {r}, e = {e}");
     }
@@ -206,7 +220,7 @@ mod tests {
     #[test]
     fn increasing_fsmall_positive_fails_at_small() {
         // f is monotone increasing but already positive at small.
-        let r = search_monotone(1.0, 10.0, 5.0, |x| x + 1.0);
+        let r = search_monotone(1.0, 10.0, 5.0, 1.0, 10.0, |x| x + 1.0);
         assert!(matches!(
             r,
             Err(SearchError::AnswerBelowLowerBound { bound }) if bound == 1.0
@@ -216,7 +230,7 @@ mod tests {
     #[test]
     fn increasing_fbig_negative_fails_at_big() {
         // Monotone increasing but f(big) still negative.
-        let r = search_monotone(1.0, 10.0, 5.0, |x| x - 100.0);
+        let r = search_monotone(1.0, 10.0, 5.0, 1.0, 10.0, |x| x - 100.0);
         assert!(matches!(
             r,
             Err(SearchError::AnswerAboveUpperBound { bound }) if bound == 10.0
@@ -226,7 +240,7 @@ mod tests {
     #[test]
     fn decreasing_fsmall_negative_fails_at_small() {
         // Monotone decreasing but f(small) already negative.
-        let r = search_monotone(1.0, 10.0, 5.0, |x| -x - 1.0);
+        let r = search_monotone(1.0, 10.0, 5.0, 1.0, 10.0, |x| -x - 1.0);
         assert!(matches!(
             r,
             Err(SearchError::AnswerBelowLowerBound { bound }) if bound == 1.0
@@ -236,7 +250,7 @@ mod tests {
     #[test]
     fn decreasing_fbig_positive_fails_at_big() {
         // Monotone decreasing but f(big) still positive.
-        let r = search_monotone(1.0, 10.0, 5.0, |x| 100.0 - x);
+        let r = search_monotone(1.0, 10.0, 5.0, 1.0, 10.0, |x| 100.0 - x);
         assert!(matches!(
             r,
             Err(SearchError::AnswerAboveUpperBound { bound }) if bound == 10.0
@@ -246,8 +260,28 @@ mod tests {
     #[test]
     fn converges_immediately_when_fstart_zero() {
         // start happens to be the root → AwaitInitial returns Converged.
-        let r = search_monotone(0.0, 10.0, 3.0, |x| x - 3.0).unwrap();
+        let r = search_monotone(0.0, 10.0, 3.0, 0.0, 10.0, |x| x - 3.0).unwrap();
         assert!((r - 3.0).abs() < 1e-15);
+    }
+
+    #[test]
+    fn qleft_qhi_bounds_are_passed_through_distinctly() {
+        // The qleft_bound / qhi_bound parameters must surface in the
+        // failure variant verbatim, independent of small / big. F90
+        // `cdf*` dispatchers exploit this (e.g. cdft which=3 writes
+        // `bound = 0.0D+00` even though `small = 1.0`).
+        // qleft path: increasing function positive everywhere → small fails.
+        let err = search_monotone(1.0, 10.0, 5.0, 99.0, 999.0, |x| x + 1.0).unwrap_err();
+        assert!(
+            matches!(err, SearchError::AnswerBelowLowerBound { bound } if bound == 99.0),
+            "expected AnswerBelowLowerBound {{ bound: 99.0 }}, got {err:?}"
+        );
+        // qhi path: increasing function negative everywhere → big fails.
+        let err = search_monotone(1.0, 10.0, 5.0, 99.0, 999.0, |x| x - 100.0).unwrap_err();
+        assert!(
+            matches!(err, SearchError::AnswerAboveUpperBound { bound } if bound == 999.0),
+            "expected AnswerAboveUpperBound {{ bound: 999.0 }}, got {err:?}"
+        );
     }
 
     #[test]
@@ -255,7 +289,7 @@ mod tests {
         // A NaN-returning objective surfaces as AnswerBelowLowerBound
         // (the initial NaN at `start` is neither < 0 nor > 0, so the
         // range-expansion logic falls through).
-        let err = search_monotone(0.0, 1.0, 0.5, |_| f64::NAN).unwrap_err();
+        let err = search_monotone(0.0, 1.0, 0.5, 0.0, 1.0, |_| f64::NAN).unwrap_err();
         assert!(matches!(
             err,
             SearchError::AnswerBelowLowerBound { bound: 0.0 }

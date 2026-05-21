@@ -136,7 +136,7 @@ impl Binomial {
         };
         // Match cdfbin's which=3: range (zero, inf), start = 5.0.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0,
+            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
             f,
         )?)
     }
@@ -164,7 +164,7 @@ impl Binomial {
                 cdf_bin - p
             };
             Ok(search_monotone(
-                0.0, 1.0, 0.5,
+                0.0, 1.0, 0.5, 0.0, 1.0,
                 f,
             )?)
         } else {
@@ -173,7 +173,7 @@ impl Binomial {
                 sf_bin - q
             };
             let ompr = search_monotone(
-                0.0, 1.0, 0.5,
+                0.0, 1.0, 0.5, 0.0, 1.0,
                 f,
             )?;
             Ok(1.0 - ompr)
@@ -291,7 +291,7 @@ impl Binomial {
         };
         // F90 dstinv(0.0, xn, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
         Ok(search_monotone(
-            0.0, nf, 5.0,
+            0.0, nf, 5.0, 0.0, nf,
             f,
         )?)
     }

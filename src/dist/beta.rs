@@ -149,7 +149,7 @@ impl Beta {
         // Match cdfbet's which=3: range (zero, inf), start = 5.0;
         // mirror Fortran's cum-p if p<=q else ccum-q precision pivot.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0,
+            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
             f,
         )?)
     }
@@ -181,7 +181,7 @@ impl Beta {
         // I_x(a, b) is increasing in b. Match cdfbet's which=4 setup and
         // precision pivot.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0,
+            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
             f,
         )?)
     }

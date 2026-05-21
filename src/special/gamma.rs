@@ -7,7 +7,7 @@
 //!
 //! - **Continued fraction** in the body when *x* > *a* is moderate.
 //!
-//! - **Tricomi–Temmes asymptotic expansion** for large *a*.
+//! - **Tricomi–Temme asymptotic expansion** for large *a*.
 //!
 //! - **Finite sum** when *a* ≥ 1 and 2*a* is an integer.
 //!

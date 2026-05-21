@@ -130,7 +130,7 @@ impl ChiSquaredNoncentral {
     /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*
     /// given *λ*. Mirrors CDFLIB's `cdfchn` with `which = 3`.
     ///
-    /// Unlike most `cdf*` searchs, this one does not take *q*: CDFLIB
+    /// Unlike most `cdf*` searches, this one does not take *q*: CDFLIB
     /// (cdflib.f90:3685) documents *q* as "generally not used by this
     /// subroutine and is only included for similarity with other routines",
     /// so it is dropped from the Rust surface.
@@ -152,7 +152,11 @@ impl ChiSquaredNoncentral {
         let f = |df: f64| cumchn(x, df, ncp).0 - p;
         // Match cdfchn's which=3: range (zero, inf), start = 5.0, atol = 1e-50.
         Ok(search_monotone_with_atol(
-            0.0, SEARCH_BOUND, 5.0,
+            0.0,
+            SEARCH_BOUND,
+            5.0,
+            0.0,
+            SEARCH_BOUND,
             1.0e-50,
             f,
         )?)
@@ -184,9 +188,7 @@ impl ChiSquaredNoncentral {
         // with ncp so unbounded searches are intentionally avoided.
         // atol = 1e-50 per cdfchn (cdflib.f90:3719).
         Ok(search_monotone_with_atol(
-            0.0, 1.0e4, 5.0,
-            1.0e-50,
-            f,
+            0.0, 1.0e4, 5.0, 0.0, 1.0e4, 1.0e-50, f,
         )?)
     }
 }
@@ -308,7 +310,11 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         let f = |x: f64| cumchn(x, df, ncp).0 - p;
         // Match cdfchn's which=2: range (0, inf), start = 5.0, atol = 1e-50.
         Ok(search_monotone_with_atol(
-            0.0, SEARCH_BOUND, 5.0,
+            0.0,
+            SEARCH_BOUND,
+            5.0,
+            0.0,
+            SEARCH_BOUND,
             1.0e-50,
             f,
         )?)

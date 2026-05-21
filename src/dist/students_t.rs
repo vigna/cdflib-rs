@@ -119,9 +119,12 @@ impl StudentsT {
             }
         };
         // cdflib.f90:6251 `dstinv(1.0D+00, maxdf, 0.5D+00, 0.5D+00,
-        // 5.0D+00, atol, tol)` with maxdf = 1.0D+10.
+        // 5.0D+00, atol, tol)` with maxdf = 1.0D+10. cdflib.f90:6276
+        // writes `bound = 0.0D+00` for the qleft failure (not the
+        // search lower bound of 1.0); cdflib.f90:6283 writes
+        // `bound = maxdf` for qhi.
         Ok(search_monotone(
-            1.0, 1.0e10, 5.0,
+            1.0, 1.0e10, 5.0, 0.0, 1.0e10,
             f,
         )?)
     }
@@ -211,7 +214,7 @@ impl ContinuousCdf for StudentsT {
         // atol, tol)` with inf = 1.0D+30, and cdflib.f90:6210 starting
         // guess `t = dt1(p, q, df)`.
         let start = dt1(p, q, df);
-        Ok(search_monotone(-1.0e30, 1.0e30, start, f)?)
+        Ok(search_monotone(-1.0e30, 1.0e30, start, -1.0e30, 1.0e30, f)?)
     }
 }
 
@@ -243,7 +246,7 @@ impl StudentsT {
             }
         };
         let start = dt1(p, q, df);
-        Ok(search_monotone(-1.0e30, 1.0e30, start, f)?)
+        Ok(search_monotone(-1.0e30, 1.0e30, start, -1.0e30, 1.0e30, f)?)
     }
 }
 

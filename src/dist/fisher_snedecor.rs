@@ -153,7 +153,7 @@ impl FisherSnedecor {
             }
         };
         Ok(search_monotone(
-            1.0, SEARCH_BOUND, 5.0,
+            1.0, SEARCH_BOUND, 5.0, 1.0, SEARCH_BOUND,
             func,
         )?)
     }
@@ -192,7 +192,7 @@ impl FisherSnedecor {
             }
         };
         Ok(search_monotone(
-            1.0, SEARCH_BOUND, 5.0,
+            1.0, SEARCH_BOUND, 5.0, 1.0, SEARCH_BOUND,
             func,
         )?)
     }
@@ -285,7 +285,7 @@ impl ContinuousCdf for FisherSnedecor {
         };
         // Match cdff's which=2: range (0, inf), start = 5.0.
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0,
+            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
             func,
         )?)
     }
@@ -319,7 +319,7 @@ impl FisherSnedecor {
             }
         };
         Ok(search_monotone(
-            0.0, SEARCH_BOUND, 5.0,
+            0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND,
             func,
         )?)
     }
