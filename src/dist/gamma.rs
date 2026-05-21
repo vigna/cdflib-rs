@@ -4,7 +4,6 @@ use crate::special::{
     gamma_inc, gamma_log, psi, try_gamma_inc, try_gamma_inc_inv, GammaIncError, GammaIncInvError,
 };
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
-use std::cell::Cell;
 use thiserror::Error;
 
 /// Γ distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
@@ -70,7 +69,7 @@ pub enum GammaError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
     /// Mirrors CDFLIB's `cdfgam` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
@@ -148,7 +147,7 @@ impl Gamma {
     /// Returns the shape parameter *α* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
     /// Mirrors CDFLIB's `cdfgam` with `which = 3`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3ε.
     #[inline]
     pub fn search_shape(p: f64, q: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
         check_pq(p, q)?;
@@ -171,20 +170,20 @@ impl Gamma {
         // F90 status 10.
         let xr = x * rate;
         let porq = p.min(q);
-        let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
+        let mut gamma_inc_err: Option<GammaIncError> = None;
         let f = |shape: f64| {
-            if gamma_inc_err.get().is_some() {
+            if gamma_inc_err.is_some() {
                 return 0.0;
             }
             match try_gamma_inc(shape, xr) {
                 Err(e) => {
-                    gamma_inc_err.set(Some(e));
+                    gamma_inc_err = Some(e);
                     0.0
                 }
                 Ok((cum, ccum)) => {
                     let fx = if p <= q { cum - p } else { ccum - q };
                     if 1.5 < fx + porq {
-                        gamma_inc_err.set(Some(GammaIncError::Indeterminate { a: shape, x: xr }));
+                        gamma_inc_err = Some(GammaIncError::Indeterminate { a: shape, x: xr });
                         return 0.0;
                     }
                     fx
@@ -193,7 +192,7 @@ impl Gamma {
         };
         // Match cdfgam's which=3: range (zero, inf), start = 5.0.
         let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
-        if let Some(e) = gamma_inc_err.into_inner() {
+        if let Some(e) = gamma_inc_err {
             return Err(e.into());
         }
         Ok(result?)
@@ -202,7 +201,7 @@ impl Gamma {
     /// Returns the rate parameter *β* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
     /// Mirrors CDFLIB's `cdfgam` with `which = 4`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3ε.
     #[inline]
     pub fn search_rate(p: f64, q: f64, x: f64, shape: f64) -> Result<f64, GammaError> {
         check_pq(p, q)?;

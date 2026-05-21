@@ -50,7 +50,7 @@ pub enum NormalError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
     /// Mirrors CDFLIB's `cdfnor` status 3 (cdflib.f90:5659).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
@@ -116,7 +116,7 @@ impl Normal {
     ///
     /// CDFLIB's `cdfnor` with `which = 3` (cdflib.f90:5695). Caller passes
     /// both *p* and *q* = 1 − *p*; consistency is enforced within
-    /// 3 ε via [`PQSumNotOne`]. Passing the pair preserves
+    /// 3ε via [`PQSumNotOne`]. Passing the pair preserves
     /// tail precision when one tail is much smaller than the other.
     ///
     /// [`PQSumNotOne`]: NormalError::PQSumNotOne

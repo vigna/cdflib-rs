@@ -58,7 +58,7 @@ pub enum NegativeBinomialError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
     /// Mirrors CDFLIB's `cdfnbn` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
@@ -113,7 +113,7 @@ impl NegativeBinomial {
     /// Pr[*F* ≤ *s*] = *p* given the success probability.
     ///
     /// Mirrors CDFLIB's `cdfnbn` with `which = 3`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3ε.
     #[inline]
     pub fn search_r(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_pq(p, q)?;
@@ -146,7 +146,7 @@ impl NegativeBinomial {
     ///
     /// Mirrors CDFLIB's `cdfnbn` with `which = 4` (cdflib.f90:5400-5430).
     /// Caller passes both *p* and *q* = 1 − *p*; consistency is enforced
-    /// within 3 ε. When *p* > *q* the search runs on *ompr* = 1 − *pr*
+    /// within 3ε. When *p* > *q* the search runs on *ompr* = 1 − *pr*
     /// (F90's variable-switch precision strategy) and returns *pr* = 1 − *ompr*.
     #[inline]
     pub fn search_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {

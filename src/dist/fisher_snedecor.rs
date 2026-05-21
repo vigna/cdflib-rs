@@ -61,7 +61,7 @@ pub enum FisherSnedecorError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
     /// Mirrors CDFLIB's `cdff` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
@@ -122,7 +122,7 @@ impl FisherSnedecor {
     /// Pr[*X* ≤ *f*] = *p* given *dfd*.
     ///
     /// Mirrors CDFLIB's `cdff` with `which = 3`. Caller passes both *p*
-    /// and *q* = 1 − *p*; consistency is enforced within 3 ε. The search
+    /// and *q* = 1 − *p*; consistency is enforced within 3ε. The search
     /// has lower bound 1, since *dfn* < 1 makes `cumf`'s
     /// `beta_inc` call diverge.
     #[inline]
@@ -165,7 +165,7 @@ impl FisherSnedecor {
     /// Pr[*X* ≤ *f*] = *p* given *dfn*.
     ///
     /// Mirrors CDFLIB's `cdff` with `which = 4`. Caller passes both *p*
-    /// and *q* = 1 − *p*; consistency is enforced within 3 ε. Lower-bounded
+    /// and *q* = 1 − *p*; consistency is enforced within 3ε. Lower-bounded
     /// below by 1 for the same convergence reason as
     /// [`search_dfn`](Self::search_dfn).
     #[inline]

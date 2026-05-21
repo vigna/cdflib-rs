@@ -56,7 +56,7 @@ pub enum BetaError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
     /// Mirrors CDFLIB's `cdfbet` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
@@ -123,7 +123,7 @@ impl Beta {
     /// Returns the shape parameter *a* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
     /// CDFLIB's `cdfbet` with `which = 3`. Caller passes both *p* and
-    /// *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// *q* = 1 − *p*; consistency is enforced within 3ε.
     #[inline]
     pub fn search_a(p: f64, q: f64, x: f64, b: f64) -> Result<f64, BetaError> {
         check_pq(p, q)?;
@@ -160,7 +160,7 @@ impl Beta {
     /// Returns the shape parameter *b* satisfying Pr[*X* ≤ *x*] = *p*.
     ///
     /// CDFLIB's `cdfbet` with `which = 4`. Caller passes both *p* and
-    /// *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// *q* = 1 − *p*; consistency is enforced within 3ε.
     #[inline]
     pub fn search_b(p: f64, q: f64, x: f64, a: f64) -> Result<f64, BetaError> {
         check_pq(p, q)?;

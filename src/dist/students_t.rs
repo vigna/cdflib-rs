@@ -47,7 +47,7 @@ pub enum StudentsTError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
     /// Mirrors CDFLIB's `cdft` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
@@ -100,7 +100,7 @@ impl StudentsT {
     /// Returns the degrees of freedom *df* satisfying Pr[*T* ≤ *t*] = *p*.
     ///
     /// CDFLIB's `cdft` with `which = 3`. Caller passes both *p* and
-    /// *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// *q* = 1 − *p*; consistency is enforced within 3ε.
     #[inline]
     pub fn search_df(p: f64, q: f64, t: f64) -> Result<f64, StudentsTError> {
         check_pq(p, q)?;

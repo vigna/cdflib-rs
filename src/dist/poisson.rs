@@ -62,7 +62,7 @@ pub enum PoissonError {
     /// The probability *q* fell outside [0 . . 1] (or was non-finite).
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3 ε).
+    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
     /// Mirrors CDFLIB's `cdfpoi` status 3.
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
@@ -115,7 +115,7 @@ impl Poisson {
     /// Returns the rate parameter *λ* satisfying Pr[*X* ≤ *s*] = *p*.
     ///
     /// Mirrors CDFLIB's `cdfpoi` with `which = 3`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3 ε.
+    /// *p* and *q* = 1 − *p*; consistency is enforced within 3ε.
     #[inline]
     pub fn search_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
         check_pq(p, q)?;
