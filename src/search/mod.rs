@@ -268,8 +268,8 @@ mod tests {
     fn qleft_qhi_bounds_are_passed_through_distinctly() {
         // The qleft_bound / qhi_bound parameters must surface in the
         // failure variant verbatim, independent of small / big. F90
-        // `cdf*` dispatchers exploit this (e.g. cdft which=3 writes
-        // `bound = 0.0D+00` even though `small = 1.0`).
+        // cdf* dispatchers exploit this (e.g. cdft which=3 writes
+        // bound = 0.0D+00 even though small = 1.0).
         // qleft path: increasing function positive everywhere → small fails.
         let err = search_monotone(1.0, 10.0, 5.0, 99.0, 999.0, |x| x + 1.0).unwrap_err();
         assert!(
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn nan_objective_surfaces_as_search_failure() {
         // A NaN-returning objective surfaces as AnswerBelowLowerBound
-        // (the initial NaN at `start` is neither < 0 nor > 0, so the
+        // (the initial NaN at start is neither < 0 nor > 0, so the
         // range-expansion logic falls through).
         let err = search_monotone(0.0, 1.0, 0.5, 0.0, 1.0, |_| f64::NAN).unwrap_err();
         assert!(matches!(

@@ -196,8 +196,8 @@ impl FisherSnedecorNoncentral {
         // (Fortran cdflib.f90:4460, :4619: cdffnc caps inf at 1e30 and
         // explicitly lifts the lower bound from 0 to 1, since dfn < 1
         // makes cumfnc's beta_inc call diverge). cdflib.f90:4639 writes
-        // `bound = 0.0D+00` for qleft (not the search lower bound of 1.0);
-        // :4646 writes `bound = inf` for qhi.
+        // bound = 0.0D+00 for qleft (not the search lower bound of 1.0);
+        // :4646 writes bound = inf for qhi.
         Ok(search_monotone(1.0, 1.0e30, 5.0, 0.0, 1.0e30, func)?)
     }
 
@@ -238,8 +238,8 @@ impl FisherSnedecorNoncentral {
         // CDF is increasing in dfd for fixed f, dfn, ncp.
         // Match cdffnc's which=4: range (1.0, inf) with inf = 1.0D+30
         // (Fortran cdflib.f90:4460, :4658: same rationale as search_dfn).
-        // cdflib.f90:4677 writes `bound = 0.0D+00` for qleft (not 1.0);
-        // :4684 writes `bound = inf` for qhi.
+        // cdflib.f90:4677 writes bound = 0.0D+00 for qleft (not 1.0);
+        // :4684 writes bound = inf for qhi.
         Ok(search_monotone(1.0, 1.0e30, 5.0, 0.0, 1.0e30, func)?)
     }
 
