@@ -295,7 +295,7 @@ impl Gamma {
     /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// Mirrors CDFLIB's `cdfgam` with `which = 2`, routed through the
-    /// upper-tail probability so a tiny *q* keeps its precision.
+    /// complementary probability so a tiny *q* keeps its precision.
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
