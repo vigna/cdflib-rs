@@ -230,7 +230,7 @@ impl DiscreteCdf for Binomial {
     }
 
     #[inline]
-    fn sf(&self, s: u64) -> f64 {
+    fn ccdf(&self, s: u64) -> f64 {
         cumbin(s, self.n, self.pr).1
     }
 
@@ -267,7 +267,7 @@ impl Binomial {
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, BinomialError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BinomialError> {
         check_q(q)?;
         let nf = self.n as f64;
         let pr = self.pr;

@@ -148,30 +148,30 @@ fn discrete_inverse_sf_contract() {
     // satisfies the discrete sf bound sf(floor(s)) >= q (when interior).
     let binomial = Binomial::new(20, 0.3);
     for &target in &[0.5, 0.1] {
-        let s = binomial.inverse_sf(target).unwrap();
+        let s = binomial.inverse_ccdf(target).unwrap();
         let s_floor = s.floor() as u64;
         assert!(
-            binomial.sf(s_floor) >= target,
+            binomial.ccdf(s_floor) >= target,
             "binomial: s={s}, floor={s_floor}, q={target}"
         );
     }
 
     let poisson = Poisson::new(2.0);
     for &target in &[0.5, 0.1, 0.05] {
-        let s = poisson.inverse_sf(target).unwrap();
+        let s = poisson.inverse_ccdf(target).unwrap();
         let s_floor = s.floor() as u64;
         assert!(
-            poisson.sf(s_floor) >= target,
+            poisson.ccdf(s_floor) >= target,
             "poisson: s={s}, floor={s_floor}, q={target}"
         );
     }
 
     let negbin = NegativeBinomial::new(5, 0.4);
     for &target in &[0.5, 0.1] {
-        let s = negbin.inverse_sf(target).unwrap();
+        let s = negbin.inverse_ccdf(target).unwrap();
         let s_floor = s.floor() as u64;
         assert!(
-            negbin.sf(s_floor) >= target,
+            negbin.ccdf(s_floor) >= target,
             "negbin: s={s}, floor={s_floor}, q={target}"
         );
     }

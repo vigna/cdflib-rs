@@ -1,7 +1,7 @@
 #![cfg(not(miri))]
 
 //! Round-trip integration tests for ChiSquared and Gamma: invoke
-//! `inverse_cdf` / `inverse_sf` / search, then verify by re-evaluating
+//! `inverse_cdf` / `inverse_ccdf` / search, then verify by re-evaluating
 //! `cdf` at the answer. All assertions go through `INVERSE_REL_TOL`.
 
 mod common;
@@ -25,8 +25,8 @@ fn chi_squared_inverse_sf_round_trip() {
     for &df in &[1.0, 2.0, 5.0, 10.0, 30.0] {
         let c = ChiSquared::new(df);
         for &q in &[0.01, 0.05, 0.1, 0.5] {
-            let x = c.inverse_sf(q).unwrap();
-            assert_close_eps(c.sf(x), q, INVERSE_REL_TOL, INVERSE_REL_TOL);
+            let x = c.inverse_ccdf(q).unwrap();
+            assert_close_eps(c.ccdf(x), q, INVERSE_REL_TOL, INVERSE_REL_TOL);
         }
     }
 }

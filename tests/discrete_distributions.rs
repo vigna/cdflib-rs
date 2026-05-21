@@ -23,7 +23,7 @@ fn binomial_cdf_matches_cumbin_reference() {
             DISTRIBUTION_ABS_TOL,
         );
         assert_close_eps(
-            d.sf(s as u64),
+            d.ccdf(s as u64),
             expected_sf,
             DISTRIBUTION_REL_TOL,
             DISTRIBUTION_ABS_TOL,
@@ -45,7 +45,7 @@ fn poisson_cdf_matches_cumpoi_reference() {
             DISTRIBUTION_ABS_TOL,
         );
         assert_close_eps(
-            d.sf(s as u64),
+            d.ccdf(s as u64),
             expected_sf,
             DISTRIBUTION_REL_TOL,
             DISTRIBUTION_ABS_TOL,
@@ -67,7 +67,7 @@ fn negative_binomial_cdf_matches_cumnbn_reference() {
             DISTRIBUTION_ABS_TOL,
         );
         assert_close_eps(
-            d.sf(s as u64),
+            d.ccdf(s as u64),
             expected_sf,
             DISTRIBUTION_REL_TOL,
             DISTRIBUTION_ABS_TOL,

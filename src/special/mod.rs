@@ -22,7 +22,7 @@
 //! CDFLIB's other `cum*` helpers (`cumbet`, `cumbin`, `cumchi`, `cumchn`,
 //! `cumf`, `cumfnc`, `cumgam`, `cumnbn`, `cumpoi`, `cumt`) are folded into the
 //! corresponding distribution modules and are not exposed here; if you want
-//! their behavior, use the distribution's [`cdf`] / [`sf`] methods.
+//! their behavior, use the distribution's [`cdf`] / [`ccdf`] methods.
 //!
 //! [`beta`]: crate::special::beta()
 //! [`beta_log`]: crate::special::beta_log
@@ -40,7 +40,7 @@
 //! [`dlanor`]: crate::special::dlanor
 //! [`dt1`]: crate::special::dt1
 //! [`cdf`]: crate::traits::ContinuousCdf::cdf
-//! [`sf`]: crate::traits::ContinuousCdf::sf
+//! [`ccdf`]: crate::traits::ContinuousCdf::sf
 
 pub(crate) mod beta;
 pub(crate) mod erf;

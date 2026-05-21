@@ -214,7 +214,7 @@ impl DiscreteCdf for NegativeBinomial {
     }
 
     #[inline]
-    fn sf(&self, s: u64) -> f64 {
+    fn ccdf(&self, s: u64) -> f64 {
         let (_, ccum) = beta_inc(self.r as f64, s as f64 + 1.0, self.pr, 1.0 - self.pr);
         ccum
     }
@@ -265,7 +265,7 @@ impl NegativeBinomial {
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, NegativeBinomialError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, NegativeBinomialError> {
         check_q(q)?;
         let rf = self.r as f64;
         let pr = self.pr;

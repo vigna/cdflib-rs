@@ -26,6 +26,8 @@
 
 - `inverse_sf` is no longer a trait method.
 
+- "Survival function" -> "Complementary cumulative distribution function".
+
 ### Fixed
 
 - Fixed erratic behavior at endpoints 0 and 1.

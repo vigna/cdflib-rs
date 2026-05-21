@@ -18,8 +18,8 @@ fn normal_endpoints() {
     let n = Normal::new(0.0, 1.0);
     assert_eq!(n.inverse_cdf(0.0).unwrap(), f64::NEG_INFINITY);
     assert_eq!(n.inverse_cdf(1.0).unwrap(), f64::INFINITY);
-    assert_eq!(n.inverse_sf(0.0).unwrap(), f64::INFINITY);
-    assert_eq!(n.inverse_sf(1.0).unwrap(), f64::NEG_INFINITY);
+    assert_eq!(n.inverse_ccdf(0.0).unwrap(), f64::INFINITY);
+    assert_eq!(n.inverse_ccdf(1.0).unwrap(), f64::NEG_INFINITY);
 }
 
 #[test]
@@ -27,8 +27,8 @@ fn gamma_endpoints() {
     let g = Gamma::new(2.0, 1.5);
     assert_eq!(g.inverse_cdf(0.0).unwrap(), 0.0);
     assert_eq!(g.inverse_cdf(1.0).unwrap(), f64::INFINITY);
-    assert_eq!(g.inverse_sf(0.0).unwrap(), f64::INFINITY);
-    assert_eq!(g.inverse_sf(1.0).unwrap(), 0.0);
+    assert_eq!(g.inverse_ccdf(0.0).unwrap(), f64::INFINITY);
+    assert_eq!(g.inverse_ccdf(1.0).unwrap(), 0.0);
 }
 
 #[test]
@@ -36,8 +36,8 @@ fn chi_squared_endpoints() {
     let c = ChiSquared::new(5.0);
     assert_eq!(c.inverse_cdf(0.0).unwrap(), 0.0);
     assert_eq!(c.inverse_cdf(1.0).unwrap(), f64::INFINITY);
-    assert_eq!(c.inverse_sf(0.0).unwrap(), f64::INFINITY);
-    assert_eq!(c.inverse_sf(1.0).unwrap(), 0.0);
+    assert_eq!(c.inverse_ccdf(0.0).unwrap(), f64::INFINITY);
+    assert_eq!(c.inverse_ccdf(1.0).unwrap(), 0.0);
 }
 
 #[test]
@@ -52,8 +52,8 @@ fn beta_endpoints() {
     let b = Beta::new(2.0, 5.0);
     assert_eq!(b.inverse_cdf(0.0).unwrap(), 0.0);
     assert_eq!(b.inverse_cdf(1.0).unwrap(), 1.0);
-    assert_eq!(b.inverse_sf(0.0).unwrap(), 1.0);
-    assert_eq!(b.inverse_sf(1.0).unwrap(), 0.0);
+    assert_eq!(b.inverse_ccdf(0.0).unwrap(), 1.0);
+    assert_eq!(b.inverse_ccdf(1.0).unwrap(), 0.0);
 }
 
 #[test]
@@ -61,8 +61,8 @@ fn fisher_snedecor_endpoints() {
     let f = FisherSnedecor::new(5.0, 10.0);
     assert_eq!(f.inverse_cdf(0.0).unwrap(), 0.0);
     assert_eq!(f.inverse_cdf(1.0).unwrap(), f64::INFINITY);
-    assert_eq!(f.inverse_sf(0.0).unwrap(), f64::INFINITY);
-    assert_eq!(f.inverse_sf(1.0).unwrap(), 0.0);
+    assert_eq!(f.inverse_ccdf(0.0).unwrap(), f64::INFINITY);
+    assert_eq!(f.inverse_ccdf(1.0).unwrap(), 0.0);
 }
 
 #[test]
@@ -77,8 +77,8 @@ fn students_t_endpoints() {
     let t = StudentsT::new(10.0);
     assert_eq!(t.inverse_cdf(0.0).unwrap(), f64::NEG_INFINITY);
     assert_eq!(t.inverse_cdf(1.0).unwrap(), f64::INFINITY);
-    assert_eq!(t.inverse_sf(0.0).unwrap(), f64::INFINITY);
-    assert_eq!(t.inverse_sf(1.0).unwrap(), f64::NEG_INFINITY);
+    assert_eq!(t.inverse_ccdf(0.0).unwrap(), f64::INFINITY);
+    assert_eq!(t.inverse_ccdf(1.0).unwrap(), f64::NEG_INFINITY);
 }
 
 // ---- Discrete endpoint contract ----
@@ -91,10 +91,10 @@ fn binomial_endpoints() {
     // inverse_sf returns the real-valued F90 cdfbin which=2 quantile.
     // At q=0 (p=1) the search converges at s=n; at q=1 (p=0) it walks
     // to the lower bound and fails per F90's status=1.
-    let s = b.inverse_sf(0.0).unwrap();
+    let s = b.inverse_ccdf(0.0).unwrap();
     assert!((s - 10.0).abs() < 1e-6, "got s={s}");
     assert!(matches!(
-        b.inverse_sf(1.0),
+        b.inverse_ccdf(1.0),
         Err(cdflib::BinomialError::Search(_))
     ));
 }
@@ -108,10 +108,10 @@ fn poisson_endpoints() {
     // At q=0 the search walks to a large s where sf < abs_tol (F90 dstinv
     // converges by absolute tolerance, not by sign change); at q=1 it
     // hits the lower search bound and reports F90 status=1.
-    let s_zero = p.inverse_sf(0.0).unwrap();
+    let s_zero = p.inverse_ccdf(0.0).unwrap();
     assert!(s_zero > 10.0 && s_zero.is_finite(), "got {s_zero}");
     assert!(matches!(
-        p.inverse_sf(1.0),
+        p.inverse_ccdf(1.0),
         Err(cdflib::PoissonError::Search(_))
     ));
 }
@@ -123,10 +123,10 @@ fn negative_binomial_endpoints() {
     assert_eq!(nb.inverse_cdf(1.0).unwrap(), u64::MAX);
     // Same F90 cdfnbn which=2 behavior: q=0 converges by abs_tol at large s;
     // q=1 hits the lower search bound.
-    let s_zero = nb.inverse_sf(0.0).unwrap();
+    let s_zero = nb.inverse_ccdf(0.0).unwrap();
     assert!(s_zero > 10.0 && s_zero.is_finite(), "got {s_zero}");
     assert!(matches!(
-        nb.inverse_sf(1.0),
+        nb.inverse_ccdf(1.0),
         Err(cdflib::NegativeBinomialError::Search(_))
     ));
 }
@@ -232,10 +232,10 @@ fn continuous_cdf_nan_returns_nan() {
 }
 
 #[test]
-fn continuous_sf_nan_returns_nan() {
-    assert!(Normal::new(0.0, 1.0).sf(f64::NAN).is_nan());
-    assert!(Gamma::new(2.0, 1.0).sf(f64::NAN).is_nan());
-    assert!(ChiSquared::new(5.0).sf(f64::NAN).is_nan());
-    assert!(Beta::new(2.0, 5.0).sf(f64::NAN).is_nan());
-    assert!(StudentsT::new(10.0).sf(f64::NAN).is_nan());
+fn continuous_ccdf_nan_returns_nan() {
+    assert!(Normal::new(0.0, 1.0).ccdf(f64::NAN).is_nan());
+    assert!(Gamma::new(2.0, 1.0).ccdf(f64::NAN).is_nan());
+    assert!(ChiSquared::new(5.0).ccdf(f64::NAN).is_nan());
+    assert!(Beta::new(2.0, 5.0).ccdf(f64::NAN).is_nan());
+    assert!(StudentsT::new(10.0).ccdf(f64::NAN).is_nan());
 }

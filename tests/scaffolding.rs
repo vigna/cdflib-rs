@@ -94,7 +94,7 @@ impl ContinuousCdf for StubContinuous {
         Ok(p.clamp(0.0, 1.0))
     }
 
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         1.0 - self.cdf(x)
     }
 }
@@ -102,7 +102,7 @@ impl ContinuousCdf for StubContinuous {
 #[test]
 fn continuous_cdf_trait_shape_compiles() {
     let d = StubContinuous;
-    assert_close(d.sf(0.3), 0.7);
+    assert_close(d.ccdf(0.3), 0.7);
     assert_close(d.inverse_cdf(0.3).unwrap(), 0.3);
 }
 
@@ -118,7 +118,7 @@ impl DiscreteCdf for StubDiscrete {
             0.0
         }
     }
-    fn sf(&self, x: u64) -> f64 {
+    fn ccdf(&self, x: u64) -> f64 {
         if x >= 1 {
             0.0
         } else {
@@ -133,8 +133,8 @@ impl DiscreteCdf for StubDiscrete {
 #[test]
 fn discrete_cdf_trait_shape_compiles() {
     let d = StubDiscrete;
-    assert_close(d.sf(0), 1.0);
-    assert_close(d.sf(1), 0.0);
+    assert_close(d.ccdf(0), 1.0);
+    assert_close(d.ccdf(1), 0.0);
     assert_eq!(d.inverse_cdf(1.0).unwrap(), 1);
     assert_eq!(d.inverse_cdf(0.0).unwrap(), 0);
 }

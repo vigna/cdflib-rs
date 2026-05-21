@@ -384,7 +384,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         cumfnc(x, self.dfn, self.dfd, self.ncp).0
     }
     #[inline]
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         cumfnc(x, self.dfn, self.dfd, self.ncp).1
     }
     #[inline]
@@ -475,7 +475,7 @@ mod tests {
         let d = FisherSnedecorNoncentral::new(5.0, 10.0, 0.0);
         let x = 1.5;
         let cdf = d.cdf(x);
-        let sf = d.sf(x);
-        assert!((cdf + sf - 1.0).abs() < 1e-12);
+        let ccdf = d.ccdf(x);
+        assert!((cdf + ccdf - 1.0).abs() < 1e-12);
     }
 }

@@ -201,11 +201,11 @@ impl ContinuousCdf for Normal {
         cum
     }
 
-    /// Direct survival-function computation, not 1 − cdf(*x*). Crucial for
+    /// Direct complementary-CDF computation, not 1 − cdf(*x*). Crucial for
     /// preserving precision in the right tail (where cdf(*x*) saturates to
     /// 1.0 well before the true value reaches it).
     #[inline]
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         let (_cum, ccum) = cumnor((x - self.mean) / self.sd);
         ccum
     }
@@ -214,12 +214,12 @@ impl ContinuousCdf for Normal {
     ///
     /// Maximum precision is achieved when *p* ≤ 1/2. For *p* > 1/2, the
     /// internal *q* = 1 − *p* loses precision near *p* = 1; users with a
-    /// known small right-tail probability *q* should call [`inverse_sf`]
+    /// known small right-tail probability *q* should call [`inverse_ccdf`]
     /// directly. (A single-argument API cannot carry both *p* and *q*
     /// with full precision; CDFLIB's (*p*, *q*) pair convention
     /// exists for exactly this reason.)
     ///
-    /// [`inverse_sf`]: Self::inverse_sf
+    /// [`inverse_ccdf`]: Self::inverse_sf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
         check_p(p)?;
@@ -236,15 +236,15 @@ impl ContinuousCdf for Normal {
 }
 
 impl Normal {
-    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// Mirrors CDFLIB's `cdfnor` with `which = 2`, routed through the
     /// upper-tail input so a small right-tail probability *q* keeps its
     /// precision.
     ///
-    /// [sf]: crate::traits::ContinuousCdf::sf
+    /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, NormalError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, NormalError> {
         check_q(q)?;
         if q == 0.0 {
             return Ok(f64::INFINITY);
@@ -325,20 +325,20 @@ mod tests {
     }
 
     #[test]
-    fn sf_matches_1_minus_cdf_at_moderate_x() {
+    fn ccdf_matches_1_minus_cdf_at_moderate_x() {
         let n = Normal::new(2.0, 3.0);
         for &x in &[-1.0, 0.0, 2.0, 4.0] {
-            let s = (n.sf(x) + n.cdf(x) - 1.0).abs();
+            let s = (n.ccdf(x) + n.cdf(x) - 1.0).abs();
             assert!(s < 1e-14, "x = {x}: sum - 1 = {s}");
         }
     }
 
     #[test]
-    fn sf_stays_accurate_in_deep_right_tail() {
+    fn ccdf_stays_accurate_in_deep_right_tail() {
         // For x = mean + 10*sd the CDF saturates to 1.0; the SF should
         // not be 0. CDFLIB-grade tail accuracy is the whole point.
         let n = Normal::new(0.0, 1.0);
-        let s = n.sf(10.0);
+        let s = n.ccdf(10.0);
         assert!(s > 0.0 && s < 1e-22, "sf(10) = {s}");
     }
 
@@ -353,10 +353,10 @@ mod tests {
     }
 
     #[test]
-    fn inverse_sf_handles_tiny_tails() {
+    fn inverse_ccdf_handles_tiny_tails() {
         let n = Normal::standard();
-        let q = n.sf(7.0); // ~1.28e-12
-        let back = n.inverse_sf(q).unwrap();
+        let q = n.ccdf(7.0); // ~1.28e-12
+        let back = n.inverse_ccdf(q).unwrap();
         assert!((back - 7.0).abs() < 1e-9, "back = {back}");
     }
 

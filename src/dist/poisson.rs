@@ -177,7 +177,7 @@ impl DiscreteCdf for Poisson {
     }
 
     #[inline]
-    fn sf(&self, s: u64) -> f64 {
+    fn ccdf(&self, s: u64) -> f64 {
         let (p, _) = gamma_inc(s as f64 + 1.0, self.lambda);
         p
     }
@@ -228,7 +228,7 @@ impl Poisson {
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, PoissonError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, PoissonError> {
         check_q(q)?;
         let lambda = self.lambda;
         let p = 1.0 - q;
@@ -301,25 +301,25 @@ mod tests {
     }
 
     #[test]
-    fn inverse_sf_matches_integer_quantile_at_integer_boundary() {
+    fn inverse_ccdf_matches_integer_quantile_at_integer_boundary() {
         // At the integer quantile boundary, the continuous search should
         // return the exact integer (because cumpoi(s_int, λ) for integer s
         // is the discrete CDF value at s_int).
         let p = Poisson::new(3.0);
-        let q_target = p.sf(2); // = Pr[X > 2] for Poisson(3)
-        let s = p.inverse_sf(q_target).unwrap();
+        let q_target = p.ccdf(2); // = Pr[X > 2] for Poisson(3)
+        let s = p.inverse_ccdf(q_target).unwrap();
         assert!((s - 2.0).abs() < 1e-6, "got s = {s}");
     }
 
     #[test]
-    fn inverse_sf_between_integers() {
+    fn inverse_ccdf_between_integers() {
         // For a target q strictly between two integer SF values, the result
         // should be a real value strictly between the two integers.
         let p = Poisson::new(3.0);
-        let hi_sf = p.sf(2);
-        let lo_sf = p.sf(3);
+        let hi_sf = p.ccdf(2);
+        let lo_sf = p.ccdf(3);
         let q_target = 0.5 * (lo_sf + hi_sf);
-        let s = p.inverse_sf(q_target).unwrap();
+        let s = p.inverse_ccdf(q_target).unwrap();
         assert!(s > 2.0 && s < 3.0, "got s = {s}");
     }
 
@@ -372,7 +372,7 @@ mod tests {
         let s = 10u64; // mean+5σ-ish, cdf will be very close to 1
         let dist = Poisson::new(lambda);
         let p_target = dist.cdf(s);
-        let q_target = dist.sf(s);
+        let q_target = dist.ccdf(s);
         let recovered = Poisson::search_lambda(p_target, q_target, s).unwrap();
         assert!(
             (recovered - lambda).abs() < 1e-5,
@@ -386,7 +386,7 @@ mod tests {
         let expected_cdf = 0.999_999_993_591_493_9;
         let expected_sf = 6.408_506_071_899_014e-9;
         assert!((p.cdf(285) - expected_cdf).abs() < 1e-15);
-        assert!((p.sf(285) - expected_sf).abs() < 1e-22);
+        assert!((p.ccdf(285) - expected_sf).abs() < 1e-22);
     }
 
     #[test]

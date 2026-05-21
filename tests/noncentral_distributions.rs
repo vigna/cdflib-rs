@@ -29,7 +29,7 @@ fn chi_squared_noncentral_matches_cumchn_reference() {
             DEFAULT_ABS_TOL,
         );
         assert_close_eps(
-            d.sf(x),
+            d.ccdf(x),
             expected_sf,
             NONCENTRAL_CHI_REL_TOL,
             DEFAULT_ABS_TOL,
@@ -50,6 +50,6 @@ fn f_noncentral_matches_cumfnc_reference() {
             NONCENTRAL_F_REL_TOL,
             DEFAULT_ABS_TOL,
         );
-        assert_close_eps(d.sf(fx), expected_sf, NONCENTRAL_F_REL_TOL, DEFAULT_ABS_TOL);
+        assert_close_eps(d.ccdf(fx), expected_sf, NONCENTRAL_F_REL_TOL, DEFAULT_ABS_TOL);
     }
 }

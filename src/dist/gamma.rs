@@ -266,7 +266,7 @@ impl ContinuousCdf for Gamma {
     }
 
     #[inline]
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         if x <= 0.0 {
             return 1.0;
         }
@@ -292,14 +292,14 @@ impl ContinuousCdf for Gamma {
 }
 
 impl Gamma {
-    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// Mirrors CDFLIB's `cdfgam` with `which = 2`, routed through the
     /// upper-tail probability so a tiny *q* keeps its precision.
     ///
-    /// [sf]: crate::traits::ContinuousCdf::sf
+    /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, GammaError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, GammaError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -415,13 +415,13 @@ mod tests {
     fn inverse_and_density_edges() {
         let g = Gamma::new(2.0, 3.0);
         assert_eq!(g.inverse_cdf(0.0).unwrap(), 0.0);
-        assert_eq!(g.inverse_sf(1.0).unwrap(), 0.0);
+        assert_eq!(g.inverse_ccdf(1.0).unwrap(), 0.0);
         assert_eq!(g.pdf(0.0), 0.0);
         assert_eq!(g.ln_pdf(0.0), f64::NEG_INFINITY);
         assert_eq!(g.cdf(-1.0), 0.0);
-        assert_eq!(g.sf(-1.0), 1.0);
-        assert!(g.sf(1.0).is_finite());
-        assert!(g.inverse_sf(0.25).unwrap().is_finite());
+        assert_eq!(g.ccdf(-1.0), 1.0);
+        assert!(g.ccdf(1.0).is_finite());
+        assert!(g.inverse_ccdf(0.25).unwrap().is_finite());
         assert!(g.entropy().is_finite());
     }
 

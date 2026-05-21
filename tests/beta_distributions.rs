@@ -24,7 +24,7 @@ fn beta_cdf_matches_cumbet_reference() {
             DISTRIBUTION_ABS_TOL,
         );
         assert_close_eps(
-            d.sf(x),
+            d.ccdf(x),
             expected_sf,
             DISTRIBUTION_REL_TOL,
             DISTRIBUTION_ABS_TOL,
@@ -46,7 +46,7 @@ fn students_t_cdf_matches_cumt_reference() {
             DISTRIBUTION_ABS_TOL,
         );
         assert_close_eps(
-            d.sf(t),
+            d.ccdf(t),
             expected_sf,
             DISTRIBUTION_REL_TOL,
             DISTRIBUTION_ABS_TOL,
@@ -68,7 +68,7 @@ fn f_cdf_matches_cumf_reference() {
             DISTRIBUTION_ABS_TOL,
         );
         assert_close_eps(
-            d.sf(fx),
+            d.ccdf(fx),
             expected_sf,
             DISTRIBUTION_REL_TOL,
             DISTRIBUTION_ABS_TOL,

@@ -145,7 +145,7 @@ impl FisherSnedecor {
         let func = |dfn: f64| {
             let dist = FisherSnedecor { dfn, dfd };
             let cum = dist.cdf(f);
-            let ccum = dist.sf(f);
+            let ccum = dist.ccdf(f);
             if p <= q {
                 cum - p
             } else {
@@ -184,7 +184,7 @@ impl FisherSnedecor {
         let func = |dfd: f64| {
             let dist = FisherSnedecor { dfn, dfd };
             let cum = dist.cdf(f);
-            let ccum = dist.sf(f);
+            let ccum = dist.ccdf(f);
             if p <= q {
                 cum - p
             } else {
@@ -257,7 +257,7 @@ impl ContinuousCdf for FisherSnedecor {
     }
 
     #[inline]
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         cumf(x, self.dfn, self.dfd).1
     }
 
@@ -292,14 +292,14 @@ impl ContinuousCdf for FisherSnedecor {
 }
 
 impl FisherSnedecor {
-    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// Mirrors CDFLIB's `cdff` with `which = 2`, using the same
     /// `cum - p` / `ccum - q` pivot as the Fortran routine.
     ///
-    /// [sf]: crate::traits::ContinuousCdf::sf
+    /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, FisherSnedecorError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, FisherSnedecorError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -409,10 +409,10 @@ mod tests {
     fn inverse_and_density_edges() {
         let d = FisherSnedecor::new(5.0, 10.0);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
-        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
+        assert_eq!(d.inverse_ccdf(1.0).unwrap(), 0.0);
         assert_eq!(d.pdf(0.0), 0.0);
         assert_eq!(d.ln_pdf(0.0), f64::NEG_INFINITY);
-        assert!(d.inverse_sf(0.25).unwrap().is_finite());
+        assert!(d.inverse_ccdf(0.25).unwrap().is_finite());
         assert!(d.pdf(1.5).is_finite());
         assert!(d.ln_pdf(1.5).is_finite());
         assert!(d.entropy().is_finite());

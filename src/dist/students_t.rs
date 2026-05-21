@@ -185,7 +185,7 @@ impl ContinuousCdf for StudentsT {
     }
 
     #[inline]
-    fn sf(&self, t: f64) -> f64 {
+    fn ccdf(&self, t: f64) -> f64 {
         let (_, ccum) = cumt(t, self.df);
         ccum
     }
@@ -219,15 +219,15 @@ impl ContinuousCdf for StudentsT {
 }
 
 impl StudentsT {
-    /// Returns the quantile *t* such that [sf]\(*t*\) = *q*.
+    /// Returns the quantile *t* such that [ccdf]\(*t*\) = *q*.
     ///
     /// Mirrors CDFLIB's `cdft` with `which = 2`, using the same
     /// `cum - p` / `ccum - q` pivot and `dt1` start value as the
     /// Fortran routine.
     ///
-    /// [sf]: crate::traits::ContinuousCdf::sf
+    /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, StudentsTError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, StudentsTError> {
         check_q(q)?;
         if q == 0.0 {
             return Ok(f64::INFINITY);
@@ -337,18 +337,18 @@ mod tests {
             Err(StudentsTError::PNotInRange(-1.0))
         ));
         assert!(matches!(
-            d.inverse_sf(2.0),
+            d.inverse_ccdf(2.0),
             Err(StudentsTError::QNotInRange(2.0))
         ));
     }
 
     #[test]
-    fn inverse_sf_is_zero_at_median() {
+    fn inverse_ccdf_is_zero_at_median() {
         let d = StudentsT::new(7.0);
-        assert!(d.inverse_sf(0.5).unwrap().abs() < 1e-10);
-        let t = d.inverse_sf(0.25).unwrap();
+        assert!(d.inverse_ccdf(0.5).unwrap().abs() < 1e-10);
+        let t = d.inverse_ccdf(0.25).unwrap();
         assert!(t.is_finite());
-        assert!((d.sf(t) - 0.25).abs() < 1e-8);
+        assert!((d.ccdf(t) - 0.25).abs() < 1e-8);
     }
 
     #[test]
@@ -358,7 +358,7 @@ mod tests {
         let expected_cdf = 1.589_507_013_117_725_5e-9;
         let expected_sf = 0.999_999_998_410_493;
         assert!((d.cdf(t) - expected_cdf).abs() < 1e-23);
-        assert!((d.sf(t) - expected_sf).abs() < 1e-15);
+        assert!((d.ccdf(t) - expected_sf).abs() < 1e-15);
     }
 
     #[test]

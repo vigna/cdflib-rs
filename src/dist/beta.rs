@@ -231,7 +231,7 @@ impl ContinuousCdf for Beta {
     }
 
     #[inline]
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         if x <= 0.0 {
             return 1.0;
         }
@@ -274,14 +274,14 @@ impl ContinuousCdf for Beta {
 }
 
 impl Beta {
-    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// Mirrors CDFLIB's `cdfbet` with `which = 2`, using the same
     /// `cum - p` / `ccum - q` pivot as the Fortran routine.
     ///
-    /// [sf]: crate::traits::ContinuousCdf::sf
+    /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, BetaError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BetaError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -384,19 +384,19 @@ mod tests {
         let d = Beta::new(2.0, 3.0);
         assert_eq!(d.cdf(0.0), 0.0);
         assert_eq!(d.cdf(1.0), 1.0);
-        assert_eq!(d.sf(0.0), 1.0);
-        assert_eq!(d.sf(1.0), 0.0);
+        assert_eq!(d.ccdf(0.0), 1.0);
+        assert_eq!(d.ccdf(1.0), 0.0);
         assert_eq!(d.inverse_cdf(0.0).unwrap(), 0.0);
         assert_eq!(d.inverse_cdf(1.0).unwrap(), 1.0);
-        assert_eq!(d.inverse_sf(1.0).unwrap(), 0.0);
-        assert_eq!(d.inverse_sf(0.0).unwrap(), 1.0);
+        assert_eq!(d.inverse_ccdf(1.0).unwrap(), 0.0);
+        assert_eq!(d.inverse_ccdf(0.0).unwrap(), 1.0);
         assert_eq!(d.pdf(0.0), 0.0);
         assert_eq!(d.pdf(1.0), 0.0);
         assert_eq!(d.ln_pdf(0.0), f64::NEG_INFINITY);
         assert_eq!(d.ln_pdf(1.0), f64::NEG_INFINITY);
         assert!(d.pdf(0.4).is_finite());
         assert!(d.ln_pdf(0.4).is_finite());
-        assert!(d.inverse_sf(0.4).unwrap().is_finite());
+        assert!(d.inverse_ccdf(0.4).unwrap().is_finite());
         assert!(d.mean().is_finite());
         assert!(d.variance().is_finite());
         assert!(d.entropy().is_finite());

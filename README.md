@@ -46,10 +46,10 @@ textbook one-liners for mean, variance, and so on.
 The crate, like CDFLIB itself, uses several interchangeable names for the
 lower- and upper-tail probabilities of a distribution. The synonyms are:
 
-| Concept          | Method  | F90 name | CDFLIB code | Other names            |
-| ---------------- | ------- | -------- | ----------- | ---------------------- |
-| Pr[*X* ≤ *x*]    | [`cdf`] | `cum`    | _P_         | lower-tail probability |
-| Pr[*X* &gt; *x*] | [`sf`]  | `ccum`   | _Q_         | upper-tail / survival  |
+| Concept          | Method   | F90 name | CDFLIB code | Other names                    |
+| ---------------- | -------- | -------- | ----------- | ------------------------------ |
+| Pr[*X* ≤ *x*]    | [`cdf`]  | `cum`    | _P_         | lower-tail probability         |
+| Pr[*X* &gt; *x*] | [`ccdf`] | `ccum`   | _Q_         | upper tail (complementary CDF) |
 
 The two are mathematically complementary (_P_ + _Q_ = 1), but the crate computes
 them independently rather than deriving one from the other by subtraction. This
@@ -128,7 +128,7 @@ other parameters. For example:
 
 ## Examples
 
-### CDFs, survival functions, and inverses
+### CDFs, complementary CDFs, and inverses
 
 ```rust
 use cdflib::Normal;
@@ -136,9 +136,9 @@ use cdflib::traits::{Continuous, ContinuousCdf, Mean};
 
 let n = Normal::try_new(0.0, 1.0)?;
 let p   = n.cdf(1.96);              // 0.9750021048517796
-let sf  = n.sf(5.0);                // 2.866516e-7, computed directly (not 1 - cdf)
+let sf  = n.ccdf(5.0);                // 2.866516e-7, computed directly (not 1 - cdf)
 let x   = n.inverse_cdf(0.975)?;    // 1.9599639845400538
-let xs  = n.inverse_sf(1e-12)?;     // 7.034484 (accurate deep into the right tail)
+let xs  = n.inverse_ccdf(1e-12)?;     // 7.034484 (accurate deep into the right tail)
 let d   = n.pdf(0.0);               // 0.3989422804014327
 let mu  = n.mean();                 // 0.0
 # Ok::<(), cdflib::NormalError>(())
@@ -175,7 +175,7 @@ let crit = ChiSquared::try_new(5.0)?.inverse_cdf(0.95)?;
 // 11.0705
 
 // Power against a noncentral alternative with ncp = 10.
-let power = ChiSquaredNoncentral::try_new(5.0, 10.0)?.sf(crit);
+let power = ChiSquaredNoncentral::try_new(5.0, 10.0)?.ccdf(crit);
 // 0.6774
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
@@ -241,8 +241,8 @@ digit. The intentional structural divergences are:
   via an integer flag) is split into two Rust functions, [`error_fc`] and
   [`error_fc_scaled`]. Same numerics, no flag argument.
 - The Fortran `cum*` and `cdf*` dispatcher families are folded into the
-  corresponding distribution module's [`cdf`] / [`sf`] / [`inverse_cdf`] /
-  [`inverse_sf`] / `search_*` methods rather than exposed as bare functions.
+  corresponding distribution module's [`cdf`] / [`ccdf`] / [`inverse_cdf`] /
+  [`inverse_ccdf`] / `search_*` methods rather than exposed as bare functions.
 - `dinvr` and `dzror` (the reverse-communication root finders) live as internal
   state machines in `crate::search`. They are not part of the public surface.
 - The search setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
@@ -303,6 +303,6 @@ transcribed from the [original Fortran 77 code] with a wrong exponent.
 [noncentral _F_]: https://docs.rs/cdflib/latest/cdflib/struct.FisherSnedecorNoncentral.html
 [Fortran 90 version of the library]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
 [`cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.cdf
-[`sf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.sf
+[`ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.sf
 [`inverse_cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_cdf
-[`inverse_sf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_sf
+[`inverse_ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_sf

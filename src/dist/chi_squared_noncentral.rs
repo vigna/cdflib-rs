@@ -293,7 +293,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         cumchn(x, self.df, self.ncp).0
     }
     #[inline]
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         cumchn(x, self.df, self.ncp).1
     }
     #[inline]
@@ -369,7 +369,7 @@ mod tests {
         let d = ChiSquaredNoncentral::new(4.0, 0.0);
         let x = 3.0;
         let cdf = d.cdf(x);
-        let sf = d.sf(x);
-        assert!((cdf + sf - 1.0).abs() < 1e-12);
+        let ccdf = d.ccdf(x);
+        assert!((cdf + ccdf - 1.0).abs() < 1e-12);
     }
 }

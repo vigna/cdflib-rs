@@ -199,7 +199,7 @@ impl ContinuousCdf for ChiSquared {
     }
 
     #[inline]
-    fn sf(&self, x: f64) -> f64 {
+    fn ccdf(&self, x: f64) -> f64 {
         if x <= 0.0 {
             return 1.0;
         }
@@ -254,14 +254,14 @@ impl ContinuousCdf for ChiSquared {
 }
 
 impl ChiSquared {
-    /// Returns the quantile *x* such that [sf]\(*x*\) = *q*.
+    /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// Mirrors CDFLIB's `cdfchi` with `which = 2`, using the same
     /// `cum - p` / `ccum - q` pivot as the Fortran routine.
     ///
-    /// [sf]: crate::traits::ContinuousCdf::sf
+    /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
-    pub fn inverse_sf(&self, q: f64) -> Result<f64, ChiSquaredError> {
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, ChiSquaredError> {
         check_q(q)?;
         if q == 1.0 {
             return Ok(0.0);
@@ -453,10 +453,10 @@ mod tests {
     }
 
     #[test]
-    fn sf_at_x_zero_is_one() {
+    fn ccdf_at_x_zero_is_one() {
         let c = ChiSquared::new(5.0);
-        assert_eq!(c.sf(0.0), 1.0);
-        assert_eq!(c.sf(-1.0), 1.0);
+        assert_eq!(c.ccdf(0.0), 1.0);
+        assert_eq!(c.ccdf(-1.0), 1.0);
     }
 
     #[test]
@@ -479,20 +479,20 @@ mod tests {
     }
 
     #[test]
-    fn inverse_sf_q_one_returns_zero() {
+    fn inverse_ccdf_q_one_returns_zero() {
         let c = ChiSquared::new(5.0);
-        assert_eq!(c.inverse_sf(1.0).unwrap(), 0.0);
+        assert_eq!(c.inverse_ccdf(1.0).unwrap(), 0.0);
     }
 
     #[test]
-    fn inverse_sf_rejects_bad_q() {
+    fn inverse_ccdf_rejects_bad_q() {
         let c = ChiSquared::new(5.0);
         assert!(matches!(
-            c.inverse_sf(-0.1),
+            c.inverse_ccdf(-0.1),
             Err(ChiSquaredError::QNotInRange(_))
         ));
         assert!(matches!(
-            c.inverse_sf(1.5),
+            c.inverse_ccdf(1.5),
             Err(ChiSquaredError::QNotInRange(_))
         ));
     }

@@ -8,7 +8,7 @@ use cdflib::{ContinuousCdf, Normal};
 use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL};
 
 #[test]
-fn cdf_and_sf_match_cdfnor_reference() {
+fn cdf_and_ccdf_match_cdfnor_reference() {
     for row in read_csv("tests/data/normal_cdf.csv") {
         let [mean, sd, x, expected_cdf, expected_sf] = row[..] else {
             panic!("width");
@@ -16,7 +16,7 @@ fn cdf_and_sf_match_cdfnor_reference() {
         let n = Normal::new(mean, sd);
         // Normal::cdf is a direct cumnor wrapper; no iterative routine.
         assert_close_eps(n.cdf(x), expected_cdf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
-        assert_close_eps(n.sf(x), expected_sf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_close_eps(n.ccdf(x), expected_sf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }
 }
 
@@ -43,7 +43,7 @@ fn inverse_cdf_matches_cdfnor_reference() {
         }
         if q <= 0.5 {
             assert_close_eps(
-                n.inverse_sf(q).unwrap(),
+                n.inverse_ccdf(q).unwrap(),
                 expected_x,
                 DINVNR_REL_TOL,
                 DINVNR_REL_TOL,

@@ -13,7 +13,7 @@
 //! [`Variance`]: crate::traits::Variance
 //! [`Entropy`]: crate::traits::Entropy
 
-/// Cumulative distribution function, survival function, and inverse CDF for
+/// Cumulative distribution function, complementary CDF, and inverse CDF for
 /// a continuous distribution.
 ///
 /// # Example
@@ -33,14 +33,14 @@ pub trait ContinuousCdf {
     /// Returns Pr\[*X* ≤ *x*\].
     fn cdf(&self, x: f64) -> f64;
 
-    /// Returns Pr\[*X* > *x*\], the survival function.
+    /// Returns Pr\[*X* > *x*\], the complementary CDF.
     ///
     /// Implementations compute this independently of [`cdf`] rather than as
     /// `1 − cdf(x)`, so the small tail keeps its precision deep into the
     /// tails where the subtraction would lose digits to cancellation.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
-    fn sf(&self, x: f64) -> f64;
+    fn ccdf(&self, x: f64) -> f64;
 
     /// Returns the smallest *x* such that [cdf]\(*x*\) ≥ *p*, for *p* ∈ [0 . . 1].
     ///
@@ -51,7 +51,7 @@ pub trait ContinuousCdf {
     fn inverse_cdf(&self, p: f64) -> Result<f64, Self::Error>;
 }
 
-/// Cumulative distribution function, survival function, and inverse CDF for
+/// Cumulative distribution function, complementary CDF, and inverse CDF for
 /// a discrete distribution over the non-negative integers.
 ///
 /// # Example
@@ -79,7 +79,7 @@ pub trait DiscreteCdf {
     /// the subtraction would lose digits to cancellation).
     ///
     /// [cdf]: DiscreteCdf::cdf
-    fn sf(&self, x: u64) -> f64;
+    fn ccdf(&self, x: u64) -> f64;
 
     /// Returns the smallest integer *x* such that [cdf]\(*x*\) ≥ *p*.
     /// At *p* = 0 returns 0; at *p* = 1 returns the supremum of support
