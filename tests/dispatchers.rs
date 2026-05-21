@@ -68,6 +68,17 @@ fn cdfbet_b_matches_beta_solve_b() {
 // ============================================================ Binomial
 
 #[test]
+fn cdfbin_s_matches_binomial_inverse_ccdf() {
+    for row in read_csv("tests/data/cdfbin_s.csv") {
+        let [_p, q, xn, pr, s_ref] = row[..] else {
+            panic!("width")
+        };
+        let got = Binomial::new(xn as u64, pr).inverse_ccdf(q).unwrap();
+        assert_close_eps(got, s_ref, REL, ABS);
+    }
+}
+
+#[test]
 fn cdfbin_xn_matches_binomial_solve_trials() {
     for row in read_csv("tests/data/cdfbin_xn.csv") {
         let [p, q, s, pr, xn_ref] = row[..] else {
@@ -274,6 +285,19 @@ fn cdfgam_scale_matches_gamma_solve_rate() {
 // ========================================================= NegativeBinomial
 
 #[test]
+fn cdfnbn_s_matches_negative_binomial_inverse_ccdf() {
+    for row in read_csv("tests/data/cdfnbn_s.csv") {
+        let [_p, q, r, pr, s_ref] = row[..] else {
+            panic!("width")
+        };
+        let got = NegativeBinomial::new(r as u64, pr)
+            .inverse_ccdf(q)
+            .unwrap();
+        assert_close_eps(got, s_ref, REL, ABS);
+    }
+}
+
+#[test]
 fn cdfnbn_xn_matches_negative_binomial_solve_r() {
     for row in read_csv("tests/data/cdfnbn_xn.csv") {
         let [p, q, s, pr, xn_ref] = row[..] else {
@@ -331,6 +355,17 @@ fn cdfnor_sd_matches_normal_solve_sd() {
 }
 
 // ============================================================== Poisson
+
+#[test]
+fn cdfpoi_s_matches_poisson_inverse_ccdf() {
+    for row in read_csv("tests/data/cdfpoi_s.csv") {
+        let [_p, q, lambda, s_ref] = row[..] else {
+            panic!("width")
+        };
+        let got = Poisson::new(lambda).inverse_ccdf(q).unwrap();
+        assert_close_eps(got, s_ref, REL, ABS);
+    }
+}
 
 #[test]
 fn cdfpoi_xlam_matches_poisson_solve_lambda() {
