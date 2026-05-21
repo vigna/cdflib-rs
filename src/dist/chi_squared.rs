@@ -124,9 +124,11 @@ impl ChiSquared {
         }
         // F(x; df) = P(df/2, x/2) is decreasing in df for fixed x > 0.
         // Mirror cdfchi's cum-p if p<=q else ccum-q precision pivot so
-        // the residual stays small near both tails of p. If the routine
-        // returns its indeterminate sentinel (F90 cdfchi status 10,
-        // cdflib.f90:5301), stash and propagate the error.
+        // the residual stays small near both tails of p. F90 cdfchi
+        // which=3 (cdflib.f90:3589-3592) guards each iteration with
+        // 1.5 < fx + porq, status = 10 to catch gamma_inc returning its
+        // huge sentinel; mirror that guard here.
+        let porq = p.min(q);
         let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |df: f64| {
             if gamma_inc_err.get().is_some() {
@@ -138,11 +140,15 @@ impl ChiSquared {
                     0.0
                 }
                 Ok((cum, ccum)) => {
-                    if p <= q {
-                        cum - p
-                    } else {
-                        ccum - q
+                    let fx = if p <= q { cum - p } else { ccum - q };
+                    if 1.5 < fx + porq {
+                        gamma_inc_err.set(Some(GammaIncError::Indeterminate {
+                            a: df / 2.0,
+                            x: x / 2.0,
+                        }));
+                        return 0.0;
                     }
+                    fx
                 }
             }
         };
@@ -216,9 +222,11 @@ impl ContinuousCdf for ChiSquared {
         let df = self.df;
         // F(x; df) = P(df/2, x/2) is strictly increasing in x.
         // Mirror cdfchi's which=2 precision pivot: cum-p if p<=q else
-        // ccum-q (cdflib.f90:5305), with q = 1 - p. Propagate routine
-        // indeterminate sentinel as F90 status 10 (cdflib.f90:5251).
+        // ccum-q (cdflib.f90:3533-3537), with q = 1 - p. Guard each
+        // iteration with F90's 1.5 < fx + porq (cdflib.f90:3539-3542)
+        // so gamma_inc's huge sentinel triggers F90 status 10.
         let q = 1.0 - p;
+        let porq = p.min(q);
         let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |x: f64| {
             if gamma_inc_err.get().is_some() {
@@ -230,11 +238,15 @@ impl ContinuousCdf for ChiSquared {
                     0.0
                 }
                 Ok((cum, ccum)) => {
-                    if p <= q {
-                        cum - p
-                    } else {
-                        ccum - q
+                    let fx = if p <= q { cum - p } else { ccum - q };
+                    if 1.5 < fx + porq {
+                        gamma_inc_err.set(Some(GammaIncError::Indeterminate {
+                            a: df / 2.0,
+                            x: x / 2.0,
+                        }));
+                        return 0.0;
                     }
+                    fx
                 }
             }
         };
@@ -265,6 +277,7 @@ impl ChiSquared {
         }
         let df = self.df;
         let p = 1.0 - q;
+        let porq = p.min(q);
         let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |x: f64| {
             if gamma_inc_err.get().is_some() {
@@ -276,11 +289,15 @@ impl ChiSquared {
                     0.0
                 }
                 Ok((cum, ccum)) => {
-                    if p <= q {
-                        cum - p
-                    } else {
-                        ccum - q
+                    let fx = if p <= q { cum - p } else { ccum - q };
+                    if 1.5 < fx + porq {
+                        gamma_inc_err.set(Some(GammaIncError::Indeterminate {
+                            a: df / 2.0,
+                            x: x / 2.0,
+                        }));
+                        return 0.0;
                     }
+                    fx
                 }
             }
         };

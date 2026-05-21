@@ -579,7 +579,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
         }
         d = (-(mu as f64)).exp();
     }
-    let mut bup = beta_rcomp1(mu, a, b, x, y) / a;
+    let bup = beta_rcomp1(mu, a, b, x, y) / a;
     if n == 1 || bup == 0.0 {
         return bup;
     }
@@ -604,10 +604,6 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
             let l = (i - 1) as f64;
             d *= (apb + l) / (ap1 + l) * x;
             w += d;
-        }
-        if k == nm1 {
-            bup *= w;
-            return bup;
         }
     }
     // Add remaining terms.

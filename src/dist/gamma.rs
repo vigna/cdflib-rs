@@ -168,9 +168,11 @@ impl Gamma {
         }
         // F(x; shape, rate) = P(shape, rate·x) is decreasing in shape
         // for fixed x > 0. Mirror Fortran cdfgam's precision pivot.
-        // Propagate gamma_inc indeterminate sentinel as F90 status 10
-        // (cdflib.f90:5286).
+        // Guard each iteration with F90's 1.5 < fx + porq check
+        // (cdflib.f90:5015-5020) so gamma_inc's huge sentinel triggers
+        // F90 status 10.
         let xr = x * rate;
+        let porq = p.min(q);
         let gamma_inc_err: Cell<Option<GammaIncError>> = Cell::new(None);
         let f = |shape: f64| {
             if gamma_inc_err.get().is_some() {
@@ -182,11 +184,12 @@ impl Gamma {
                     0.0
                 }
                 Ok((cum, ccum)) => {
-                    if p <= q {
-                        cum - p
-                    } else {
-                        ccum - q
+                    let fx = if p <= q { cum - p } else { ccum - q };
+                    if 1.5 < fx + porq {
+                        gamma_inc_err.set(Some(GammaIncError::Indeterminate { a: shape, x: xr }));
+                        return 0.0;
                     }
+                    fx
                 }
             }
         };

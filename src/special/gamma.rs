@@ -269,10 +269,15 @@ pub enum GammaDomainError {
     /// Argument is zero or a negative integer; Γ has a pole there.
     #[error("Γ has a pole at {0}")]
     Pole(f64),
-    /// Result would overflow f64 (|*a*| ≥ 1000, or the asymptotic
+    /// Result would overflow f64 (*a* ≥ 1000, or the asymptotic
     /// `exp(g)` would overflow).
     #[error("Γ({0}) overflows f64")]
     Overflow(f64),
+    /// Argument is too negative (*a* ≤ −1000). F90 `gamma_user`
+    /// (cdflib.f90:10162-10164) returns its sentinel 0 here; the true
+    /// value of Γ underflows.
+    #[error("Γ({0}) underflows f64")]
+    Underflow(f64),
 }
 
 /// Returns Γ(*a*), the Γ function.
@@ -395,9 +400,14 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
         return Ok(if a < 1.0 { g / t } else { g * t });
     }
 
-    // |a| >= 15: asymptotic.
-    if a.abs() >= 1e3 {
+    // |a| >= 15: asymptotic. F90 cdflib.f90:10162-10164 returns its
+    // sentinel 0 for |a| >= 1000 regardless of sign; we split by sign
+    // so the error variant carries the correct meaning.
+    if a >= 1e3 {
         return Err(GammaDomainError::Overflow(a));
+    }
+    if a <= -1e3 {
+        return Err(GammaDomainError::Underflow(a));
     }
     if a < 0.0 {
         let x = -a;
@@ -421,7 +431,9 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
         if g > 0.99999 * POS_EXPARG {
             return Err(GammaDomainError::Overflow(a));
         }
-        let result = g.exp();
+        let w = g;
+        let t = g - w;
+        let result = w.exp() * (1.0 + t);
         return Ok(1.0 / (result * s) / x);
     }
     // a >= 15 positive branch
@@ -652,7 +664,7 @@ pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
     }
 
     // 3 < x < xmax1: asymptotic.
-    let w = 1.0 / (x * x);
+    let w = (1.0 / x) / x;
     let mut den = w;
     let mut upper = P2[0] * w;
     for i in 1..=3 {
