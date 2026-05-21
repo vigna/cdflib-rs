@@ -9,9 +9,9 @@ The minimum supported Rust version is 1.71.
 
 CDFLIB is a small, venerable numerical library dating to the early 1990s that
 computes _cumulative distribution functions_ (CDFs) and their inverses for the
-standard distributions of frequentist statistics. It is distributed in the
-original Fortran 90, and in machine-translated C and C++. It covers eleven
-distributions:
+standard distributions of frequentist statistics. It is distributed in [Fortran
+90] and in [C]/[C++] (machine-translated from the original [Fortran 77]
+sources). It covers eleven distributions:
 
 | Continuous                        | Discrete          |
 | --------------------------------- | ----------------- |
@@ -117,14 +117,19 @@ large samples.
 
 ### 2. Solves for any parameter, not just _x_ and _p_
 
-Given a CDF identity _p_ = _F_(_x_; *θ*₁, *θ*₂, …), most libraries can give you _p_
-from _x_ (the CDF) or _x_ from _p_ (the inverse CDF, also called the quantile function).
-CDFLIB can additionally compute for any _θᵢ_ when you know _p_, _x_, and the
-other parameters. For example:
+Given a CDF identity _p_ = _F_(_x_; *θ*₁, *θ*₂, …), most libraries can give you
+_p_ from _x_ (the CDF) or _x_ from _p_ (the inverse CDF, also called the
+quantile function). CDFLIB can additionally compute for any _θᵢ_ when you know
+_p_, _x_, and the other parameters. For example:
 
-- “What standard deviation places probability 0.975 below _x_ = 1.96, given a mean of 0?”
-- “What number of trials puts Pr[*X* ≤ 10] at 0.95 in a Binomial with success rate 0.3?”
-- “What degrees of freedom for a χ² distribution put 95% of the mass below _x_ = 3.84?”
+- “What standard deviation places probability 0.975 below _x_ = 1.96, given a
+  mean of 0?”
+
+- “What number of trials puts Pr[*X* ≤ 10] at 0.95 in a Binomial with success
+  rate 0.3?”
+
+- “What degrees of freedom for a χ² distribution put 95% of the mass below _x_ =
+  3.84?”
 
 ## Examples
 
@@ -146,8 +151,8 @@ let mu  = n.mean();                 // 0.0
 
 ### Parameter searches
 
-Given _p_ = _F_(_x_; *θ*₁, *θ*₂, …), you can compute any parameter when the others are
-known. Two practical uses:
+Given _p_ = _F_(_x_; *θ*₁, *θ*₂, …), you can compute any parameter when the
+others are known. Two practical uses:
 
 ```rust
 use cdflib::{ChiSquared, Poisson};
@@ -233,14 +238,13 @@ digit. The intentional structural divergences are:
   errors, and is documented as such.
 - The Fortran routine `gamma_user` is exposed under the Rust name [`gamma`]. The
   Fortran name encodes a Fortran-2008 workaround (the language added a `gamma`
-  intrinsic, so the bundled CDFLIB routine had to be renamed to avoid the
-  collision). Rust has no such conflict, so the routine takes the bare family
-  name, mirroring how [`beta`] is the bare-name principal function of the Β
-  family.
+  intrinsic, so the routine had to be renamed to avoid the collision). Rust has
+  no such conflict, so the routine takes the bare family name, mirroring
+  [`beta`].
 - `error_fc(ind, x)` (which multiplexes plain and exponentially-scaled output
   via an integer flag) is split into two Rust functions, [`error_fc`] and
   [`error_fc_scaled`]. Same numerics, no flag argument.
-- The Fortran `cum*` and `cdf*` dispatcher families are folded into the
+- The Fortran `cum*` and `cdf*` method families are folded into the
   corresponding distribution module's [`cdf`] / [`ccdf`] / [`inverse_cdf`] /
   [`inverse_ccdf`] / `search_*` methods rather than exposed as bare functions.
 - `dinvr` and `dzror` (the reverse-communication root finders) live as internal
@@ -252,14 +256,12 @@ digit. The intentional structural divergences are:
 
 The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing
-[`cdflib::special`] surface stays focused on the routines a statistical
-user is likely to call. Both surfaces are public and documented; a port
-from C/Fortran can find each CDFLIB algorithmic routine under its original
-name in one or the other, modulo the renames and splits enumerated above.
-The machine-constant utilities (`ipmpar`, `dpmpar`, `exparg`) and the
-`ftnstop` fatal-error sink are not ported: the constants live as Rust
-module-level values, and error reporting goes through the `try_*`/`Result`
-pairs described above.
+[`cdflib::special`] surface stays focused on the routines a statistical user is
+likely to call. Each CDFLIB algorithmic routine can be found under its original
+name, modulo the renames and splits enumerated above. The machine-constant
+utilities (`ipmpar`, `dpmpar`, `exparg`) and the `ftnstop` fatal-error sink are
+not ported: the constants live as Rust module-level values, and error reporting
+goes through the `try_*`/`Result` pairs described above.
 
 ## Testing
 
@@ -270,10 +272,11 @@ shell scripts in `tests/regenerate/` if desired; you will need a Fortran 90
 compiler.
 
 The code has been extensively tested against the original Fortran 90 and C
-sources. In the process, we found [serious bugs in `rmathlib`] and a major
-mistake in the [Fortran 90 version of the library] that has remained undetected
-for 25 years: a coefficient for the computation of the error function had been
-transcribed from the [original Fortran 77 code] with a wrong exponent.
+sources. In the process, we found [serious bugs in `rmathlib`] and a bug in the
+[Fortran 90 version of the library] that has remained undetected for 25 years: a
+coefficient for the computation of the error function had been transcribed from
+the [original Fortran 77 code] with a wrong exponent (the [C]/[C++] version are
+unaffected).
 
 [CDFLIB]: https://people.sc.fsu.edu/~jburkardt/cpp_src/cdflib/cdflib.html
 [ACM Algorithm 654]: https://dl.acm.org/doi/10.1145/29380.214348
@@ -302,7 +305,12 @@ transcribed from the [original Fortran 77 code] with a wrong exponent.
 [noncentral χ²]: https://docs.rs/cdflib/latest/cdflib/struct.ChiSquaredNoncentral.html
 [noncentral _F_]: https://docs.rs/cdflib/latest/cdflib/struct.FisherSnedecorNoncentral.html
 [Fortran 90 version of the library]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
+[original Fortran 77 code]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
 [`cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.cdf
 [`ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.ccdf
 [`inverse_cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_cdf
 [`inverse_ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_ccdf
+[Fortran 90]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
+[Fortran 77]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
+[C]: https://people.sc.fsu.edu/~jburkardt/c_src/cdflib/cdflib.html
+[C++]: https://people.sc.fsu.edu/~jburkardt/cpp_src/cdflib/cdflib.html
