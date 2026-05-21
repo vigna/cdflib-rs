@@ -1,10 +1,9 @@
-use thiserror::Error;
-
 use crate::error::SearchError;
 use crate::search::search_monotone;
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
+use thiserror::Error;
 
 /// Noncentral *F* distribution with numerator df *dfn*, denominator df *dfd*,
 /// and noncentrality *λ* ≥ 0.

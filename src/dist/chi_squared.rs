@@ -1,12 +1,10 @@
-use thiserror::Error;
-
-use std::cell::Cell;
-
 use crate::error::SearchError;
 use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::{gamma_inc, try_gamma_inc, GammaIncError};
 use crate::special::{gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
+use std::cell::Cell;
+use thiserror::Error;
 
 /// χ² distribution with *df* degrees of freedom.
 ///

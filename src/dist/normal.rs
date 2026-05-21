@@ -1,9 +1,7 @@
-use std::f64::consts::{E, PI};
-
-use thiserror::Error;
-
 use crate::special::{cumnor, dinvnr};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
+use std::f64::consts::{E, PI};
+use thiserror::Error;
 
 /// Normal (Gaussian) distribution *N*(*μ*, *σ*²) with mean *μ* and standard
 /// deviation *σ*.

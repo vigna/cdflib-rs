@@ -1,10 +1,9 @@
-use thiserror::Error;
-
 use crate::error::SearchError;
 use crate::search::{search_monotone_with_atol, SEARCH_BOUND};
 use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
+use thiserror::Error;
 
 /// Noncentral χ² distribution with *df* > 0 degrees of freedom and
 /// noncentrality parameter *λ* ≥ 0.

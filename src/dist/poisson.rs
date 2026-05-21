@@ -1,10 +1,9 @@
-use thiserror::Error;
-
 use crate::error::SearchError;
 use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::gamma_inc;
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
+use thiserror::Error;
 
 /// Poisson distribution with rate parameter *λ*.
 ///

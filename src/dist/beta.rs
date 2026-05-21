@@ -1,10 +1,9 @@
-use thiserror::Error;
-
 use crate::error::SearchError;
 use crate::search::{search_bounded_zero, search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
+use thiserror::Error;
 
 /// Β distribution with shape parameters *a* > 0 and *b* > 0.
 ///

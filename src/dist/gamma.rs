@@ -1,13 +1,11 @@
-use std::cell::Cell;
-
-use thiserror::Error;
-
 use crate::error::SearchError;
 use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::{
     gamma_inc, gamma_log, psi, try_gamma_inc, try_gamma_inc_inv, GammaIncError, GammaIncInvError,
 };
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
+use std::cell::Cell;
+use thiserror::Error;
 
 /// Γ distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
 ///

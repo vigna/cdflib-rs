@@ -1,10 +1,9 @@
-use thiserror::Error;
-
 use crate::error::SearchError;
 use crate::search::{search_monotone, SEARCH_BOUND};
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
+use thiserror::Error;
 
 /// Fisher–Snedecor (*F*) distribution with *dfn* numerator and *dfd*
 /// denominator degrees of freedom.

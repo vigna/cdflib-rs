@@ -48,6 +48,15 @@ pub(crate) mod gamma;
 pub mod internal;
 pub(crate) mod normal;
 pub(crate) mod students_t;
+pub use beta::{beta, beta_inc, beta_log, try_beta_inc, BetaIncError};
+pub use erf::{error_f, error_fc, error_fc_scaled};
+pub use gamma::{
+    gamma, gamma_inc, gamma_inc_inv, gamma_inc_with_acc, gamma_log, psi, try_gamma, try_gamma_inc,
+    try_gamma_inc_inv, try_gamma_inc_with_acc, try_psi, GammaDomainError, GammaIncAcc,
+    GammaIncError, GammaIncInvError, PsiError,
+};
+pub use normal::{cumnor, dinvnr, dlanor};
+pub use students_t::dt1;
 
 /// Returns the Horner evaluation of *c*₀ + *c*₁·*x* + *c*₂·*x*² + …. Mirrors
 /// CDFLIB's `eval_pol` (coefficients ascending).
@@ -59,13 +68,3 @@ pub(crate) fn eval_pol(c: &[f64], x: f64) -> f64 {
     }
     acc
 }
-
-pub use beta::{beta, beta_inc, beta_log, try_beta_inc, BetaIncError};
-pub use erf::{error_f, error_fc, error_fc_scaled};
-pub use gamma::{
-    gamma, gamma_inc, gamma_inc_inv, gamma_inc_with_acc, gamma_log, psi, try_gamma, try_gamma_inc,
-    try_gamma_inc_inv, try_gamma_inc_with_acc, try_psi, GammaDomainError, GammaIncAcc,
-    GammaIncError, GammaIncInvError, PsiError,
-};
-pub use normal::{cumnor, dinvnr, dlanor};
-pub use students_t::dt1;

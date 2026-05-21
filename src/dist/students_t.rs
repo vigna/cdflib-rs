@@ -1,12 +1,10 @@
-use std::f64::consts::PI;
-
-use thiserror::Error;
-
 use crate::error::SearchError;
 use crate::search::search_monotone;
 use crate::special::beta_inc;
 use crate::special::{dt1, gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
+use std::f64::consts::PI;
+use thiserror::Error;
 
 /// Student's *t* distribution with *df* > 0 degrees of freedom.
 ///
