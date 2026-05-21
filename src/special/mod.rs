@@ -40,7 +40,7 @@
 //! [`dlanor`]: crate::special::dlanor
 //! [`dt1`]: crate::special::dt1
 //! [`cdf`]: crate::traits::ContinuousCdf::cdf
-//! [`ccdf`]: crate::traits::ContinuousCdf::sf
+//! [`ccdf`]: crate::traits::ContinuousCdf::ccdf
 
 pub(crate) mod beta;
 pub(crate) mod erf;

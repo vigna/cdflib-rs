@@ -219,7 +219,7 @@ impl ContinuousCdf for Normal {
     /// with full precision; CDFLIB's (*p*, *q*) pair convention
     /// exists for exactly this reason.)
     ///
-    /// [`inverse_ccdf`]: Self::inverse_sf
+    /// [`inverse_ccdf`]: Self::inverse_ccdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
         check_p(p)?;
