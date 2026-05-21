@@ -108,12 +108,3 @@ fn fisher_snedecor_noncentral_search_dfd_qleft_bound_is_f90_zero_not_small() {
         "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:4677, got {err:?}"
     );
 }
-
-// Default sites (where F90 `bound` matches `small` or `big`) are covered by
-// the `qleft_qhi_bounds_are_passed_through_distinctly` test inside
-// `src/search/mod.rs`, which verifies the mechanism. Constructing
-// reachable failure inputs for each individual `cdf*` is straightforward
-// only for the three drift sites above, where the search range is narrow
-// enough (1.0 . . 1e10 or 1e30) that a clearly impossible target can be
-// chosen; for the default sites the range is typically `[0, 1e300]` and
-// few physical inputs fail outright.
