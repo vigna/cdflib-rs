@@ -46,10 +46,10 @@ textbook one-liners for mean, variance, and so on.
 The crate, like CDFLIB itself, uses several interchangeable names for the
 lower- and upper-tail probabilities of a distribution. The synonyms are:
 
-| Concept          | Method   | F90 name | CDFLIB code | Other names                    |
-| ---------------- | -------- | -------- | ----------- | ------------------------------ |
-| Pr[*X* ≤ *x*]    | [`cdf`]  | `cum`    | _P_         | lower-tail probability         |
-| Pr[*X* &gt; *x*] | [`ccdf`] | `ccum`   | _Q_         | upper tail (complementary CDF) |
+| Concept          | Method   | F90 name | CDFLIB code | Other names                                                            |
+| ---------------- | -------- | -------- | ----------- | ---------------------------------------------------------------------- |
+| Pr[*X* ≤ *x*]    | [`cdf`]  | `cum`    | _P_         | cumulative distribution function, lower-tail probability               |
+| Pr[*X* &gt; *x*] | [`ccdf`] | `ccum`   | _Q_         | complementary cumulative distribution function, upper-tail probability |
 
 The two are mathematically complementary (_P_ + _Q_ = 1), but the crate computes
 them independently rather than deriving one from the other by subtraction. This

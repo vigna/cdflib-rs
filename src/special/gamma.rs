@@ -854,7 +854,7 @@ pub enum GammaIncError {
 /// the other so that the small tail keeps its precision.
 ///
 /// Five computational regimes are selected based on the location of
-/// (*a*, *x*) in parameter space.
+/// (*a*, *x*) in the parameter space.
 ///
 /// # Panics
 ///

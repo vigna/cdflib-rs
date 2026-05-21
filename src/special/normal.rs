@@ -222,8 +222,8 @@ pub fn stvaln(p: f64) -> f64 {
 }
 
 /// Returns the logarithm of the asymptotic upper-tail standard normal CDF for
-/// |*x*| ≥ 5: returns ln Pr\[*X* > |*x*|\] for *X* ∼ *N*(0, 1) via
-/// Abramowitz & Stegun formula 26.2.12.
+/// |*x*| ≥ 5: returns ln Pr\[*X* > |*x*|\] for *X* ∼ *N*(0, 1) via Abramowitz &
+/// Stegun formula 26.2.12.
 ///
 /// The relative error at *x* = 5 is about 5·10⁻⁶ and improves as |*x*|
 /// grows.
