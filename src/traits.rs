@@ -13,7 +13,7 @@
 //! [`Variance`]: crate::traits::Variance
 //! [`Entropy`]: crate::traits::Entropy
 
-/// Cumulative distribution function, complementary CDF, and inverse CDF for
+/// Cumulative distribution function (CDF), complementary CDF, and inverse CDF for
 /// a continuous distribution.
 ///
 /// # Example
@@ -51,7 +51,7 @@ pub trait ContinuousCdf {
     fn inverse_cdf(&self, p: f64) -> Result<f64, Self::Error>;
 }
 
-/// Cumulative distribution function, complementary CDF, and inverse CDF for
+/// Cumulative distribution function (CDF), complementary CDF, and inverse CDF for
 /// a discrete distribution over the non-negative integers.
 ///
 /// # Example
