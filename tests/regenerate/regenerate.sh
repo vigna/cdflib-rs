@@ -26,6 +26,7 @@ GENERATORS="
     discrete_distributions
     noncentral_distributions
     dispatchers
+    psi_dt1_kernels
 "
 for name in $GENERATORS; do
     SRC="tests/regenerate/gen_${name}.f90"
