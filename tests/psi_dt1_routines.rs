@@ -6,8 +6,8 @@
 
 mod common;
 
-use cdflib::special::{dlanor, dt1, psi};
 use cdflib::special::internal::stvaln;
+use cdflib::special::{dlanor, dt1, psi};
 use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, KERNEL_REL_TOL};
 
 #[test]
