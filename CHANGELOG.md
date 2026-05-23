@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.4.2]
+
+### Improved
+
+- More tests.
+
+- Cleaned up code.
+
 ## [0.4.1] - 2026-05-21
 
 ### Changed
@@ -40,7 +48,7 @@
 
 - Restored accuracy selection for `gamma_inc` via `gamma_inc_with_acc`.
 
-- Solvers now take *P* and *Q* instead of computing *Q* = 1 - *P*.
+- Solvers now take _P_ and _Q_ instead of computing _Q_ = 1 - _P_.
 
 ## [0.3.1] - 2026-05-20
 

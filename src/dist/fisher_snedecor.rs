@@ -121,10 +121,9 @@ impl FisherSnedecor {
     /// Returns the numerator degrees of freedom *dfn* satisfying
     /// Pr[*X* ≤ *f*] = *p* given *dfd*.
     ///
-    /// Mirrors CDFLIB's `cdff` with `which = 3`. Caller passes both *p*
-    /// and *q* = 1 − *p*; consistency is enforced within 3ε. The search
-    /// has lower bound 1, since *dfn* < 1 makes `cumf`'s
-    /// `beta_inc` call diverge.
+    /// Mirrors CDFLIB's `cdff` with `which = 3`. Caller passes both *p* and *q*
+    /// = 1 − *p*; consistency is enforced within 3ε. The search has lower bound
+    /// 1, since *dfn* < 1 makes `cumf`'s `beta_inc` call diverge.
     #[inline]
     pub fn search_dfn(p: f64, q: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
         check_pq(p, q)?;
@@ -161,13 +160,12 @@ impl FisherSnedecor {
         )?)
     }
 
-    /// Returns the denominator degrees of freedom *dfd* satisfying
-    /// Pr[*X* ≤ *f*] = *p* given *dfn*.
+    /// Returns the denominator degrees of freedom *dfd* satisfying Pr[*X* ≤
+    /// *f*] = *p* given *dfn*.
     ///
-    /// Mirrors CDFLIB's `cdff` with `which = 4`. Caller passes both *p*
-    /// and *q* = 1 − *p*; consistency is enforced within 3ε. Lower-bounded
-    /// below by 1 for the same convergence reason as
-    /// [`search_dfn`](Self::search_dfn).
+    /// Mirrors CDFLIB's `cdff` with `which = 4`. Caller passes both *p* and *q*
+    /// = 1 − *p*; consistency is enforced within 3ε. Lower-bounded below by 1
+    /// for the same convergence reason as [`search_dfn`](Self::search_dfn).
     #[inline]
     pub fn search_dfd(p: f64, q: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
         check_pq(p, q)?;

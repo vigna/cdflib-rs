@@ -106,7 +106,7 @@ pub(crate) fn search_monotone_with_atol(
     let big = big.min(SEARCH_BOUND);
     let small = small.max(-SEARCH_BOUND);
 
-    // CDFLIB's dinvr aborts (ftnstop) if start ∉ [small . . big]
+    // CDFLIB's dinvr aborts (ftnstop) if start ∉ [small..big]
     // (cdflib.f90:8020-8024). Return a typed error instead.
     if !(small <= start && start <= big) {
         return Err(SearchError::StartOutOfRange { start, small, big });
@@ -214,7 +214,7 @@ mod tests {
     // ============================ Failure paths in dinvr ============================
     //
     // These cover the four range-validity branches and the qlim overshoot
-    // failures. Each one constructs a function where the [small . . big] range
+    // failures. Each one constructs a function where the [small..big] range
     // does NOT enclose a root, or the root lies outside even after expansion.
 
     #[test]

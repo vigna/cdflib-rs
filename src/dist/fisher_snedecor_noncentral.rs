@@ -153,14 +153,14 @@ impl FisherSnedecorNoncentral {
         self.ncp
     }
 
-    /// Returns the numerator degrees of freedom *dfn* satisfying
-    /// Pr[*X* ≤ *f*] = *p* given *dfd* and *λ*. Mirrors CDFLIB's `cdffnc`
-    /// with `which = 3`. The search runs over [1 . . 10³⁰].
+    /// Returns the numerator degrees of freedom *dfn* satisfying Pr[*X* ≤ *f*]
+    /// = *p* given *dfd* and *λ*. Mirrors CDFLIB's `cdffnc` with `which = 3`.
+    /// The search runs over [1 . . 10³⁰].
     ///
     /// Unlike most `cdf*` searches, this one does not take *q*: CDFLIB
-    /// (cdflib.f90:3766) documents *q* as "not used by this subroutine,
-    /// and is only included for similarity with the other routines", so
-    /// it is dropped from the Rust surface.
+    /// (cdflib.f90:3766) documents *q* as "not used by this subroutine, and is
+    /// only included for similarity with the other routines", so it is dropped
+    /// from the Rust surface.
     #[inline]
     pub fn search_dfn(
         p: f64,
