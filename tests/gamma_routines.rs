@@ -4,7 +4,8 @@
 
 mod common;
 
-use cdflib::special::{gamma, gamma_inc, gamma_inc_with_acc, gamma_log, GammaIncAcc};
+use cdflib::special::internal::dstrem;
+use cdflib::special::{gamma, gamma_inc, gamma_inc_inv, gamma_inc_with_acc, gamma_log, GammaIncAcc};
 use common::{
     assert_close_eps, read_csv, DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL,
     ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
@@ -125,5 +126,31 @@ fn gamma_inc_accuracy_envelopes() {
             (p_max - p3).abs() <= 1.0e-3,
             "Digits3 envelope busted at a={a}, x={x}: |{p_max} - {p3}| > 1e-3",
         );
+    }
+}
+
+#[test]
+fn gamma_inc_inv_matches_reference() {
+    for row in read_csv("tests/data/gamma_inc_inv.csv") {
+        let [a, p, q, expected_x, _ierr] = row[..] else {
+            panic!("width");
+        };
+        let (x, _) = gamma_inc_inv(a, -1.0, p, q);
+        assert_close_eps(
+            x,
+            expected_x,
+            ITERATIVE_KERNEL_REL_TOL,
+            ITERATIVE_KERNEL_ABS_TOL,
+        );
+    }
+}
+
+#[test]
+fn dstrem_matches_reference() {
+    for row in read_csv("tests/data/dstrem.csv") {
+        let [z, expected] = row[..] else {
+            panic!("width");
+        };
+        assert_close_eps(dstrem(z), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }
 }

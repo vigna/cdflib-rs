@@ -4,6 +4,7 @@
 
 mod common;
 
+use cdflib::special::internal::dbetrm;
 use cdflib::special::{beta_inc, beta_log};
 use common::{
     assert_close_eps, read_csv, DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL,
@@ -39,5 +40,15 @@ fn beta_inc_matches_reference() {
             ITERATIVE_KERNEL_REL_TOL,
             ITERATIVE_KERNEL_ABS_TOL,
         );
+    }
+}
+
+#[test]
+fn dbetrm_matches_reference() {
+    for row in read_csv("tests/data/dbetrm.csv") {
+        let [a, b, expected] = row[..] else {
+            panic!("width");
+        };
+        assert_close_eps(dbetrm(a, b), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }
 }

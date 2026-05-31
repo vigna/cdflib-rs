@@ -1,10 +1,11 @@
-! Reference tables for the gamma kernels: gamma_log, gamma, gamma_inc.
+! Reference tables for the gamma kernels: gamma_log, gamma, gamma_inc,
+! gamma_inc_inv, dstrem.
 
 program gen_gamma_kernels
   implicit none
   integer, parameter :: rk = kind(1.0d0)
-  real(kind=rk), external :: gamma_log, gamma_user
-  external :: gamma_inc
+  real(kind=rk), external :: gamma_log, gamma_user, dstrem
+  external :: gamma_inc, gamma_inc_inv
 
   real(kind=rk), parameter :: as(*) = (/ &
     0.25_rk, 0.5_rk, 0.9_rk, 1.0_rk, 1.5_rk, 2.5_rk, 5.0_rk, &
@@ -73,7 +74,10 @@ program gen_gamma_kernels
   call write_gamma_inc('tests/data/gamma_inc_d6.csv', 1)
   call write_gamma_inc('tests/data/gamma_inc_d3.csv', 2)
 
-  write(0, '(a)') 'wrote 5 tables under tests/data/'
+  call write_gamma_inc_inv()
+  call write_dstrem()
+
+  write(0, '(a)') 'wrote 7 tables under tests/data/'
 
 contains
   subroutine write_gamma_inc(path, ind_arg)
@@ -122,6 +126,81 @@ contains
     end do
     close(u)
   end subroutine write_gamma_inc
+
+  subroutine write_gamma_inc_inv()
+    integer :: u, ii, ip, ierr
+    real(kind=rk) :: a, p, qq, xx
+    ! a values spanning the initial-approximation branches:
+    ! small a (< 1), moderate a (1..20), large a (> 20).
+    real(kind=rk), parameter :: inv_as(*) = (/ &
+      0.1_rk, 0.25_rk, 0.5_rk, 0.75_rk, 0.9_rk, &
+      1.0_rk, 1.5_rk, 2.0_rk, 3.0_rk, 5.0_rk, &
+      10.0_rk, 15.0_rk, 20.0_rk, 25.0_rk, 50.0_rk, &
+      100.0_rk, 500.0_rk /)
+    ! p values covering both tails and the body.
+    real(kind=rk), parameter :: ps(*) = (/ &
+      1.0e-12_rk, 1.0e-8_rk, 1.0e-4_rk, 0.001_rk, 0.01_rk, &
+      0.05_rk, 0.1_rk, 0.2_rk, 0.3_rk, 0.4_rk, 0.5_rk, &
+      0.6_rk, 0.7_rk, 0.8_rk, 0.9_rk, 0.95_rk, 0.99_rk, &
+      0.999_rk, 0.9999_rk, 0.99999999_rk, 0.999999999999_rk /)
+
+    open(newunit=u, file='tests/data/gamma_inc_inv.csv', &
+         status='replace', action='write')
+    write(u, '(a)') '# a, p, q, x, ierr'
+    do ii = 1, size(inv_as)
+      a = inv_as(ii)
+      do ip = 1, size(ps)
+        p = ps(ip)
+        qq = 1.0_rk - p
+        xx = 0.0_rk
+        ierr = 0
+        call gamma_inc_inv(a, xx, -1.0_rk, p, qq, ierr)
+        if (ierr >= 0) then
+          call putval(u, a, .false.)
+          call putval(u, p, .false.)
+          call putval(u, qq, .false.)
+          call putval(u, xx, .false.)
+          call putint(u, ierr, .true.)
+        end if
+      end do
+    end do
+    close(u)
+  end subroutine write_gamma_inc_inv
+
+  subroutine write_dstrem()
+    integer :: u
+    real(kind=rk) :: z
+    open(newunit=u, file='tests/data/dstrem.csv', &
+         status='replace', action='write')
+    write(u, '(a)') '# z, dstrem(z)'
+    ! Fine grid across the branch point at z = 6.
+    z = 0.1_rk
+    do while (z <= 20.0_rk + 1.0e-12_rk)
+      call putval(u, z, .false.)
+      call putval(u, dstrem(z), .true.)
+      z = z + 0.1_rk
+    end do
+    ! Large z: asymptotic regime.
+    z = 50.0_rk
+    do while (z <= 500.0_rk + 1.0e-12_rk)
+      call putval(u, z, .false.)
+      call putval(u, dstrem(z), .true.)
+      z = z + 50.0_rk
+    end do
+    close(u)
+  end subroutine write_dstrem
+
+  subroutine putint(unit, v, last)
+    integer, intent(in) :: unit, v
+    logical, intent(in) :: last
+    character(len=16) :: buf
+    write(buf, '(i0)') v
+    if (last) then
+      write(unit, '(a)') trim(adjustl(buf))
+    else
+      write(unit, '(a, a)', advance='no') trim(adjustl(buf)), ','
+    end if
+  end subroutine putint
 
   subroutine putval(unit, v, last)
     integer, intent(in) :: unit

@@ -1793,13 +1793,13 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), 
             if b >= 0.15 {
                 // F90 L11247
                 xn = y - s * t.ln() - (1.0 + s / (t + 1.0)).ln();
-                use_q = true; // `go to 220`
+                use_q = true; // go to 220
             } else if b > 0.01 {
                 // F90 L11252
                 let u = ((t + TWO * (3.0 - a)) * t + (TWO - a) * (3.0 - a))
                     / ((t + (5.0 - a)) * t + TWO);
                 xn = y - s * t.ln() - u.ln();
-                use_q = true; // `go to 220`
+                use_q = true; // go to 220
             } else {
                 // F90 L11261: label 30, c1..c5 expansion.
                 let xn_30 = label_30(a, s, z, y);
@@ -1857,7 +1857,7 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), 
                 return Ok((refined_xn, 0));
             }
             xn = refined_xn;
-            use_q = false; // `go to 170`
+            use_q = false; // go to 170
         } else if xn0 < 3.0 * a {
             // F90 L11356: go to 220.
             xn = xn0;

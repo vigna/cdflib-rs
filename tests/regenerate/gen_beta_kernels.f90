@@ -1,9 +1,9 @@
-! Reference tables for beta_log and beta_inc.
+! Reference tables for beta_log, beta_inc, and dbetrm.
 
 program gen_beta_kernels
   implicit none
   integer, parameter :: rk = kind(1.0d0)
-  real(kind=rk), external :: beta_log
+  real(kind=rk), external :: beta_log, dbetrm
   external :: beta_inc
 
   real(kind=rk), parameter :: ab(15) = (/ &
@@ -85,9 +85,32 @@ program gen_beta_kernels
   end do
   close(unit)
 
-  write(0, '(a)') 'wrote 2 tables under tests/data/'
+  ! dbetrm
+  call write_dbetrm()
+
+  write(0, '(a)') 'wrote 3 tables under tests/data/'
 
 contains
+  subroutine write_dbetrm()
+    integer :: u, i, j
+    real(kind=rk) :: a, b
+    real(kind=rk), parameter :: vals(*) = (/ &
+      0.5_rk, 1.0_rk, 2.0_rk, 5.0_rk, 10.0_rk, 20.0_rk, 50.0_rk, 100.0_rk /)
+    open(newunit=u, file='tests/data/dbetrm.csv', &
+         status='replace', action='write')
+    write(u, '(a)') '# a, b, dbetrm(a, b)'
+    do i = 1, size(vals)
+      do j = 1, size(vals)
+        a = vals(i)
+        b = vals(j)
+        call putval(u, a, .false.)
+        call putval(u, b, .false.)
+        call putval(u, dbetrm(a, b), .true.)
+      end do
+    end do
+    close(u)
+  end subroutine write_dbetrm
+
   subroutine putval(unit, v, last)
     integer, intent(in) :: unit
     real(kind=rk), intent(in) :: v
